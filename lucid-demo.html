@@ -5551,7 +5551,9 @@ function mountChat(where) {
   for (const m of c.msgs.slice(inSheet ? -12 : -6)) {
     if (m.who === 'you') { log.appendChild(el('div', 'msg you', m.text)); continue; }
     const row = el('div', 'msg ai ' + m.l.kind);
-    row.appendChild(el('span', 'k', t('adv.kind.' + m.l.kind)));
+    // 「計測」不掛標籤：大部分句子都是量測，每句都標只是雜訊。
+    // 其他種類（提案、注意、質問、你說的、参考）照標 —— 它們跟量測的性質不同，客人要分得出來。
+    if (m.l.kind !== 'fact') row.appendChild(el('span', 'k', t('adv.kind.' + m.l.kind)));
     row.appendChild(el('span', 'x', advLine(m.l)));
     log.appendChild(row);
   }
