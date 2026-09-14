@@ -220,7 +220,9 @@ let n = 0;
 const siteFiles = ['index.html', 'main.css', 'models/face_landmarker.task', ...MODULES,
   ...readdirSync(ROOT).filter((x) => /^_.*\.html$/.test(x)),
   ...(existsSync(join(ROOT, 'vendor')) ? readdirSync(join(ROOT, 'vendor')).map((f) => join('vendor', f)) : []),
-  ...(existsSync(imgDir) ? readdirSync(imgDir).map((f) => join('images', 'products', f)) : [])];
+  ...(existsSync(imgDir) ? readdirSync(imgDir).map((f) => join('images', 'products', f)) : []),
+  // 假鏡頭測試頁要用的那張臉 —— 沒複製進來的話，線上版的 _camtest.html 會直接相機錯誤
+  'images/_source/face_e1tw71e1tw71e1tw.jpg'];
 for (const f of siteFiles) if (copy(f)) n++;
 writeFileSync(join(SITE, 'images', 'products', 'index.json'),
               JSON.stringify(Object.keys(images).map((id) => id + '.png')));

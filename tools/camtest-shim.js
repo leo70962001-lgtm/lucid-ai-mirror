@@ -9,7 +9,8 @@
       x.drawImage(img,780,232,sw,sh,dx,0,dw,960); requestAnimationFrame(draw); })();
     stream=c.captureStream(30); ready=true;
   };
-  img.src='/images/_source/face_e1tw71e1tw71e1tw.jpg';
+  // 相對路徑：GitHub Pages 的網站放在 /倉庫名/ 底下，寫成 /images/… 會找不到
+  img.src='images/_source/face_e1tw71e1tw71e1tw.jpg';
   navigator.mediaDevices.getUserMedia=function(){
     return new Promise(function(res,rej){
       var t=setInterval(function(){ if(ready){clearInterval(t); res(stream);} },50);
