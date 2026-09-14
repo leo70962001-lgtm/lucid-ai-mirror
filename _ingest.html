@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<title>商品照檢查</title>
+<link rel="stylesheet" href="main.css">
+<style>
+ body{overflow:auto;padding:26px}
+ h2{font-size:17px;font-weight:600;margin:0 0 4px}
+ .lede{font-size:12px;color:var(--ink-3);max-width:640px;line-height:1.7;margin-bottom:22px}
+ .sum{display:flex;gap:22px;padding:14px 18px;border-radius:12px;margin-bottom:20px;
+      background:rgba(10,26,54,.7);box-shadow:var(--glow);font-size:12px}
+ .sum b{display:block;font:700 21px/1.3 ui-monospace,monospace}
+ .rowx{display:flex;gap:14px;align-items:center;padding:12px 14px;border-radius:12px;margin-bottom:9px;
+       background:rgba(8,22,45,.66);box-shadow:0 0 0 1px var(--line)}
+ .shot{width:72px;height:72px;flex:none;border-radius:9px;display:grid;place-content:center;
+       background:repeating-conic-gradient(#1b2740 0 25%,#131c30 0 50%) 0 0/12px 12px;overflow:hidden}
+ .shot img{max-width:100%;max-height:100%;object-fit:contain}
+ .shot.none{font-size:9.5px;color:var(--ink-3);text-align:center;line-height:1.4;padding:5px}
+ .nm{flex:1;min-width:0}
+ .nm b{font-size:13px}
+ .nm .s{font-size:10.5px;color:var(--ink-3)}
+ .pair{display:flex;gap:5px;flex:none}
+ .pair i{width:38px;height:38px;border-radius:8px;box-shadow:0 0 0 1px rgba(255,255,255,.2);
+         display:block;position:relative}
+ .pair i::after{content:attr(data-t);position:absolute;left:0;right:0;top:100%;padding-top:4px;
+         font:600 8.5px/1 ui-monospace,monospace;color:var(--ink-3);text-align:center}
+ .de{width:120px;flex:none;text-align:right;font:700 14px ui-monospace,monospace}
+ .de small{display:block;font:600 9.5px/1.5 inherit;letter-spacing:.06em}
+ .good{color:var(--ok)} .warn{color:var(--warn)} .bad{color:#ff8a8a} .none{color:var(--ink-3)}
+ pre{background:rgba(4,12,28,.8);padding:14px;border-radius:10px;overflow:auto;
+     font:12px/1.7 ui-monospace,monospace;color:var(--rose-soft);box-shadow:0 0 0 1px var(--line)}
+</style></head><body>
+<h2>商品照色彩檢查</h2>
+<p class="lede">
+把去背商品照放進 <code>images/products/</code>，用商品 id 命名（<code>L204.png</code>、<code>E01.webp</code>…），
+主程式會自動改用照片。這頁檢查的是最關鍵的一件事：<b>照片的顏色和 products.js 裡的色值是否一致</b>。
+不一致的話，顧客在 Step 3 看到照片的顏色，Step 4 的 AR 卻渲染出另一個顏色 —— 這是 AR 試妝最容易崩掉信任的地方。
+</p>
+<div id="out"></div>
+<script type="module">
+import { PRODUCTS, finishLabel, catLabel } from './js/products.js';
+import { rgbToLab, hexToLab, deltaE, extractProductColor } from './js/analysis.js';
+
+const files = await fetch('images/products/index.json').then(r=>r.ok?r.json():[]).catch(()=>[]);
+const probe = (url) => new Promise(r => { const i=new Image(); i.onload=()=>r(i); i.onerror=()=>r(null); i.src=url; });
+
+const rows = [], fixes = [];
+let withPhoto = 0, mismatched = 0;
+
+for (const p of PRODUCTS) {
+  const hit = files.find((f) => f.replace(/\.[^.]+$/, '') === p.id);
+  const url = hit ? `images/products/${hit}` : null;
+  const img = url ? await probe(url) : null;
+
+  let shot, pair, de, cls;
+  if (!img) {
+    shot = `<div class="shot none">缺少<br>${p.id}.png</div>`;
+    pair = `<div class="pair"><i style="background:${p.color}" data-t="色值"></i></div>`;
+    de = `<div class="de none">—<small>尚無照片</small></div>`;
+  } else {
+    withPhoto++;
+    const c = document.createElement('canvas');
+    const k = 320 / Math.max(img.width, img.height);
+    c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
+    c.getContext('2d',{willReadFrequently:true}).drawImage(img,0,0,c.width,c.height);
+    const got = extractProductColor(c);
+
+    shot = `<div class="shot"><img src="${url}"></div>`;
+    if (!got) {
+      pair = `<div class="pair"><i style="background:${p.color}" data-t="色值"></i></div>`;
+      de = `<div class="de none">?<small>取不到主色</small></div>`;
+    } else {
+      const d = deltaE(hexToLab(p.color), got.lab);
+      cls = d < 5 ? 'good' : d < 10 ? 'warn' : 'bad';
+      const verdict = d < 5 ? '一致' : d < 10 ? '看得出差異' : '明顯不符';
+      if (d >= 5) { mismatched++; fixes.push(`  { id: '${p.id}', … color: '${got.hex.toUpperCase()}' },   // 原為 ${p.color.toUpperCase()}，ΔE ${d.toFixed(1)}`); }
+      pair = `<div class="pair">
+                <i style="background:${p.color}" data-t="色值"></i>
+                <i style="background:${got.hex}" data-t="照片"></i>
+              </div>`;
+      de = `<div class="de ${cls}">ΔE ${d.toFixed(1)}<small>${verdict}</small></div>`;
+    }
+  }
+  rows.push(`<div class="rowx">${shot}
+    <div class="nm"><b>${p.brand} ${p.name}</b>
+      <div class="s">${catLabel(p.cat)} · ${p.shade} · ${finishLabel(p.finish)} · id <code>${p.id}</code></div></div>
+    ${pair}${de}</div>`);
+}
+
+const html = [
+  `<div class="sum">
+     <div><b>${PRODUCTS.length}</b>商品總數</div>
+     <div><b class="${withPhoto?'good':'none'}">${withPhoto}</b>已有照片</div>
+     <div><b class="${mismatched?'bad':'good'}">${mismatched}</b>顏色不符 (ΔE≥5)</div>
+     <div><b class="none">${PRODUCTS.length-withPhoto}</b>待補</div>
+   </div>`,
+  rows.join(''),
+];
+
+if (fixes.length) html.push(
+  `<h2 style="margin-top:26px">建議修正</h2>
+   <p class="lede">照片的顏色通常比手選的色碼更接近實品。把 <code>js/products.js</code> 的
+   <code>color</code> 換成下面的值，AR 渲染就會跟照片一致。<br>
+   但真正的權威來源是<b>實品在標準光源下的量測值</b> —— 上線前應該用色差儀量過，而不是以照片為準。</p>
+   <pre>${fixes.join('\n')}</pre>`);
+else if (withPhoto)
+  html.push(`<p class="lede" style="color:var(--ok)">所有照片的顏色都與色值一致（ΔE &lt; 5），Step 3 的照片和 Step 4 的 AR 會是同一個顏色。</p>`);
+
+document.getElementById('out').innerHTML = html.join('');
+</script></body></html>

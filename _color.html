@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<title>LUCID 色彩還原量測台</title>
+<style>
+  body { font:13px/1.6 system-ui, "Noto Sans TC", sans-serif; margin:20px; background:#f6f4f4; color:#333; }
+  h1 { font-size:18px; margin:0 0 4px; } h2 { font-size:14px; margin:22px 0 6px; }
+  p.note { color:#666; max-width:880px; margin:4px 0; }
+  table { border-collapse:collapse; margin:6px 0 12px; background:#fff; }
+  td, th { border:1px solid #ddd; padding:3px 9px; text-align:right; white-space:nowrap; }
+  th { background:#eee; font-weight:600; } .l { text-align:left; }
+  .good { color:#2e7d4f; font-weight:600; } .bad { color:#b3413b; font-weight:600; }
+  .strip { display:flex; flex-wrap:wrap; gap:10px; }
+  .cell { background:#fff; border:1px solid #ddd; padding:6px; text-align:center; font-size:11px; }
+  .sw { display:inline-block; width:26px; height:14px; vertical-align:middle; border:1px solid #0002; }
+</style></head>
+<body>
+<h1>色彩還原量測台</h1>
+<p class="note">
+  把每一支唇色用 AR 渲染器上到同一張臉上，量四件事：
+  <b>上唇後像不像色卡</b>（唇部亮度中段、以眼白去掉環境光後，與色卡的 ΔE2000）、
+  <b>與預期混合色的差</b>（覆蓋率 c 下應該看到 c·商品 + (1−c)·原本唇色；水光這類透明質地用這一欄判斷才公平）、
+  <b>色號之間分不分得開</b>（上唇後的兩兩色差 ÷ 色卡上的兩兩色差）、
+  <b>紋理有沒有保留</b>（唇部亮度的變異係數，上妝前後）與<b>唇以外有沒有被動到</b>。
+  額外受測影像可用 <code>?img=路徑&amp;crop=x,y,w,h</code> 加入（可重複）。
+</p>
+<div id="out">載入中…</div>
+
+<script type="module">
+import { initFace, detectImage } from './js/face.js';
+import { estimateIlluminant, rgbToLab } from './js/analysis.js';
+// ?model=old 載入改版前的渲染器副本（js/makeup-gl.old.js，存在時才有），做前後對照
+const MGL = await import(new URLSearchParams(location.search).get('model') === 'old' ? './js/makeup-gl.old.js' : './js/makeup-gl.js');
+import { PRODUCTS } from './js/products.js';
+
+const out = document.getElementById('out');
+const W = 640, H = 480;
+const BIAS = { matte: 0, gloss: 24, shimmer: 40 };           // 與 app.js 相同
+const LIPS_OUT = [61,146,91,181,84,17,314,405,321,375,291,409,270,269,267,0,37,39,40,185];
+const LIPS_IN  = [78,95,88,178,87,14,317,402,318,324,308,415,310,311,312,13,82,81,80,191];
+/** 與 app.js 的 glCfgFor 一致：有覆蓋率表就用表（新模型），沒有就是舊模型的 78 */
+const coverage = (p) => (MGL.COVERAGE ? MGL.COVERAGE.lip[p.finish] : 0.78);
+
+// ── 色彩工具 ────────────────────────────────────────────
+const lin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+const enc = (v) => { v = Math.max(0, Math.min(1, v)); return 255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055); };
+const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const lab = (rgb) => rgbToLab(rgb[0], rgb[1], rgb[2]);
+/** 線性空間的混合：c·A + (1−c)·B（A、B 為 sRGB 0..255） */
+const mixRGB = (A, B, c) => A.map((v, i) => enc(lin(v) * c + lin(B[i]) * (1 - c)));
+/** CIEDE2000 */
+function de00(A, B) {
+  const { L: L1, a: a1, b: b1 } = A, { L: L2, a: a2, b: b2 } = B;
+  const rad = Math.PI / 180, C1 = Math.hypot(a1, b1), C2 = Math.hypot(a2, b2), Cm = (C1 + C2) / 2;
+  const G = 0.5 * (1 - Math.sqrt(Cm ** 7 / (Cm ** 7 + 25 ** 7)));
+  const ap1 = (1 + G) * a1, ap2 = (1 + G) * a2, Cp1 = Math.hypot(ap1, b1), Cp2 = Math.hypot(ap2, b2);
+  const hp = (b, a) => { const h = Math.atan2(b, a) / rad; return h < 0 ? h + 360 : h; };
+  const hp1 = hp(b1, ap1), hp2 = hp(b2, ap2);
+  const dL = L2 - L1, dC = Cp2 - Cp1;
+  let dh = hp2 - hp1; if (Cp1 * Cp2 === 0) dh = 0; else if (dh > 180) dh -= 360; else if (dh < -180) dh += 360;
+  const dH = 2 * Math.sqrt(Cp1 * Cp2) * Math.sin(dh * rad / 2);
+  const Lm = (L1 + L2) / 2, Cpm = (Cp1 + Cp2) / 2;
+  let hm = hp1 + hp2; if (Cp1 * Cp2 !== 0) hm = Math.abs(hp1 - hp2) <= 180 ? hm / 2 : (hm < 360 ? (hm + 360) / 2 : (hm - 360) / 2);
+  const T = 1 - 0.17 * Math.cos((hm - 30) * rad) + 0.24 * Math.cos(2 * hm * rad) + 0.32 * Math.cos((3 * hm + 6) * rad) - 0.20 * Math.cos((4 * hm - 63) * rad);
+  const SL = 1 + 0.015 * (Lm - 50) ** 2 / Math.sqrt(20 + (Lm - 50) ** 2), SC = 1 + 0.045 * Cpm, SH = 1 + 0.015 * Cpm * T;
+  const RT = -2 * Math.sqrt(Cpm ** 7 / (Cpm ** 7 + 25 ** 7)) * Math.sin(60 * Math.exp(-(((hm - 275) / 25) ** 2)) * rad);
+  return Math.sqrt((dL / SL) ** 2 + (dC / SC) ** 2 + (dH / SH) ** 2 + RT * (dC / SC) * (dH / SH));
+}
+
+// ── 幾何 ────────────────────────────────────────────────
+function inside(x, y, pg) { let r = false; for (let i = 0, j = pg.length - 1; i < pg.length; j = i++) { const [xi, yi] = pg[i], [xj, yj] = pg[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) r = !r; } return r; }
+const scalePoly = (pg, k) => { const c = pg.reduce((s, p) => [s[0] + p[0] / pg.length, s[1] + p[1] / pg.length], [0, 0]); return pg.map(([x, y]) => [c[0] + (x - c[0]) * k, c[1] + (y - c[1]) * k]); };
+
+/** 唇部像素（外輪廓內縮 12%、內輪廓外擴 15%，避開羽化邊緣與口縫） */
+function lipPixels(P) {
+  const po = scalePoly(LIPS_OUT.map((i) => [P[i].x, P[i].y]), 0.88);
+  const pi = scalePoly(LIPS_IN.map((i) => [P[i].x, P[i].y]), 1.15);
+  const xs = po.map((p) => p[0]), ys = po.map((p) => p[1]), idx = [];
+  for (let y = Math.floor(Math.min(...ys)); y <= Math.ceil(Math.max(...ys)); y++)
+    for (let x = Math.floor(Math.min(...xs)); x <= Math.ceil(Math.max(...xs)); x++)
+      if (inside(x + 0.5, y + 0.5, po) && !inside(x + 0.5, y + 0.5, pi)) idx.push((y * W + x) * 4);
+  return idx;
+}
+/** 唇外一圈（外輪廓外擴 1.35~1.6 倍的環）—— 應該完全沒被動到 */
+function ringPixels(P) {
+  const a = scalePoly(LIPS_OUT.map((i) => [P[i].x, P[i].y]), 1.35), b = scalePoly(LIPS_OUT.map((i) => [P[i].x, P[i].y]), 1.6);
+  const xs = b.map((p) => p[0]), ys = b.map((p) => p[1]), idx = [];
+  for (let y = Math.max(0, Math.floor(Math.min(...ys))); y <= Math.min(H - 1, Math.ceil(Math.max(...ys))); y++)
+    for (let x = Math.max(0, Math.floor(Math.min(...xs))); x <= Math.min(W - 1, Math.ceil(Math.max(...xs))); x++)
+      if (inside(x + 0.5, y + 0.5, b) && !inside(x + 0.5, y + 0.5, a)) idx.push((y * W + x) * 4);
+  return idx;
+}
+
+// ── 量測 ────────────────────────────────────────────────
+const Ylin = (d, i) => 0.2126 * lin(d[i]) + 0.7152 * lin(d[i + 1]) + 0.0722 * lin(d[i + 2]);
+/** 亮度中段（素顏的第 25–85 百分位）：避開陰影與高光，這是「看起來是什麼顏色」的區域 */
+function midBand(d0, idx) {
+  const ys = idx.map((i) => Ylin(d0, i)).sort((a, b) => a - b);
+  const lo = ys[Math.floor(ys.length * 0.25)], hi = ys[Math.floor(ys.length * 0.85)];
+  return idx.filter((i) => { const y = Ylin(d0, i); return y >= lo && y <= hi; });
+}
+/** 線性平均 × 白平衡增益 → sRGB：去掉環境光後的「反射率顏色」 */
+function wbMean(d, idx, g) {
+  const s = [0, 0, 0]; for (const i of idx) { s[0] += lin(d[i]); s[1] += lin(d[i + 1]); s[2] += lin(d[i + 2]); }
+  return s.map((v, c) => enc(v / idx.length * g[c]));
+}
+function cv(d, idx) { const ys = idx.map((i) => Ylin(d, i)); const m = ys.reduce((a, b) => a + b, 0) / ys.length; return Math.sqrt(ys.reduce((a, b) => a + (b - m) ** 2, 0) / ys.length) / m; }
+function ringDE(d0, d, idx) { let s = 0; for (const i of idx) s += de00(lab([d0[i], d0[i + 1], d0[i + 2]]), lab([d[i], d[i + 1], d[i + 2]])); return s / idx.length; }
+
+// ── 受測影像 ────────────────────────────────────────────
+const q = new URLSearchParams(location.search);
+const SUBJECTS = [{ name: '假鏡頭臉（camtest）', src: 'images/_source/face_e1tw71e1tw71e1tw.jpg', crop: [780, 232, 176, 211] }];
+const imgs = q.getAll('img'), crops = q.getAll('crop');
+imgs.forEach((src, k) => SUBJECTS.push({ name: src.split('/').pop(), src, crop: crops[k] ? crops[k].split(',').map(Number) : null }));
+
+async function loadSubject(s) {
+  const im = new Image(); im.src = s.src; await im.decode();
+  const [sx, sy, sw, sh] = s.crop || [0, 0, im.naturalWidth, im.naturalHeight];
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.fillStyle = '#20303f'; x.fillRect(0, 0, W, H);
+  const k = Math.min(W / sw, H / sh), dw = sw * k, dh = sh * k;
+  x.drawImage(im, sx, sy, sw, sh, (W - dw) / 2, (H - dh) / 2, dw, dh);
+  return c;
+}
+
+/** 單獨上唇色（眼影、腮紅關掉），回傳渲染後的畫布 */
+function renderLip(base, P, p, amount = 1) {
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.drawImage(base, 0, 0);
+  MGL.setMakeup({ lip: { on: true, color: p.color, alpha: Math.round(amount * coverage(p) * 100), grad: 0, soft: 15,
+                         bias: BIAS[p.finish] ?? 12, finish: p.finish },
+                  shadow: null, blush: null });
+  MGL.setIntensity(100); MGL.setSweep(-1); MGL.setSplit(-1); MGL.useBrush(false);
+  MGL.renderGL(x, P, W, H);
+  return c;
+}
+
+await initFace(() => {});
+const lips = PRODUCTS.filter((p) => p.cat === 'lip');
+let html = `<p class="note">渲染模型：<b>${MGL.MODEL_NAME || '舊模型（sRGB 乘性染色）'}</b></p>`;
+const summary = [];
+
+for (const s of SUBJECTS) {
+  const base = await loadSubject(s);
+  const lm = await detectImage(base);
+  if (!lm) { html += `<h2>${s.name}</h2><p class="bad">偵測不到臉</p>`; continue; }
+  const P = lm.slice(0, 468).map((p) => ({ x: p.x * W, y: p.y * H }));
+  const ill = estimateIlluminant(base, lm);
+  const g = ill?.reliable ? ill.gain : [1, 1, 1];
+  if (MGL.setLighting) MGL.setLighting(g);
+  if (MGL.resetRefs) MGL.resetRefs();          // 換一張臉：唇與皮膚的亮度基準要重新量
+
+  const d0 = base.getContext('2d').getImageData(0, 0, W, H).data;
+  const idx = lipPixels(P), mid = midBand(d0, idx), ring = ringPixels(P);
+  const bareRefl = wbMean(d0, mid, g), bareCV = cv(d0, idx);
+
+  const rows = [], cells = [], rendered = {};
+  for (const p of lips) {
+    const c = renderLip(base, P, p);
+    const d = c.getContext('2d').getImageData(0, 0, W, H).data;
+    const made = wbMean(d, mid, g);
+    const sw = hexRgb(p.color), cov = coverage(p);
+    const expected = mixRGB(sw, bareRefl, cov);
+    const e = de00(lab(made), lab(sw)), eExp = de00(lab(made), lab(expected)), moved = de00(lab(bareRefl), lab(made));
+    rendered[p.id] = made;
+    rows.push({ p, made, e, eExp, cov, moved, cv: cv(d, idx), ring: ringDE(d0, d, ring) });
+    // 唇部放大
+    const xs = LIPS_OUT.map((i) => P[i].x), ys = LIPS_OUT.map((i) => P[i].y);
+    const bx = Math.min(...xs) - 18, by = Math.min(...ys) - 14, bw = Math.max(...xs) - bx + 18, bh = Math.max(...ys) - by + 14;
+    const z = document.createElement('canvas'); z.width = 200; z.height = Math.round(200 * bh / bw);
+    z.getContext('2d').drawImage(c, bx, by, bw, bh, 0, 0, z.width, z.height);
+    cells.push({ p, url: z.toDataURL(), e });
+    if (p === lips[0]) {
+      const zb = document.createElement('canvas'); zb.width = 200; zb.height = z.height;
+      zb.getContext('2d').drawImage(base, bx, by, bw, bh, 0, 0, zb.width, zb.height);
+      cells.unshift({ p: null, url: zb.toDataURL() });
+    }
+  }
+  // 色號之間分不分得開
+  let ratioSum = 0, n = 0;
+  for (let i = 0; i < lips.length; i++) for (let j = i + 1; j < lips.length; j++) {
+    const sw = de00(lab(hexRgb(lips[i].color)), lab(hexRgb(lips[j].color)));
+    const on = de00(lab(rendered[lips[i].id]), lab(rendered[lips[j].id]));
+    ratioSum += on / sw; n++;
+  }
+  const avg = (arr, k) => arr.reduce((a, r) => a + r[k], 0) / arr.length;
+  const matte = rows.filter((r) => r.p.finish === 'matte');
+  const meanE = avg(rows, 'e'), meanMatte = avg(matte, 'e'), meanExp = avg(rows, 'eExp');
+  const sep = ratioSum / n, cvRatio = avg(rows, 'cv') / bareCV, ringMax = Math.max(...rows.map((r) => r.ring));
+  summary.push({ subject: s.name, gain: g.map((v) => +v.toFixed(3)), wbReliable: !!ill?.reliable,
+                 meanDE00: +meanE.toFixed(1), matteDE00: +meanMatte.toFixed(1), vsExpectedDE00: +meanExp.toFixed(1),
+                 separability: +sep.toFixed(2), textureKept: +cvRatio.toFixed(2), outsideMaxDE: +ringMax.toFixed(2),
+                 perShade: rows.map((r) => ({ id: r.p.id, finish: r.p.finish, cov: r.cov, dE00: +r.e.toFixed(1), vsExpected: +r.eExp.toFixed(1), movedFromBare: +r.moved.toFixed(1) })) });
+
+  html += `<h2>${s.name}</h2>
+    <p class="note">白平衡增益 ${g.map((v) => v.toFixed(2)).join(' / ')}（眼白取樣${ill ? (ill.reliable ? '可信' : '不可信，改用 1') : '失敗，改用 1'}）；
+    唇部 ${idx.length} px，亮度中段 ${mid.length} px；素顏唇的反射率顏色 <span class="sw" style="background:rgb(${bareRefl.map(Math.round)})"></span> rgb(${bareRefl.map(Math.round)})</p>
+    <table><tr><th class="l">色號</th><th>質地</th><th>覆蓋率</th><th>色卡</th><th>上唇後（去環境光）</th><th>與色卡 ΔE00</th><th>與預期混合 ΔE00</th><th>與素顏 ΔE00</th><th>紋理 CV</th><th>唇外 ΔE00</th></tr>
+    ${rows.map((r) => `<tr><td class="l">${r.p.shade}</td><td>${r.p.finish}</td><td>${r.cov.toFixed(2)}</td>
+      <td><span class="sw" style="background:${r.p.color}"></span></td>
+      <td><span class="sw" style="background:rgb(${r.made.map(Math.round)})"></span> ${r.made.map(Math.round).join(',')}</td>
+      <td class="${r.e < 6 ? 'good' : r.e > 15 ? 'bad' : ''}">${r.e.toFixed(1)}</td>
+      <td class="${r.eExp < 4 ? 'good' : r.eExp > 10 ? 'bad' : ''}">${r.eExp.toFixed(1)}</td><td>${r.moved.toFixed(1)}</td>
+      <td>${r.cv.toFixed(3)}（素顏 ${bareCV.toFixed(3)}）</td><td>${r.ring.toFixed(2)}</td></tr>`).join('')}
+    </table>
+    <p class="note">平均與色卡 ΔE00 <b>${meanE.toFixed(1)}</b>（霧面 ${meanMatte.toFixed(1)}）；與預期混合 ΔE00 <b>${meanExp.toFixed(1)}</b>；
+    色號區辨保留率 <b>${(sep * 100).toFixed(0)}%</b>（上唇後兩兩色差 ÷ 色卡兩兩色差）；紋理保留 ${(cvRatio * 100).toFixed(0)}%；唇外最大 ΔE00 ${ringMax.toFixed(2)}</p>
+    <div class="strip">${cells.map((c) => `<div class="cell"><img src="${c.url}" width="200"><br>${c.p ? `<span class="sw" style="background:${c.p.color}"></span> ${c.p.shade}　ΔE00 ${c.e.toFixed(1)}` : '素顏'}</div>`).join('')}</div>`;
+
+  // 完整妝容（眼影＋腮紅＋唇）：只看外觀，不計分 —— 眼影與腮紅是半透明的，沒有「應該等於色卡」的標準答案
+  const { LOOKS, resolveLook } = await import('./js/products.js');
+  const covOf = (cat, fin) => (MGL.COVERAGE ? MGL.COVERAGE[cat][fin] : { lip: 0.78, eye: 0.64, cheek: 0.5 }[cat]);
+  const fp = [234, 454, 10, 152].map((i) => P[i]);
+  const fx0 = Math.min(...fp.map((p) => p.x)) - 10, fy0 = Math.min(...fp.map((p) => p.y)) - 10;
+  const fw = Math.max(...fp.map((p) => p.x)) - fx0 + 10, fh = Math.max(...fp.map((p) => p.y)) - fy0 + 10;
+  const lookCells = [], lookStats = [];
+  for (const look of LOOKS) {
+    const pk = resolveLook(look, 'neutral'), amt = look.intensity || {};
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(base, 0, 0);
+    MGL.setMakeup({
+      lip: pk.lip && amt.lip > 0 ? { on: true, color: pk.lip.color, alpha: Math.round(amt.lip * covOf('lip', pk.lip.finish) * 100), grad: look.lipGradient ? 55 : 0, soft: 15, bias: BIAS[pk.lip.finish] ?? 12, finish: pk.lip.finish } : null,
+      shadow: pk.eye && amt.eye > 0 ? { on: true, color: pk.eye.color, alpha: Math.round(amt.eye * covOf('eye', pk.eye.finish) * 100), extent: 62, grad: 78, soft: 40, bias: BIAS[pk.eye.finish] ?? 18, finish: pk.eye.finish } : null,
+      blush: pk.cheek && amt.cheek > 0 ? { on: true, color: pk.cheek.color, alpha: Math.round(amt.cheek * covOf('cheek', pk.cheek.finish) * 100), radius: 55, pos: 22, core: 15, bias: BIAS[pk.cheek.finish] ?? 10, finish: pk.cheek.finish } : null,
+    });
+    MGL.renderGL(x, P, W, H);
+    // 眼影與腮紅的數字檢查：有沒有上色（ΔE00）、顏色是不是「朝商品色走」
+    //（a*b* 平面上，上妝造成的位移與「素顏 → 商品色」方向的夾角餘弦，1 = 完全同方向）
+    const dM = x.getImageData(0, 0, W, H).data;
+    const circ = (cx, cy, r) => { const idx = []; for (let y = Math.max(0, Math.floor(cy - r)); y <= Math.min(H - 1, Math.ceil(cy + r)); y++) for (let xx = Math.max(0, Math.floor(cx - r)); xx <= Math.min(W - 1, Math.ceil(cx + r)); xx++) if ((xx - cx) ** 2 + (y - cy) ** 2 <= r * r) idx.push((y * W + xx) * 4); return idx; };
+    const fwid = Math.hypot(P[454].x - P[234].x, P[454].y - P[234].y);
+    const cheekIdx = [50, 280].flatMap((i) => circ(P[i].x, P[i].y, fwid * 0.07));
+    // 眼皮取樣點放在「上眼瞼 → 眉毛」的 30% 處：眼影由睫毛根部往上淡出，正中間已經快褪完了
+    const lidIdx = [[159, 105], [386, 334]].flatMap(([e, b]) => circ(P[e].x + (P[b].x - P[e].x) * 0.3, P[e].y + (P[b].y - P[e].y) * 0.3, fwid * 0.022));
+    const chk = (idx, prod) => {
+      if (!prod) return null;
+      const b = lab(wbMean(d0, idx, g)), m = lab(wbMean(dM, idx, g)), t = lab(hexRgb(prod.color));
+      const sx = m.a - b.a, sy = m.b - b.b, tx = t.a - b.a, ty = t.b - b.b;
+      const cos = (sx * tx + sy * ty) / ((Math.hypot(sx, sy) * Math.hypot(tx, ty)) || 1);
+      return { dE: +de00(b, m).toFixed(1), cos: +cos.toFixed(2), lightSame: Math.sign(m.L - b.L) === Math.sign(t.L - b.L) };
+    };
+    const ck = chk(cheekIdx, amt.cheek > 0 ? pk.cheek : null), ey = chk(lidIdx, amt.eye > 0 ? pk.eye : null);
+    // 滿濃度（濃度滑桿拉到底）下，睫毛根部的眼影與腮紅中心是否達到「覆蓋率下應有的混合色」。
+    // 這是在驗渲染器有沒有把該上的量上足 —— 跟妝容自己設定的濃度（0.30~0.45）是兩件事。
+    const dense = (() => {
+      const c2 = document.createElement('canvas'); c2.width = W; c2.height = H;
+      const x2 = c2.getContext('2d', { willReadFrequently: true }); x2.drawImage(base, 0, 0);
+      MGL.setMakeup({ lip: null,
+        shadow: pk.eye ? { on: true, color: pk.eye.color, alpha: Math.round(covOf('eye', pk.eye.finish) * 100), extent: 62, grad: 78, soft: 40, bias: BIAS[pk.eye.finish] ?? 18, finish: pk.eye.finish } : null,
+        blush: pk.cheek ? { on: true, color: pk.cheek.color, alpha: Math.round(covOf('cheek', pk.cheek.finish) * 100), radius: 55, pos: 22, core: 15, bias: BIAS[pk.cheek.finish] ?? 10, finish: pk.cheek.finish } : null });
+      MGL.renderGL(x2, P, W, H);
+      const d2 = x2.getImageData(0, 0, W, H).data;
+      // 眼影不是均勻塗一片：漸層由睫毛根部往上淡出，外緣還有羽化，
+      // 所以「某一點應該等於覆蓋率混合色」不成立。改成掃整條眼皮帶，找最濃的地方。
+      const lidScan = () => {
+        if (!pk.eye) return null;
+        let best = null;
+        for (const [e, b] of [[159, 105], [386, 334]])
+          for (let t2 = 0.02; t2 <= 0.8; t2 += 0.06) {
+            const idx = circ(P[e].x + (P[b].x - P[e].x) * t2, P[e].y + (P[b].y - P[e].y) * t2, fwid * 0.015);
+            const m2 = wbMean(d2, idx, g), b2 = wbMean(d0, idx, g), dd = de00(lab(b2), lab(m2));
+            if (!best || dd > best.moved) best = { at: +t2.toFixed(2), moved: +dd.toFixed(1), made: m2, bare: b2 };
+          }
+        const bb = lab(best.bare), mm = lab(best.made), tt = lab(hexRgb(pk.eye.color));
+        const sx = mm.a - bb.a, sy = mm.b - bb.b, tx = tt.a - bb.a, ty = tt.b - bb.b;
+        return { cov: covOf('eye', pk.eye.finish), peakAt: best.at, moved: best.moved,
+                 dir: +((sx * tx + sy * ty) / ((Math.hypot(sx, sy) * Math.hypot(tx, ty)) || 1)).toFixed(2) };
+      };
+      const one = (idx, prod, cat) => {
+        if (!prod) return null;
+        const c3 = covOf(cat, prod.finish), made2 = wbMean(d2, idx, g), bare2 = wbMean(d0, idx, g);
+        return { cov: c3, moved: +de00(lab(bare2), lab(made2)).toFixed(1), vsExpected: +de00(lab(made2), lab(mixRGB(hexRgb(prod.color), bare2, c3))).toFixed(1) };
+      };
+      return { eye: lidScan(), cheek: one(cheekIdx, pk.cheek, 'cheek') };
+    })();
+    lookStats.push({ look: look.id, cheek: ck, eye: ey, fullDose: dense });
+    const z = document.createElement('canvas'); z.width = 220; z.height = Math.round(220 * fh / fw);
+    z.getContext('2d').drawImage(c, fx0, fy0, fw, fh, 0, 0, z.width, z.height);
+    const fmt = (r) => (r ? `ΔE00 ${r.dE}，方向 ${r.cos}${r.lightSame ? '' : '（明度反向）'}` : '—');
+    lookCells.push(`<div class="cell"><img src="${z.toDataURL()}" width="220"><br>${look.name}<br>` +
+      ['lip', 'eye', 'cheek'].map((kk) => (pk[kk] ? `<span class="sw" style="background:${pk[kk].color}" title="${pk[kk].shade}（${pk[kk].finish}）"></span>` : '')).join(' ') +
+      `<br>眼 ${fmt(ey)}<br>頰 ${fmt(ck)}</div>`);
+  }
+  summary[summary.length - 1].looks = lookStats;
+  html += `<p class="note">完整妝容（眼影＋腮紅＋唇，中性底調的推薦組合）。眼影、腮紅是半透明的，不跟色卡比；
+    檢查的是「有上色」與「顏色往商品色的方向走」（方向 = a*b* 平面上位移與目標方向的夾角餘弦）。</p><div class="strip">${lookCells.join('')}</div>`;
+
+  // ── 曝光不變性 ──────────────────────────────────────────
+  // 把同一張臉調暗，渲染出來的唇色應該跟著變暗。光源估不準時，
+  // 渲染器會把妝畫成「完全受光」的亮度 —— 暗場景下妝會比臉還亮。
+  const AN = await import('./js/analysis.js');
+  const E = 0.6;
+  const dark = document.createElement('canvas'); dark.width = W; dark.height = H;
+  {
+    const dc = dark.getContext('2d', { willReadFrequently: true });
+    dc.drawImage(base, 0, 0);
+    const im = dc.getImageData(0, 0, W, H);
+    for (let i = 0; i < im.data.length; i += 4) for (let k2 = 0; k2 < 3; k2++) im.data[i + k2] = Math.round(enc(lin(im.data[i + k2]) * E));
+    dc.putImageData(im, 0, 0);
+  }
+  const p307 = lips.find((p) => p.id === 'L307') || lips[0];
+  const renderWith = (src, gain) => {
+    MGL.setLighting(gain, 1); MGL.resetRefs();
+    const c4 = document.createElement('canvas'); c4.width = W; c4.height = H;
+    const x4 = c4.getContext('2d', { willReadFrequently: true }); x4.drawImage(src, 0, 0);
+    MGL.setMakeup({ lip: { on: true, color: p307.color, alpha: Math.round(coverage(p307) * 100), grad: 0, soft: 15, bias: 0, finish: p307.finish }, shadow: null, blush: null });
+    MGL.setIntensity(100); MGL.setSweep(-1); MGL.setSplit(-1); MGL.useBrush(false);
+    MGL.renderGL(x4, P, W, H);
+    return wbMean(x4.getImageData(0, 0, W, H).data, mid, [1, 1, 1]);   // 相機空間，不做白平衡
+  };
+  const illB = AN.estimateIlluminant(base, lm), hlB = AN.estimateHighlight(base, lm);
+  const refLip = renderWith(base, illB?.reliable ? illB.gainWide : (hlB?.reliable ? hlB.gain : [1, 1, 1]));
+  const illD = AN.estimateIlluminant(dark, lm), hlD = AN.estimateHighlight(dark, lm);
+  const modes = [
+    ['眼白', illD?.reliable ? illD.gainWide : null],
+    ['高光退路', hlD?.reliable ? hlD.gain : null],
+    ['不補償', [1, 1, 1]],
+  ];
+  const expoRows = modes.map(([name, gg]) => {
+    if (!gg) return { name, err: '估不出來' };
+    const got = renderWith(dark, gg);
+    const norm = got.map((v) => enc(lin(v) / E));     // 除回曝光倍率：正確的話應該等於全亮時的唇色
+    return { name, gain: gg.map((v) => +v.toFixed(2)), dE: +de00(lab(norm), lab(refLip)).toFixed(1) };
+  });
+  summary[summary.length - 1].exposure = expoRows;
+  html += `<p class="note"><b>曝光不變性</b>：把臉調暗到 ${(E * 100).toFixed(0)}%，渲染後除回曝光倍率，與全亮時的唇色比較。
+    ΔE00 越小代表光源估得越準（全亮時的唇色 rgb(${refLip.map(Math.round)})）。</p>
+    <table><tr><th class="l">暗場景的光源估計</th><th>增益</th><th>與全亮時的唇色 ΔE00</th></tr>
+    ${expoRows.map((r) => `<tr><td class="l">${r.name}</td><td>${r.gain ? r.gain.join(' / ') : '—'}</td>
+      <td class="${r.dE == null ? '' : r.dE < 4 ? 'good' : r.dE > 10 ? 'bad' : ''}">${r.err || r.dE}</td></tr>`).join('')}</table>`;
+  MGL.setLighting(g, 1); MGL.resetRefs();      // 還原這張臉原本的設定
+}
+
+// ── 目錄色值 vs 商品照 ────────────────────────────────────
+// 渲染器忠實還原的是 products.js 的色值；色值本身準不準是另一件事。
+{
+  const AN = await import('./js/analysis.js');
+  const rows = [];
+  for (const p of PRODUCTS) {
+    const im = new Image(); im.src = 'images/products/' + p.id + '.png';
+    let ok = true;
+    try { await im.decode(); } catch { ok = false; }
+    if (!ok) { rows.push({ p, err: '沒有商品照' }); continue; }
+    const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+    c.getContext('2d', { willReadFrequently: true }).drawImage(im, 0, 0);
+    const ex = AN.extractProductColor(c);
+    rows.push({ p, ex, dE: ex ? de00(lab(hexRgb(p.color)), ex.lab) : null });
+  }
+  const ok = rows.filter((r) => r.dE != null);
+  window.__SWATCH = rows.map((r) => ({ id: r.p.id, dE: r.dE == null ? null : +r.dE.toFixed(1), photo: r.ex?.hex, cat: r.p.color }));
+  html += `<h2>目錄色值 vs 商品照</h2>
+    <p class="note">渲染器還原的是 <code>products.js</code> 的色值。這一節檢查色值與商品照本身是否一致 ——
+    不一致的話，畫面上的顏色會忠實地跟著色值偏掉。（商品照目前是由色值參數化算圖產生的，所以這是一致性檢查，不是與實品的比對。）</p>
+    <table><tr><th class="l">色號</th><th>目錄色值</th><th>商品照量到</th><th>ΔE00</th></tr>
+    ${rows.map((r) => `<tr><td class="l">${r.p.shade}</td><td><span class="sw" style="background:${r.p.color}"></span> ${r.p.color}</td>
+      <td>${r.ex ? `<span class="sw" style="background:${r.ex.hex}"></span> ${r.ex.hex}` : (r.err || '量不到')}</td>
+      <td class="${r.dE == null ? '' : r.dE < 3 ? 'good' : r.dE > 8 ? 'bad' : ''}">${r.dE == null ? '—' : r.dE.toFixed(1)}</td></tr>`).join('')}</table>
+    <p class="note">平均 ΔE00 ${ok.length ? (ok.reduce((a, r) => a + r.dE, 0) / ok.length).toFixed(1) : '—'}，最大 ${ok.length ? Math.max(...ok.map((r) => r.dE)).toFixed(1) : '—'}</p>`;
+}
+out.innerHTML = html;
+window.__COLOR = summary;
+document.title = 'done';
+</script>
+</body></html>

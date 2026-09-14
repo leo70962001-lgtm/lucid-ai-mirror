@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<title>AR 渲染測試台</title>
+<link rel="stylesheet" href="main.css">
+<style>
+ body{overflow:auto;padding:26px}
+ h2{font-size:17px;font-weight:600;margin:0 0 4px}
+ .lede{font-size:12px;color:var(--ink-3);max-width:680px;line-height:1.7;margin-bottom:18px}
+ .bay{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:18px}
+ .card{padding:12px;border-radius:12px;background:rgba(8,22,45,.66);box-shadow:0 0 0 1px var(--line)}
+ .card h3{font:700 10.5px/1 ui-monospace,monospace;letter-spacing:.12em;color:var(--rose);margin:0 0 9px}
+ canvas{display:block;border-radius:8px;background:#000}
+ table{border-collapse:collapse;font-size:12px;min-width:420px}
+ td,th{padding:6px 12px;text-align:left;border-bottom:1px solid rgba(120,190,235,.14)}
+ th{font:700 10px/1 ui-monospace,monospace;letter-spacing:.1em;color:var(--ink-3)}
+ td.n{font:600 12px ui-monospace,monospace;text-align:right}
+ .good{color:var(--ok)} .bad{color:#ff8a8a} .warn{color:var(--warn)}
+ #log{font:11.5px/1.7 ui-monospace,monospace;color:var(--ink-2);white-space:pre-wrap;
+   background:rgba(4,12,28,.8);padding:13px;border-radius:10px;box-shadow:0 0 0 1px var(--line);margin-top:16px}
+</style></head><body>
+<h2>AR 渲染測試台</h2>
+<p class="lede">
+沒有相機也能驗證 Step 4 的渲染器。合成一張<b>張嘴露牙</b>的臉：口腔位置填白色當牙齒，
+兩頰做左右明暗漸層當側光。檢查兩件事 —— <b>牙齒有沒有被唇彩塗到</b>，以及<b>每幀要跑多久</b>。
+</p>
+<div class="bay" id="views"></div>
+<div class="bay">
+  <div class="card"><h3>檢查結果</h3><table id="checks"></table></div>
+  <div class="card"><h3>效能（640×480）</h3><table id="perf"></table></div>
+</div>
+<div id="log"></div>
+
+<script type="module">
+import { renderMakeup, LIPS_OUTER, LIPS_INNER } from './js/makeup.js';
+import { rgbToLab, deltaE, hexToLab } from './js/analysis.js';
+
+const log = (s) => { document.getElementById('log').textContent += s + '\n'; };
+const W = 640, H = 480;
+
+// ── 合成關鍵點 ──────────────────────────────────────────
+const lm = Array.from({ length: 478 }, () => ({ x: 0.5, y: 0.5 }));
+const ring = (idx, cx, cy, rx, ry) => idx.forEach((id, i) => {
+  const t = i / idx.length * Math.PI * 2;
+  lm[id] = { x: cx + Math.cos(t) * rx, y: cy + Math.sin(t) * ry };
+});
+const MOUTH = { cx: 0.50, cy: 0.72, rx: 0.115, ry: 0.055 };
+const INNER = { cx: 0.50, cy: 0.72, rx: 0.072, ry: 0.030 };   // 張開的口腔
+ring(LIPS_OUTER, MOUTH.cx, MOUTH.cy, MOUTH.rx, MOUTH.ry);
+ring(LIPS_INNER, INNER.cx, INNER.cy, INNER.rx, INNER.ry);
+ring([33,246,161,160,159,158,157,173,133,155,154,153,145,144,163,7], 0.37, 0.44, 0.055, 0.022);
+ring([263,466,388,387,386,385,384,398,362,382,381,380,374,373,390,249], 0.63, 0.44, 0.055, 0.022);
+ring([46,53,52,65,55],      0.37, 0.375, 0.055, 0.008);
+ring([276,283,282,295,285], 0.63, 0.375, 0.055, 0.008);
+ring([50,101,205],  0.30, 0.58, 0.02, 0.02);
+ring([280,330,425], 0.70, 0.58, 0.02, 0.02);
+lm[234] = { x: 0.18, y: 0.5 }; lm[454] = { x: 0.82, y: 0.5 };
+
+// ── 合成底圖：膚色側光漸層 + 白色牙齒 ────────────────────
+const base = document.createElement('canvas'); base.width = W; base.height = H;
+const b = base.getContext('2d', { willReadFrequently: true });
+const grad = b.createLinearGradient(0, 0, W, 0);
+grad.addColorStop(0, '#e2b193'); grad.addColorStop(1, '#7a5340');
+b.fillStyle = grad; b.fillRect(0, 0, W, H);
+b.fillStyle = '#f2efe6';                       // 牙齒
+b.beginPath(); b.ellipse(INNER.cx * W, INNER.cy * H, INNER.rx * W, INNER.ry * H, 0, 0, Math.PI * 2); b.fill();
+const beforeData = b.getImageData(0, 0, W, H).data;
+
+const CFG = {
+  lip:   { color: '#C0293E', finish: 'matte',   amount: 1.0 },
+  eye:   { color: '#A9714B', finish: 'shimmer', amount: 0.8 },
+  cheek: { color: '#E8896B', finish: 'matte',   amount: 0.6 },
+  refL: 65,                                    // 合成膚色的大致明度
+};
+
+const out = document.createElement('canvas'); out.width = W; out.height = H;
+const o = out.getContext('2d', { willReadFrequently: true });
+o.drawImage(base, 0, 0);
+renderMakeup(o, base, lm, CFG);
+const afterData = o.getImageData(0, 0, W, H).data;
+
+// 畫面
+for (const [title, cv] of [['底圖（張嘴露牙）', base], ['上妝後', out]]) {
+  const card = document.createElement('div'); card.className = 'card';
+  const h3 = document.createElement('h3'); h3.textContent = title;
+  const c = document.createElement('canvas'); c.width = W / 2; c.height = H / 2;
+  c.getContext('2d').drawImage(cv, 0, 0, W / 2, H / 2);
+  card.append(h3, c); document.getElementById('views').appendChild(card);
+}
+
+// ── 檢查 ────────────────────────────────────────────────
+const at = (d, nx, ny) => { const i = (Math.round(ny * H) * W + Math.round(nx * W)) * 4; return [d[i], d[i+1], d[i+2]]; };
+const rows = [];
+const check = (name, pass, detail) => rows.push(`<tr><td>${name}</td><td class="n ${pass?'good':'bad'}">${pass?'通過':'失敗'}</td><td class="n">${detail}</td></tr>`);
+
+// 1) 牙齒：口腔正中央應該完全沒被動到
+const toothBefore = at(beforeData, 0.50, 0.72), toothAfter = at(afterData, 0.50, 0.72);
+const toothDE = deltaE(rgbToLab(...toothBefore), rgbToLab(...toothAfter));
+check('牙齒未被塗到', toothDE < 2, `ΔE ${toothDE.toFixed(2)}`);
+log(`牙齒中央   ${toothBefore.join(',')} → ${toothAfter.join(',')}   ΔE ${toothDE.toFixed(2)}`);
+
+// 2) 唇帶：內外輪廓之間必須真的上色，且顏色要對
+const lipY = MOUTH.cy - (MOUTH.ry + INNER.ry) / 2;
+const lipBefore = at(beforeData, 0.50, lipY), lipAfter = at(afterData, 0.50, lipY);
+const lipMoved = deltaE(rgbToLab(...lipBefore), rgbToLab(...lipAfter));
+check('唇帶有上色', lipMoved > 10, `ΔE ${lipMoved.toFixed(1)}`);
+const hue = (c) => { const l = rgbToLab(...c); return Math.atan2(l.b, l.a) * 180 / Math.PI; };
+const tgt = hexToLab(CFG.lip.color);
+const hueErr = Math.abs(hue(lipAfter) - Math.atan2(tgt.b, tgt.a) * 180 / Math.PI);
+check('唇色色相正確', hueErr < 12, `差 ${hueErr.toFixed(1)}°`);
+log(`唇帶      ${lipBefore.join(',')} → ${lipAfter.join(',')}   色相差 ${hueErr.toFixed(1)}°`);
+
+// 3) 明暗保留：左右兩側明度比例應與上妝前一致
+const lum = (c) => 0.2126*c[0] + 0.7152*c[1] + 0.0722*c[2];
+const lx = 0.44, rx = 0.56;
+const rBefore = lum(at(beforeData, lx, lipY)) / lum(at(beforeData, rx, lipY));
+const rAfter  = lum(at(afterData,  lx, lipY)) / lum(at(afterData,  rx, lipY));
+check('明暗比例保留', Math.abs(rBefore - rAfter) / rBefore < 0.08, `${rBefore.toFixed(3)} → ${rAfter.toFixed(3)}`);
+
+// 4) 臉外區域不該被動到
+const cornerDE = deltaE(rgbToLab(...at(beforeData, 0.03, 0.05)), rgbToLab(...at(afterData, 0.03, 0.05)));
+check('區域外未受影響', cornerDE < 1, `ΔE ${cornerDE.toFixed(2)}`);
+
+// 5) 遮擋：一撮深色頭髮縱向穿過下唇，不該被上色
+//    取樣點必須確實落在「外輪廓與內輪廓之間」的唇帶上，
+//    否則本來就不會上色，測試會以錯誤的理由通過。
+const bandY = MOUTH.cy + (MOUTH.ry + INNER.ry) / 2;   // 下唇帶中線 ≈ 0.7625
+const HAIR_X0 = 0.465, HAIR_X1 = 0.505;
+const ON_HAIR = 0.485, OFF_HAIR = 0.545;
+const occ = document.createElement('canvas'); occ.width = W; occ.height = H;
+const occCtx = occ.getContext('2d', { willReadFrequently: true });
+occCtx.drawImage(base, 0, 0);
+occCtx.fillStyle = '#1a1410';                                  // 深棕髮
+occCtx.fillRect(HAIR_X0 * W, 0.70 * H, (HAIR_X1 - HAIR_X0) * W, 0.10 * H);
+const occBefore = occCtx.getImageData(0, 0, W, H).data;
+
+const occOut = document.createElement('canvas'); occOut.width = W; occOut.height = H;
+const oo = occOut.getContext('2d', { willReadFrequently: true });
+oo.drawImage(occ, 0, 0);
+renderMakeup(oo, occ, lm, CFG);
+const occAfter = oo.getImageData(0, 0, W, H).data;
+
+const onHair  = deltaE(rgbToLab(...at(occBefore, ON_HAIR, bandY)), rgbToLab(...at(occAfter, ON_HAIR, bandY)));
+const offHair = deltaE(rgbToLab(...at(occBefore, OFF_HAIR, bandY)), rgbToLab(...at(occAfter, OFF_HAIR, bandY)));
+check('頭髮上未被上色', onHair < 6, `ΔE ${onHair.toFixed(1)}`);
+check('同高度的唇仍有上色', offHair > 10, `ΔE ${offHair.toFixed(1)}`);
+log(`遮擋      髮上 ΔE ${onHair.toFixed(1)}　髮旁的唇 ΔE ${offHair.toFixed(1)}`);
+
+// 對照：關掉遮擋拒斥，確認差異真的來自這個機制而不是別的
+const noGate = document.createElement('canvas'); noGate.width = W; noGate.height = H;
+const ng = noGate.getContext('2d', { willReadFrequently: true });
+ng.drawImage(occ, 0, 0);
+renderMakeup(ng, occ, lm, { ...CFG, occlusion: false });
+const ngData = ng.getImageData(0, 0, W, H).data;
+const onHairNoGate = deltaE(rgbToLab(...at(occBefore, ON_HAIR, bandY)), rgbToLab(...at(ngData, ON_HAIR, bandY)));
+check('關掉後頭髮會被上色', onHairNoGate > 10, `ΔE ${onHairNoGate.toFixed(1)}`);
+log(`對照      關掉遮擋拒斥後，髮上 ΔE ${onHairNoGate.toFixed(1)}（會被塗到）`);
+
+for (const [title, cv] of [['遮擋：關', noGate], ['遮擋：開', occOut]]) {
+  const card = document.createElement('div'); card.className = 'card';
+  const h3 = document.createElement('h3'); h3.textContent = title;
+  const c = document.createElement('canvas'); c.width = 300; c.height = 150;
+  c.getContext('2d').drawImage(cv, 0.30 * W, 0.60 * H, 0.40 * W, 0.20 * H, 0, 0, 300, 150);
+  card.append(h3, c); document.getElementById('views').appendChild(card);
+}
+
+// ── 6/7) 嘴角收斂 與 漸層唇 ──────────────────────────────
+// 兩者都是「同一支渲染器、只改一個開關」的 A/B，
+// 才能確定差異真的來自那個機制。
+function variant(cfg) {
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(base, 0, 0);
+  renderMakeup(ctx, base, lm, cfg);
+  return ctx.getImageData(0, 0, W, H).data;
+}
+const moved = (d, x, y) => deltaE(rgbToLab(...at(beforeData, x, y)), rgbToLab(...at(d, x, y)));
+
+const CORNER_X = 0.600, CORNER_Y = 0.720;    // 靠近右嘴角，該處整段垂直都是唇
+const MID_X    = 0.500, MID_Y    = 0.7625;   // 下唇帶中央
+
+const flat   = variant({ ...CFG, taper: false });
+const tapered = variant({ ...CFG });
+const rFlat = moved(flat, CORNER_X, CORNER_Y) / moved(flat, MID_X, MID_Y);
+const rTap  = moved(tapered, CORNER_X, CORNER_Y) / moved(tapered, MID_X, MID_Y);
+check('嘴角比中央淡', rTap < rFlat * 0.75, `嘴角/中央 ${rFlat.toFixed(2)} → ${rTap.toFixed(2)}`);
+check('中央濃度未被影響', Math.abs(moved(tapered, MID_X, MID_Y) - moved(flat, MID_X, MID_Y)) < 3,
+      `ΔE ${moved(flat, MID_X, MID_Y).toFixed(1)} → ${moved(tapered, MID_X, MID_Y).toFixed(1)}`);
+log(`嘴角收斂   嘴角/中央濃度比 ${rFlat.toFixed(2)}（關）→ ${rTap.toFixed(2)}（開）`);
+
+const uni  = variant({ ...CFG, taper: false, lip: { ...CFG.lip, gradient: false } });
+const gradV = variant({ ...CFG, taper: false, lip: { ...CFG.lip, gradient: true } });
+const outerUni  = moved(uni,  CORNER_X, CORNER_Y), outerGrad = moved(gradV, CORNER_X, CORNER_Y);
+const innerUni  = moved(uni,  MID_X, MID_Y),       innerGrad = moved(gradV, MID_X, MID_Y);
+check('漸層唇外側變淡', outerGrad < outerUni * 0.8, `ΔE ${outerUni.toFixed(1)} → ${outerGrad.toFixed(1)}`);
+check('漸層唇內側維持', innerGrad > innerUni * 0.85, `ΔE ${innerUni.toFixed(1)} → ${innerGrad.toFixed(1)}`);
+log(`漸層唇     外側 ΔE ${outerUni.toFixed(1)}→${outerGrad.toFixed(1)}　內側 ΔE ${innerUni.toFixed(1)}→${innerGrad.toFixed(1)}`);
+
+for (const [title, data] of [['均勻上色', uni], ['漸層唇', gradV], ['嘴角收斂', tapered]]) {
+  const c = document.createElement('canvas'); c.width = 300; c.height = 110;
+  const tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H;
+  tmp.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(data), W, H), 0, 0);
+  c.getContext('2d').drawImage(tmp, 0.34 * W, 0.655 * H, 0.32 * W, 0.135 * H, 0, 0, 300, 110);
+  const card = document.createElement('div'); card.className = 'card';
+  const h3 = document.createElement('h3'); h3.textContent = title;
+  card.append(h3, c); document.getElementById('views').appendChild(card);
+}
+
+document.getElementById('checks').innerHTML =
+  '<tr><th>項目</th><th>結果</th><th>數值</th></tr>' + rows.join('');
+
+// ── 效能 ────────────────────────────────────────────────
+// canvas 指令是非同步送去 GPU 的，直接量 performance.now() 只會量到
+// 「送出指令」的時間。迴圈結束後讀一個像素強制 flush，才是真的執行時間。
+// A/B：同一支渲染器、同樣的 Path2D 與質地，差別只在處理範圍。
+// 在多個解析度上跑 —— 邊界框最佳化的重點是「成本跟著臉的大小走，
+// 不跟著畫布大小走」，這在低解析度上看不出來。
+const fps = (ms) => (1000 / ms).toFixed(0);
+const budget = 1000 / 30;
+const perfRows = ['<tr><th>解析度</th><th>整張畫布</th><th>只處理邊界框</th><th>加速</th></tr>'];
+let msBox = 0;
+
+for (const [bw, bh, label] of [[640, 480, '640×480（現行）'], [1280, 960, '1280×960'], [1920, 1440, '1920×1440（4K 機台等級）']]) {
+  const bb = document.createElement('canvas'); bb.width = bw; bb.height = bh;
+  const bc = bb.getContext('2d', { willReadFrequently: true });
+  const g2 = bc.createLinearGradient(0, 0, bw, 0);
+  g2.addColorStop(0, '#e2b193'); g2.addColorStop(1, '#7a5340');
+  bc.fillStyle = g2; bc.fillRect(0, 0, bw, bh);
+  const oo = document.createElement('canvas'); oo.width = bw; oo.height = bh;
+  const oc = oo.getContext('2d', { willReadFrequently: true });
+  const run = (full) => { oc.drawImage(bb, 0, 0); renderMakeup(oc, bb, lm, CFG, { fullCanvas: full }); };
+  const warm = () => { for (let i = 0; i < 5; i++) run(false); oc.getImageData(0,0,1,1); };
+  const timed = (full, n) => { warm(); const t = performance.now();
+    for (let i = 0; i < n; i++) run(full); oc.getImageData(0,0,1,1); return (performance.now()-t)/n; };
+  const f = timed(true, 40), x = timed(false, 40);
+  if (bw === 640) msBox = x;
+  const gain = f / x;
+  perfRows.push(`<tr><td>${label}</td><td class="n ${f > budget ? 'bad' : ''}">${f.toFixed(2)} ms</td>` +
+    `<td class="n good">${x.toFixed(2)} ms</td><td class="n ${gain > 1.5 ? 'good' : 'warn'}">${gain.toFixed(1)}×</td></tr>`);
+  log(`${label.padEnd(22)} 全畫布 ${f.toFixed(2)} ms   邊界框 ${x.toFixed(2)} ms   ${gain.toFixed(1)}×`);
+}
+perfRows.push(`<tr><td>640×480 佔 30fps 預算</td><td class="n good" colspan="3">${(msBox / budget * 100).toFixed(0)}%</td></tr>`);
+document.getElementById('perf').innerHTML = perfRows.join('');
+
+log(`\n已在計時區段末強制 flush，量到的是 GPU 實際執行時間而非指令送出時間。`);
+
+// ── 真正的瓶頸在哪？把臉部追蹤也量進來 ──────────────────
+log(`\n載入臉部模型…`);
+const face = await import('./js/face.js');
+await face.initFace((m) => { document.getElementById('log').textContent =
+  document.getElementById('log').textContent.replace(/載入臉部模型.*\n?$/, `載入臉部模型… ${m}\n`); });
+
+// 用真實影像量才有意義：合成的平面色塊偵測不到臉，
+// 這裡拿情境圖裡那張（雖然小）真人臉來跑。
+const probe = document.createElement('canvas'); probe.width = 640; probe.height = 480;
+const pc = probe.getContext('2d', { willReadFrequently: true });
+const src = await new Promise((r) => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null);
+  i.src = '/images/_source/face_e1tw71e1tw71e1tw.jpg'; });
+let trackMs = null, tracked = false;
+if (src) {
+  pc.drawImage(src, 764, 0, 358, 323, 0, 0, 640, 480);
+  tracked = !!(await face.detectVideo(probe, performance.now()));
+  const t0 = performance.now();
+  const N = 40;
+  for (let i = 0; i < N; i++) await face.detectVideo(probe, performance.now() + i);
+  trackMs = (performance.now() - t0) / N;
+}
+
+if (trackMs !== null) {
+  const total = trackMs + msBox;
+  document.getElementById('perf').insertAdjacentHTML('beforeend',
+    `<tr><th colspan="3" style="padding-top:12px">實際每幀組成</th></tr>` +
+    `<tr><td>臉部追蹤（MediaPipe）</td><td class="n ${trackMs > 20 ? 'bad' : 'warn'}">${trackMs.toFixed(2)} ms</td><td class="n">${(trackMs/total*100).toFixed(0)}%</td></tr>` +
+    `<tr><td>上妝渲染</td><td class="n good">${msBox.toFixed(2)} ms</td><td class="n">${(msBox/total*100).toFixed(0)}%</td></tr>` +
+    `<tr><td>合計</td><td class="n ${total > budget ? 'bad' : 'good'}">${total.toFixed(2)} ms</td><td class="n ${total > budget ? 'bad' : 'good'}">${fps(total)} fps</td></tr>`);
+  log(`\n臉部追蹤 ${trackMs.toFixed(2)} ms/幀（偵測到臉：${tracked ? '是' : '否'}）`);
+  log(`每幀合計 ${total.toFixed(2)} ms → 上限 ${fps(total)} fps`);
+  log(`渲染佔比僅 ${(msBox/total*100).toFixed(0)}% —— 瓶頸在追蹤，不在上妝。`);
+
+  // ── 解耦追蹤頻率之後，實際能跑多快？直接量，不用推算 ──────
+  async function simulate(detectEveryMs, durationMs) {
+    const t0 = performance.now();
+    let lastDetect = -1e9, n = 0;
+    while (performance.now() - t0 < durationMs) {
+      const ts = performance.now();
+      o.drawImage(base, 0, 0);
+      if (ts - lastDetect >= detectEveryMs) { lastDetect = ts; await face.detectVideo(probe, ts); }
+      renderMakeup(o, base, lm, CFG);
+      n++;
+    }
+    o.getImageData(0, 0, 1, 1);
+    return n / (durationMs / 1000);
+  }
+  const fpsEvery = await simulate(0,  800);
+  const fps30Hz  = await simulate(33, 800);
+
+  document.getElementById('perf').insertAdjacentHTML('beforeend',
+    `<tr><th colspan="3" style="padding-top:12px">追蹤頻率解耦</th></tr>` +
+    `<tr><td>每幀都追蹤</td><td class="n warn" colspan="2">${fpsEvery.toFixed(0)} fps</td></tr>` +
+    `<tr><td>追蹤 30Hz + 每幀渲染</td><td class="n good" colspan="2">${fps30Hz.toFixed(0)} fps</td></tr>` +
+    `<tr><td>提升</td><td class="n good" colspan="2">${(fps30Hz / fpsEvery).toFixed(1)}×</td></tr>`);
+  log(`\n每幀追蹤 ${fpsEvery.toFixed(0)} fps → 追蹤 30Hz ${fps30Hz.toFixed(0)} fps（${(fps30Hz/fpsEvery).toFixed(1)}×）`);
+  log(`這是不受 vsync 限制的吞吐量；實際顯示仍會被螢幕更新率鎖在 60fps，`);
+  log(`但多出來的餘裕正是弱一點的機台需要的。`);
+} else {
+  log(`\n找不到測試影像，跳過追蹤量測。`);
+}
+</script></body></html>

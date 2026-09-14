@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<title>商品圖切割去背</title>
+<link rel="stylesheet" href="main.css">
+<style>
+ body{overflow:auto;padding:26px}
+ h2{font-size:17px;font-weight:600;margin:0 0 4px}
+ .lede{font-size:12px;color:var(--ink-3);max-width:660px;line-height:1.7;margin-bottom:18px}
+ .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:18px 0}
+ .cell{padding:10px;border-radius:11px;background:rgba(8,22,45,.66);box-shadow:0 0 0 1px var(--line);text-align:center}
+ .cell .box{height:150px;display:grid;place-content:center;margin-bottom:7px;border-radius:8px;
+   background:repeating-conic-gradient(#1b2740 0 25%,#131c30 0 50%) 0 0/12px 12px}
+ .cell canvas{max-width:100%;max-height:150px}
+ .cell b{font:700 11px ui-monospace,monospace;color:var(--rose)}
+ .cell .sz{font-size:9.5px;color:var(--ink-3);display:block}
+ .cell .sw{display:inline-block;width:100%;height:14px;border-radius:4px;margin-top:5px;
+   box-shadow:0 0 0 1px rgba(255,255,255,.2)}
+ .cell .de{font:700 10.5px ui-monospace,monospace;display:block;margin-top:4px}
+ .good{color:var(--ok)} .warn{color:var(--warn)} .bad{color:#ff8a8a}
+ #log{font:11.5px/1.7 ui-monospace,monospace;color:var(--ink-2);white-space:pre-wrap;
+   background:rgba(4,12,28,.8);padding:13px;border-radius:10px;box-shadow:0 0 0 1px var(--line)}
+ .btn{max-width:280px}
+</style></head><body>
+<h2>商品圖切割去背</h2>
+<p class="lede">
+來源是一張 1408×768 的 <b>JPEG</b> 對照表 —— JPEG 沒有 alpha 通道，所以圖上的棋盤格是<b>畫上去的灰色像素</b>，不是透明。
+這頁把棋盤格 key 掉、切成 12 張獨立的透明 PNG，並順便比對每張的主色與 <code>products.js</code> 宣告色值的 ΔE。
+</p>
+<div class="row" style="max-width:620px;margin-bottom:16px">
+  <button class="btn primary" id="run">切割並去背</button>
+  <button class="btn" id="save" disabled>存進 images/products/</button>
+</div>
+<label style="display:flex;gap:8px;align-items:center;font-size:12px;color:var(--ink-2);margin-bottom:16px;cursor:pointer">
+  <input type="checkbox" id="fix" checked style="accent-color:var(--rose)">
+  依 products.js 的色值校正照片顏色（保留光影，只搬色相與彩度）
+</label>
+<div class="grid" id="out"></div>
+<div id="log">按上面的按鈕開始。</div>
+
+<script type="module">
+import { PRODUCTS, finishLabel } from './js/products.js';
+import { hexToLab, deltaE, extractProductColor, rgbToLab, labToRgb } from './js/analysis.js';
+
+/**
+ * 把照片的顏色搬到目錄色值上。
+ *
+ * 只動色相與彩度，明度按彩度加權微調 —— 也就是說照片原本的
+ * 高光、陰影、質感全部保留，黑色管身（彩度≈0）幾乎不動。
+ * 跟 makeup.js 用 'color' 混合模式的想法是同一個：換顏色，不換光。
+ *
+ * 這不是「修圖」，是把商品圖參數化成由色值驅動的算圖 ——
+ * 這樣 Step 3 的商品照和 Step 4 的 AR 渲染必然同色。
+ */
+function recolor(canvas, from, to) {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const im = ctx.getImageData(0, 0, canvas.width, canvas.height), d = im.data;
+  const hFrom = Math.atan2(from.b, from.a), cFrom = Math.hypot(from.a, from.b);
+  const hTo   = Math.atan2(to.b,   to.a),   cTo   = Math.hypot(to.a,   to.b);
+  const dh = hTo - hFrom, cr = cTo / Math.max(cFrom, 1e-3), dL = to.L - from.L;
+
+  // 來源本身幾乎是灰的時候（例如生成出來的 E03 是灰色眼影盤），
+  // 沒有色相可以旋轉、彩度也乘不起來。改用明度開窗來分辨
+  // 「盤面」與「黑色外框 / 白色上蓋」，直接把目標色相塗上去。
+  const lowChroma = cFrom < 8;
+  const window = (L) => {                       // 22→82 之間為主體，兩端平滑收斂
+    if (L < 22 || L > 82) return 0;
+    if (L < 34) return (L - 22) / 12;
+    if (L > 72) return (82 - L) / 10;
+    return 1;
+  };
+
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] < 8) continue;
+    const lab = rgbToLab(d[i], d[i + 1], d[i + 2]);
+    const C = Math.hypot(lab.a, lab.b);
+    const w = lowChroma ? window(lab.L) : Math.min(1, C / 20);
+    if (w < 0.03) continue;
+    const h  = lowChroma ? hTo : Math.atan2(lab.b, lab.a) + dh * w;
+    const nc = lowChroma ? cTo * w : C * (1 + (cr - 1) * w);
+    const [r, g, b] = labToRgb({ L: lab.L + dL * w, a: nc * Math.cos(h), b: nc * Math.sin(h) });
+    d[i] = r; d[i + 1] = g; d[i + 2] = b;
+  }
+  ctx.putImageData(im, 0, 0);
+}
+
+const IDS = ['L204','L118','L307','L512','L620','L455','E01','E02','E03','C01','C02','C03'];
+const log = (s) => { document.getElementById('log').textContent += '\n' + s; };
+let results = [];
+
+document.getElementById('run').onclick = async () => {
+  const doFix = document.getElementById('fix').checked;
+  document.getElementById('log').textContent = '載入來源圖…' + (doFix ? '（含校色）' : '（原色）');
+  const img = await new Promise((r,j)=>{const i=new Image();i.onload=()=>r(i);i.onerror=j;i.src='images/_source/sheet.jpg?'+Date.now();});
+  const W = img.width, H = img.height;
+  const c = document.createElement('canvas'); c.width=W; c.height=H;
+  const x = c.getContext('2d',{willReadFrequently:true});
+  x.drawImage(img,0,0);
+  const im = x.getImageData(0,0,W,H), d = im.data;
+  log(`來源 ${W}×${H}`);
+
+  // ── 1. 從邊界 flood fill，把棋盤格與柔和陰影一起 key 掉 ──
+  // 條件：中性色（RGB 三通道差 < 16）且亮度落在 28–152（棋盤格 49/116 與其間的陰影）。
+  // 管身 rgb(17,16,21) 低於下界、眼影盤白蓋 rgb(205) 高於上界，都不會被誤殺；
+  // E03 的灰色眼影格被黑色盤框包住，flood fill 進不去，所以也安全。
+  const bg = new Uint8Array(W*H);
+  const isBgColor = (i) => {
+    const r=d[i], g=d[i+1], b=d[i+2];
+    const mx=Math.max(r,g,b), mn=Math.min(r,g,b);
+    return (mx-mn) < 16 && mx > 28 && mx < 152;
+  };
+  const stack = [];
+  for (let px=0; px<W; px++) { stack.push(px, (H-1)*W+px); }
+  for (let py=0; py<H; py++) { stack.push(py*W, py*W+W-1); }
+  while (stack.length) {
+    const p = stack.pop();
+    if (bg[p]) continue;
+    if (!isBgColor(p*4)) continue;
+    bg[p] = 1;
+    const px = p % W, py = (p / W) | 0;
+    if (px > 0)   stack.push(p-1);
+    if (px < W-1) stack.push(p+1);
+    if (py > 0)   stack.push(p-W);
+    if (py < H-1) stack.push(p+W);
+  }
+  let bgCount = 0; for (let i=0;i<bg.length;i++) bgCount += bg[i];
+  log(`背景像素 ${(bgCount/(W*H)*100).toFixed(1)}%`);
+
+  // ── 2. 連通元件，用來丟掉白色標籤方塊、並把「直立管身 + 旁邊的蓋子」併成同一件商品 ──
+  const lab = new Int32Array(W*H).fill(-1);
+  const comps = [];
+  for (let p=0;p<W*H;p++) {
+    if (bg[p] || lab[p] !== -1) continue;
+    const id = comps.length, st=[p]; lab[p]=id;
+    let n=0, sx=0, sy=0, lum=0, x0=W, y0=H, x1=0, y1=0;
+    while (st.length) {
+      const q = st.pop(), qx=q%W, qy=(q/W)|0, i=q*4;
+      n++; sx+=qx; sy+=qy; lum += (d[i]+d[i+1]+d[i+2])/3;
+      if(qx<x0)x0=qx; if(qx>x1)x1=qx; if(qy<y0)y0=qy; if(qy>y1)y1=qy;
+      if(qx>0   && !bg[q-1] && lab[q-1]===-1){lab[q-1]=id;st.push(q-1);}
+      if(qx<W-1 && !bg[q+1] && lab[q+1]===-1){lab[q+1]=id;st.push(q+1);}
+      if(qy>0   && !bg[q-W] && lab[q-W]===-1){lab[q-W]=id;st.push(q-W);}
+      if(qy<H-1 && !bg[q+W] && lab[q+W]===-1){lab[q+W]=id;st.push(q+W);}
+    }
+    comps.push({id,n,cx:sx/n,cy:sy/n,lum:lum/n,x0,y0,x1,y1});
+  }
+  // 白色標籤方塊：面積小、橫寬、整體偏亮。
+  // 不能只看平均亮度 —— 標籤上有黑字，會把均值壓到 185 以下而漏抓。
+  const isLabel = (k) => {
+    const w = k.x1 - k.x0 + 1, h = k.y1 - k.y0 + 1;
+    return k.n < 6000 && w / h > 1.5 && k.lum > 115;
+  };
+  const keep = comps.filter(k => k.n > 900 && !isLabel(k));
+  log(`標籤方塊：${comps.filter(k => k.n > 900 && isLabel(k)).length} 個已排除`);
+  log(`連通元件 ${comps.length} 個，保留 ${keep.length} 個（已排除白色標籤與雜訊）`);
+
+  // ── 3. 依 6 欄 × 2 列的版面把元件歸位 ──
+  const colW = W/6, rowH = H/2;
+  const cells = Array.from({length:12}, () => null);
+  for (const k of keep) {
+    const col = Math.min(5, Math.max(0, Math.floor(k.cx / colW)));
+    const row = k.cy < rowH ? 0 : 1;
+    const idx = row*6 + col;
+    if (idx > 11) continue;
+    const t = cells[idx];
+    cells[idx] = t
+      ? {x0:Math.min(t.x0,k.x0), y0:Math.min(t.y0,k.y0), x1:Math.max(t.x1,k.x1), y1:Math.max(t.y1,k.y1)}
+      : {x0:k.x0, y0:k.y0, x1:k.x1, y1:k.y1};
+  }
+
+  // ── 4. 產生透明 PNG ──
+  const outBox = document.getElementById('out'); outBox.innerHTML = '';
+  results = [];
+  for (let i=0;i<12;i++) {
+    const id = IDS[i], box = cells[i];
+    const prod = PRODUCTS.find(p=>p.id===id);
+    const cell = document.createElement('div'); cell.className='cell';
+    if (!box) {
+      cell.innerHTML = `<div class="box" style="font-size:10px;color:var(--ink-3)">沒切到</div><b>${id}</b>`;
+      outBox.appendChild(cell); log(`${id}: 沒有偵測到內容`); continue;
+    }
+    const pad = 8;
+    const bx0 = Math.max(0, box.x0-pad), by0 = Math.max(0, box.y0-pad);
+    const bw = Math.min(W, box.x1+pad) - bx0, bh = Math.min(H, box.y1+pad) - by0;
+
+    const o = document.createElement('canvas'); o.width=bw; o.height=bh;
+    const oc = o.getContext('2d',{willReadFrequently:true});
+    const oi = oc.createImageData(bw,bh);
+    for (let yy=0; yy<bh; yy++) for (let xx=0; xx<bw; xx++) {
+      const sp = (by0+yy)*W + (bx0+xx), si = sp*4, di = (yy*bw+xx)*4;
+      const isLabel = lab[sp] !== -1 && !keep.some(k=>k.id===lab[sp]);
+      if (bg[sp] || isLabel) { oi.data[di+3] = 0; continue; }
+      oi.data[di]=d[si]; oi.data[di+1]=d[si+1]; oi.data[di+2]=d[si+2]; oi.data[di+3]=255;
+    }
+    oc.putImageData(oi,0,0);
+
+    const got = extractProductColor(o);
+    let deHTML = '<span class="de none">—</span>', sw='';
+    if (got && prod) {
+      const before = deltaE(hexToLab(prod.color), got.lab);
+      let after = before;
+
+      if (doFix) {
+        recolor(o, got.lab, hexToLab(prod.color));
+        const now = extractProductColor(o);
+        if (now) after = deltaE(hexToLab(prod.color), now.lab);
+      }
+      const cls = after<5?'good':after<10?'warn':'bad';
+      deHTML = doFix
+        ? `<span class="de ${cls}">ΔE ${before.toFixed(1)} → ${after.toFixed(1)}</span>`
+        : `<span class="de ${cls}">ΔE ${after.toFixed(1)}</span>`;
+      sw = `<i class="sw" style="background:linear-gradient(90deg,${prod.color} 50%,${got.hex} 50%)"></i>`;
+      results.push({id, canvas:o, hex:got.hex, de:after, declared:prod.color});
+      log(`${id.padEnd(5)} ${bw}×${bh}  宣告 ${prod.color.toUpperCase()} → 照片 ${got.hex.toUpperCase()}  ΔE ${before.toFixed(1)}` +
+          (doFix ? `  ─校色─▶ ΔE ${after.toFixed(1)}` : ''));
+    } else {
+      results.push({id, canvas:o, hex:null, de:null, declared:prod?.color});
+      log(`${id.padEnd(5)} ${bw}×${bh}  抽不到主色`);
+    }
+    const holder = document.createElement('div'); holder.className='box'; holder.appendChild(o);
+    cell.appendChild(holder);
+    cell.insertAdjacentHTML('beforeend', `<b>${id}</b><span class="sz">${bw}×${bh}</span>${sw}${deHTML}`);
+    outBox.appendChild(cell);
+  }
+  document.getElementById('save').disabled = results.length === 0;
+  log(`\n完成 ${results.length}/12。確認縮圖沒有殘留灰底再按「存進 images/products/」。`);
+};
+
+document.getElementById('save').onclick = async () => {
+  let ok=0;
+  for (const r of results) {
+    const blob = await new Promise(res => r.canvas.toBlob(res,'image/png'));
+    const resp = await fetch(`/api/save/${r.id}.png`, {method:'POST', body:blob});
+    if (resp.ok) ok++; else log(`${r.id} 存檔失敗 ${resp.status}`);
+  }
+  log(`\n已存 ${ok} 張到 images/products/。接著開 _ingest.html 覆核。`);
+};
+</script></body></html>

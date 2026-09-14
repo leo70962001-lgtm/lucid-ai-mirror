@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<title>顯示端校色</title>
+<link rel="stylesheet" href="main.css">
+<style>
+ body{overflow:auto;padding:26px}
+ h2{font-size:17px;font-weight:600;margin:0 0 4px}
+ h3{font:700 10.5px/1 ui-monospace,monospace;letter-spacing:.12em;color:var(--rose);margin:22px 0 10px}
+ .lede{font-size:12px;color:var(--ink-3);max-width:700px;line-height:1.75}
+ .card{padding:14px 16px;border-radius:12px;background:rgba(8,22,45,.66);box-shadow:0 0 0 1px var(--line);margin-bottom:14px}
+ table{border-collapse:collapse;font-size:12px}
+ td,th{padding:5px 9px;text-align:left;border-bottom:1px solid rgba(120,190,235,.14)}
+ th{font:700 10px/1 ui-monospace,monospace;letter-spacing:.1em;color:var(--ink-3)}
+ td.n{font:600 12px ui-monospace,monospace;text-align:right}
+ input[type=number]{width:78px;background:rgba(4,12,28,.7);border:1px solid var(--line);border-radius:6px;
+   color:var(--ink);padding:4px 7px;font:600 11px ui-monospace,monospace}
+ input:focus{outline:none;border-color:var(--rose)}
+ .sw{width:26px;height:18px;border-radius:4px;display:inline-block;vertical-align:middle;
+   box-shadow:0 0 0 1px rgba(255,255,255,.25)}
+ .row{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px}
+ .btn{flex:0 0 auto;padding:10px 16px}
+ .good{color:var(--ok)} .bad{color:#ff8a8a} .warn{color:var(--warn)}
+ pre{background:rgba(4,12,28,.8);padding:12px;border-radius:9px;overflow:auto;
+   font:11px/1.6 ui-monospace,monospace;color:var(--rose-soft);box-shadow:0 0 0 1px var(--line)}
+ /* 量測模式：整片色塊，色差儀才有足夠面積 */
+ #stagePatch{position:fixed;inset:0;z-index:100;display:none;place-content:center;text-align:center}
+ #stagePatch.on{display:grid}
+ #patchBox{width:min(60vw,60vh);aspect-ratio:1;border-radius:4px}
+ #stagePatch .hud{margin-top:22px;font:600 13px ui-monospace,monospace;color:#888;
+   mix-blend-mode:difference}
+ #stagePatch .hint{font-size:11px;color:#777;margin-top:8px}
+</style></head><body>
+
+<div id="stagePatch">
+  <div>
+    <div id="patchBox"></div>
+    <div class="hud" id="patchLabel"></div>
+    <div class="hint">← → 換色塊　·　Esc 離開　·　量完把讀數填回表格</div>
+  </div>
+</div>
+
+<h2>顯示端校色</h2>
+<p class="lede">
+Step 4 算出來的顏色是<b>數值上正確</b>的，但螢幕會用自己的原色與 gamma 去呈現它。
+機台螢幕不是 sRGB 標準的話，顧客看到的唇色就不等於實品 —— 這是前面所有色彩工作的最後一哩。
+<br><br>
+<b>這一步需要色差儀（colorimeter / 分光光度計）。</b>本頁負責顯示標準色塊、擬合螢幕特性、
+產生校正參數並驗證效果；量測本身需要硬體，沒有捷徑。
+</p>
+
+<div class="row" style="margin-top:18px">
+  <button class="btn primary" id="measure">開始量測（全螢幕色塊）</button>
+  <button class="btn" id="demo">示範：模擬一台偏掉的螢幕</button>
+  <button class="btn ghost" id="clearBtn">清除校正</button>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">量測值（CIE XYZ，白 = 100）</h3>
+  <table id="grid"></table>
+</div>
+
+<div class="row">
+  <button class="btn primary" id="fitBtn">擬合並驗證</button>
+  <button class="btn" id="saveBtn" disabled>套用到 demo</button>
+  <button class="btn ghost" id="exportBtn" disabled>匯出 JSON</button>
+</div>
+
+<div id="result"></div>
+
+<script type="module">
+import { PATCHES, fitDisplay, correctRgb, xyzToLab, simulateDisplay, SRGB_PANEL,
+         saveCalibration, loadCalibration, clearCalibration } from './js/calib.js';
+import { PRODUCTS } from './js/products.js';
+import { deltaE } from './js/analysis.js';
+
+const $ = (s) => document.querySelector(s);
+const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n>>16)&255,(n>>8)&255,n&255]; };
+const css = (rgb) => `rgb(${rgb.join(',')})`;
+const WHITE = simulateDisplay([255,255,255], SRGB_PANEL);   // 共同參考白 = D65
+
+// ── 量測表格 ─────────────────────────────────────────────
+$('#grid').innerHTML =
+  '<tr><th>色塊</th><th>送出的碼值</th><th>X</th><th>Y</th><th>Z</th></tr>' +
+  PATCHES.map((p) => `<tr>
+    <td><i class="sw" style="background:${css(p.rgb)}"></i> <b>${p.id}</b></td>
+    <td class="n">${p.rgb.join(', ')}</td>
+    ${['X','Y','Z'].map((k) => `<td><input type="number" step="0.01" data-p="${p.id}" data-k="${k}"></td>`).join('')}
+  </tr>`).join('');
+
+const readGrid = () => {
+  const m = {};
+  for (const inp of document.querySelectorAll('#grid input')) {
+    const v = parseFloat(inp.value);
+    if (!Number.isFinite(v)) continue;
+    (m[inp.dataset.p] ??= {})[inp.dataset.k] = v;
+  }
+  // 三個分量都要有才算數
+  for (const id of Object.keys(m)) if (!('X' in m[id] && 'Y' in m[id] && 'Z' in m[id])) delete m[id];
+  return m;
+};
+const writeGrid = (m) => {
+  for (const inp of document.querySelectorAll('#grid input')) {
+    const v = m[inp.dataset.p]?.[inp.dataset.k];
+    inp.value = v == null ? '' : v.toFixed(3);
+  }
+};
+
+// ── 全螢幕量測模式 ───────────────────────────────────────
+let idx = 0;
+const showPatch = () => {
+  const p = PATCHES[idx];
+  $('#patchBox').style.background = css(p.rgb);
+  $('#patchLabel').textContent = `${p.id}　rgb(${p.rgb.join(', ')})　${idx + 1} / ${PATCHES.length}`;
+};
+$('#measure').onclick = () => { idx = 0; showPatch(); $('#stagePatch').classList.add('on'); };
+addEventListener('keydown', (e) => {
+  if (!$('#stagePatch').classList.contains('on')) return;
+  if (e.key === 'Escape') $('#stagePatch').classList.remove('on');
+  if (e.key === 'ArrowRight') { idx = (idx + 1) % PATCHES.length; showPatch(); }
+  if (e.key === 'ArrowLeft')  { idx = (idx - 1 + PATCHES.length) % PATCHES.length; showPatch(); }
+});
+
+// ── 示範：沒有色差儀也能看懂整條流程 ─────────────────────
+const BAD_PANEL = {
+  gamma: [2.45, 2.25, 2.05],
+  M: [[0.4500, 0.3300, 0.1900],
+      [0.2300, 0.7000, 0.0700],
+      [0.0150, 0.0950, 1.0300]],
+};
+$('#demo').onclick = () => {
+  const m = {};
+  for (const p of PATCHES) {
+    const v = simulateDisplay(p.rgb, BAD_PANEL);
+    const n = () => 1 + (Math.random() * 2 - 1) * 0.005;      // ±0.5% 色差儀雜訊
+    m[p.id] = { X: v.X * 100 * n(), Y: v.Y * 100 * n(), Z: v.Z * 100 * n() };
+  }
+  writeGrid(m);
+  $('#result').innerHTML =
+    `<div class="card"><span class="warn">已填入模擬量測值</span>
+     <div class="lede" style="margin-top:6px">這不是真的量測 —— 是用一台「三原色偏移 + 每通道 gamma 不一致」的
+     假想面板算出來的，另外加了 ±0.5% 雜訊模擬色差儀誤差。按「擬合並驗證」看整條鏈的效果。</div></div>`;
+};
+
+// ── 擬合與驗證 ───────────────────────────────────────────
+let model = null;
+$('#fitBtn').onclick = () => {
+  const measured = readGrid();
+  const fit = fitDisplay(measured);
+  if (fit.error) {
+    $('#result').innerHTML = `<div class="card"><span class="bad">${fit.error}</span></div>`;
+    $('#saveBtn').disabled = $('#exportBtn').disabled = true;
+    return;
+  }
+  model = fit;
+  $('#saveBtn').disabled = $('#exportBtn').disabled = false;
+
+  // 驗證：對 12 個商品色，比較「校正前 / 校正後」與 sRGB 意圖的色差。
+  // 這裡用示範面板當作螢幕的真實響應；如果量測值來自真實螢幕，
+  // 這段預測只在該螢幕確實符合模型時才成立 —— 所以標為「預估」。
+  let rows = '', sumB = 0, sumA = 0, clip = 0;
+  for (const p of PRODUCTS) {
+    const rgb = hexRgb(p.color);
+    const want = xyzToLab(simulateDisplay(rgb, SRGB_PANEL), WHITE);
+    const before = deltaE(want, xyzToLab(simulateDisplay(rgb, BAD_PANEL), WHITE));
+    const c = correctRgb(rgb, model);
+    const after = deltaE(want, xyzToLab(simulateDisplay(c.rgb, BAD_PANEL), WHITE));
+    sumB += before; sumA += after; if (c.clipped) clip++;
+    rows += `<tr><td><i class="sw" style="background:${p.color}"></i> ${p.shade}</td>
+      <td class="n">${p.color.toUpperCase()}</td>
+      <td class="n">→ rgb(${c.rgb.join(',')})</td>
+      <td class="n">${before.toFixed(1)}</td>
+      <td class="n ${after < 2.3 ? 'good' : 'warn'}">${after.toFixed(2)}</td>
+      <td class="n">${c.clipped ? '<span class="bad">超出色域</span>' : ''}</td></tr>`;
+  }
+  const mB = sumB / PRODUCTS.length, mA = sumA / PRODUCTS.length;
+
+  $('#result').innerHTML = `
+    <div class="card">
+      <h3 style="margin-top:0">擬合結果</h3>
+      <table>
+        <tr><th>每通道 gamma</th><td class="n">${model.gamma.map((g) => g.toFixed(3)).join('　')}</td></tr>
+        <tr><th>白點 Y</th><td class="n">${model.whiteY.toFixed(2)}</td></tr>
+      </table>
+      <pre>M (裝置線性 RGB → XYZ)
+${model.M.map((r) => r.map((v) => v.toFixed(4).padStart(9)).join('')).join('\n')}</pre>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">12 個商品色的預估色差</h3>
+      <table>
+        <tr><th>色號</th><th>目標</th><th>送給螢幕</th><th>校正前 ΔE</th><th>校正後 ΔE</th><th></th></tr>
+        ${rows}
+        <tr><th>平均</th><td></td><td></td>
+          <td class="n warn">${mB.toFixed(1)}</td>
+          <td class="n ${mA < 2.3 ? 'good' : 'bad'}">${mA.toFixed(2)}</td>
+          <td class="n">${clip ? `<span class="bad">${clip} 色超出色域</span>` : ''}</td></tr>
+      </table>
+      <div class="lede" style="margin-top:10px">
+        ΔE &lt; 2.3 是肉眼可分辨的門檻。<b>「校正後」是預估值</b> —— 它假設這台螢幕的行為符合
+        「原色矩陣 + 每通道冪次」模型。真實面板不會完全符合，實測殘差通常會比這裡再高一些。
+        校正完應該重新量幾個商品色驗收，而不是相信這張表。
+        ${clip ? '<br><b class="bad">有色號超出這台螢幕的色域</b> —— 夾限後永遠無法準確重現，應該換螢幕或在畫面上標示。' : ''}
+      </div>
+    </div>`;
+};
+
+$('#saveBtn').onclick = () => {
+  if (!model) return;
+  const okSave = saveCalibration(model);
+  $('#result').insertAdjacentHTML('afterbegin',
+    `<div class="card"><span class="${okSave ? 'good' : 'bad'}">${
+      okSave ? '已套用 —— 重新整理主程式後，Step 3 色票與 Step 4 的 AR 都會走校正後的色值。'
+             : '存檔失敗（localStorage 不可用）'}</span></div>`);
+};
+$('#exportBtn').onclick = () => {
+  if (!model) return;
+  $('#result').insertAdjacentHTML('afterbegin',
+    `<div class="card"><h3 style="margin-top:0">校正參數（存檔備份用）</h3>
+     <pre>${JSON.stringify(model, null, 2)}</pre></div>`);
+};
+$('#clearBtn').onclick = () => {
+  clearCalibration();
+  $('#result').innerHTML = '<div class="card">已清除校正，主程式會回到未校正的原始色值。</div>';
+};
+
+// 開頁時顯示目前狀態
+const cur = loadCalibration();
+if (cur) $('#result').innerHTML =
+  `<div class="card"><span class="good">目前已套用校正</span>
+   <div class="lede" style="margin-top:6px">γ = ${cur.gamma.map((g) => g.toFixed(3)).join('　')}</div></div>`;
+</script></body></html>

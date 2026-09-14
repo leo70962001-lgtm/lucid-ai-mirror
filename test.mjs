@@ -1,0 +1,720 @@
+/**
+ * 核心邏輯驗證：node test.mjs
+ * 只測純函式（色彩科學 + 推薦），不需要瀏覽器或相機。
+ */
+
+import { classifySkin, rgbToLab, deltaE, wbGain, applyGain, estimateCCT } from './js/analysis.js';
+import { LOOKS, PRODUCTS, resolveLook, toneLabel } from './js/products.js';
+import { PATCHES, fitDisplay, correctRgb, xyzToLab, simulateDisplay, SRGB_PANEL } from './js/calib.js';
+import { pressureLevel, applyPressure } from './js/makeup-gl.js';
+import { FACE_SHAPES, PROTOTYPES, CELEBS, classifyFace, faceLookBonus, faceReasonFor } from './js/faceshape.js';
+import { readFileSync } from 'node:fs';
+import { contextAdvice, adjustIntensity, rankWithContext, moodFromFace, externalWeather,
+         MOODS, WEATHERS, PLANS } from './js/context.js';
+import { onSkin, onLook, onPicks, onShadeChange, onAmount, onFinish, lightNote, KINDS,
+         optsForSkin, optsForPicks, optsForAR, optsForFinish, explain, onAR, ACTS,
+         dropAsked, dropDeadAmount, askAmount, newPref, notePref, noteDwell, prefTone, prefBias,
+         pickNext, prefNote, prefRecall, observe, sessionSummary, DWELL_MS,
+         askContext, onContext, dropAnswers, optsAfterWhy, EXPLAIN_ACTS,
+         nearestRegion, onRegion, readGesture, plainSkin, plainFace, plainBlush, plainLook, plainCeleb } from './js/advisor.js';
+
+const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+
+let fail = 0;
+const ok = (c, m) => { console.log((c ? '  \x1b[32mPASS\x1b[0m  ' : '  \x1b[31mFAIL\x1b[0m  ') + m); if (!c) fail++; };
+const hexLab = (h) => { const n = parseInt(h.slice(1), 16); return rgbToLab((n >> 16) & 255, (n >> 8) & 255, n & 255); };
+
+console.log('\n\x1b[1m1. CIELAB 轉換基準值\x1b[0m');
+const white = rgbToLab(255, 255, 255), black = rgbToLab(0, 0, 0), mid = rgbToLab(128, 128, 128);
+ok(Math.abs(white.L - 100) < 0.5 && Math.abs(white.a) < 1 && Math.abs(white.b) < 1,
+   `純白 → L*=${white.L.toFixed(1)} a*=${white.a.toFixed(2)} b*=${white.b.toFixed(2)}`);
+ok(black.L < 0.5, `純黑 → L*=${black.L.toFixed(2)}`);
+ok(Math.abs(mid.L - 53.6) < 1, `中灰 → L*=${mid.L.toFixed(1)}（標準值 53.6）`);
+
+console.log('\n\x1b[1m2. 膚色深度分類（ITA°）\x1b[0m');
+const DEPTHS = [
+  ['極淺 / 北歐',   [245, 226, 210]], ['淺 / 東亞',   [232, 200, 174]],
+  ['中等 / 地中海', [206, 166, 132]], ['小麥 / 南亞', [173, 128,  95]],
+  ['深 / 非裔',     [120,  80,  57]], ['極深',        [ 72,  46,  33]],
+];
+const seen = new Set();
+for (const [n, rgb] of DEPTHS) {
+  const s = classifySkin(rgb); seen.add(s.depthKey);
+  console.log(`  ${n.padEnd(15)} ITA ${s.itaDeg.toFixed(1).padStart(6)}°  →  ${s.depthKey}`);
+}
+ok(seen.size >= 4, `6 個樣本落入 ${seen.size} 個深度分類`);
+ok(classifySkin(DEPTHS[0][1]).itaDeg > classifySkin(DEPTHS[5][1]).itaDeg, 'ITA° 隨膚色變深而單調下降');
+
+console.log('\n\x1b[1m3. 底調判定 — 殘差法\x1b[0m');
+const TONES = [
+  ['淺 · 偏黃',  [231, 196, 150], 'warm'],
+  ['淺 · 橄欖',  [214, 184, 140], 'warm'],
+  ['淺 · 偏紅',  [231, 186, 186], 'cool'],
+  ['淺 · 粉調',  [240, 214, 208], 'cool'],
+  ['淺 · 中性',  [225, 195, 172], 'neutral'],
+  ['小麥 · 偏黃',[178, 132,  82], 'warm'],
+  ['深 · 偏紅',  [135,  85,  72], 'cool'],
+  ['深 · 中性',  [120,  80,  57], 'neutral'],
+];
+for (const [n, rgb, want] of TONES) {
+  const s = classifySkin(rgb);
+  const got = s.undertone;
+  console.log(`  ${n.padEnd(13)} L* ${s.lab.L.toFixed(0).padStart(3)}  h ${s.hue.toFixed(1).padStart(5)}°  殘差 ${s.residual.toFixed(1).padStart(6)}°  →  ${toneLabel(got)}`);
+  if (got !== want) ok(false, `${n} 應判為 ${toneLabel(want)}，實得 ${toneLabel(got)}`);
+}
+ok(TONES.every(([, rgb, w]) => classifySkin(rgb).undertone === w), '8 個樣本底調判定全部正確');
+
+console.log('\n\x1b[1m4. 公平性 — 深膚色的底調不能被膚色深度吃掉\x1b[0m');
+const deepTones = TONES.filter(([n]) => n.startsWith('深')).map(([, rgb]) => classifySkin(rgb).undertone);
+ok(new Set(deepTones).size > 1, `深膚色樣本得到 ${new Set(deepTones).size} 種不同底調（若全部相同代表分類器對深膚色失效）`);
+const deepWarn = classifySkin([120, 80, 57]).warnings;
+// 警語現在回傳的是 i18n key（分析層不該知道畫面說什麼語言）
+ok(deepWarn.includes('warn.deep'), '深膚色會主動提示信心較低，而不是假裝有把握');
+
+console.log('\n\x1b[1m5. product-first — 推薦必定對得上真實且有貨的商品\x1b[0m');
+let bad = 0;
+for (const tone of ['warm', 'cool', 'neutral']) for (const look of LOOKS) {
+  const p = resolveLook(look, tone);
+  for (const c of ['lip', 'eye', 'cheek'])
+    if (!PRODUCTS.some((x) => x.id === p[c].id) || p[c].stock <= 0) bad++;
+}
+ok(bad === 0, `12 組（3 底調 × 4 妝容）× 3 部位 = 36 個推薦，全部命中真實且有庫存的商品`);
+
+console.log('\n\x1b[1m6. 庫存聯動\x1b[0m');
+const oos = PRODUCTS.filter((p) => p.stock <= 0);
+console.log(`  目前缺貨：${oos.map((p) => p.shade).join('、') || '無'}`);
+let leaked = false;
+for (const tone of ['warm', 'cool', 'neutral']) for (const look of LOOKS)
+  for (const c of ['lip', 'eye', 'cheek'])
+    if (oos.some((o) => o.id === resolveLook(look, tone)[c].id)) leaked = true;
+ok(!leaked, '缺貨色號從未出現在任何推薦中（避免推薦了櫃上沒貨的商品）');
+
+console.log('\n\x1b[1m7. 推薦可解釋性\x1b[0m');
+const d = resolveLook(LOOKS[0], 'warm');
+console.log(`  自然偽素顏 × 暖色調 → ${d.lip.shade}｜理由：${d.lip._reason.map((r) => r[0]).join('、')}`);
+ok(['lip', 'eye', 'cheek'].every((c) => d[c]._reason.length > 0), '每個推薦都附帶可顯示給顧客的理由，非黑箱');
+
+console.log('\n\x1b[1m8. 色號區辨度（ΔE）\x1b[0m');
+const lips = PRODUCTS.filter((p) => p.cat === 'lip');
+let minDE = Infinity, pair = '';
+for (let i = 0; i < lips.length; i++) for (let j = i + 1; j < lips.length; j++) {
+  const e = deltaE(hexLab(lips[i].color), hexLab(lips[j].color));
+  if (e < minDE) { minDE = e; pair = `${lips[i].shade} ↔ ${lips[j].shade}`; }
+}
+console.log(`  最接近的兩色：${pair}　ΔE = ${minDE.toFixed(1)}`);
+ok(minDE > 2.3, '所有唇色 ΔE > 2.3（肉眼可分辨門檻），色號不會擠在一起分不出來');
+
+console.log('\n\x1b[1m9. 環境光補償 — 櫃位燈光不能改變膚色判定\x1b[0m');
+// 光源在線性光量空間相乘，不是在 sRGB 編碼值上 —— 模擬也必須這樣做，
+// 否則測的是「兩個錯誤互相抵消」而不是演算法本身。
+// 光源已正規化到最大通道 = 1，模擬相機自動曝光後不會過曝截頂。
+const srgb2lin = (c) => (c / 255 <= 0.04045 ? c / 255 / 12.92 : ((c / 255 + 0.055) / 1.055) ** 2.4);
+const lin2srgb = (v) => {
+  v = v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(Math.max(v, 0), 1 / 2.4) - 0.055;
+  return Math.max(0, Math.min(255, Math.round(v * 255)));
+};
+/**
+ * 由色溫算出光源的線性 RGB —— 用普朗克軌跡（Kim et al. 2002 近似式），
+ * 不是我隨手編的比例。相對於 D65 正規化，並讓最大通道 = 1
+ * （模擬相機自動曝光，不會過曝截頂）。
+ */
+function illuminantRGB(T) {
+  const x = T <= 4000
+    ? -0.2661239e9 / T ** 3 - 0.2343589e6 / T ** 2 + 0.8776956e3 / T + 0.179910
+    : -3.0258469e9 / T ** 3 + 2.1070379e6 / T ** 2 + 0.2226347e3 / T + 0.240390;
+  const y = T <= 2222
+    ? -1.1063814 * x ** 3 - 1.34811020 * x ** 2 + 2.18555832 * x - 0.20219683
+    : T <= 4000
+    ? -0.9549476 * x ** 3 - 1.37418593 * x ** 2 + 2.09137015 * x - 0.16748867
+    :  3.0817580 * x ** 3 - 5.87338670 * x ** 2 + 3.75112997 * x - 0.37001483;
+  const X = x / y, Y = 1, Z = (1 - x - y) / y;
+  return [
+    Math.max(0,  3.2406 * X - 1.5372 * Y - 0.4986 * Z),
+    Math.max(0, -0.9689 * X + 1.8758 * Y + 0.0415 * Z),
+    Math.max(0,  0.0557 * X - 0.2040 * Y + 1.0570 * Z),
+  ];
+}
+const D65 = illuminantRGB(6504);
+const relative = (T) => {
+  const c = illuminantRGB(T).map((v, i) => v / D65[i]);
+  const m = Math.max(...c);
+  return c.map((v) => v / m);
+};
+const LIGHTS = [
+  ['鹵素投射燈 2700K', relative(2700)],
+  ['暖白 LED 3500K',   relative(3500)],
+  ['中性 D65',         [1, 1, 1]],
+  ['冷白 8000K',       relative(8000)],
+];
+const SCLERA = [236, 236, 238];                 // 眼白（接近中性，略偏藍）
+const under = (rgb, L) => rgb.map((v, i) => lin2srgb(srgb2lin(v) * L[i]));
+
+let drifted = 0, recovered = 0;
+for (const [skinName, skinD65] of [['淺 · 暖', [231, 196, 150]], ['淺 · 中性', [225, 195, 172]], ['小麥 · 暖', [178, 132, 82]]]) {
+  const base = classifySkin(skinD65).undertone;
+  for (const [lightName, L] of LIGHTS) {
+    const obsSkin   = under(skinD65, L);
+    const obsSclera = under(SCLERA, L);
+    const raw = classifySkin(obsSkin).undertone;
+    const fix = classifySkin(applyGain(obsSkin, wbGain(obsSclera))).undertone;
+    const cct = estimateCCT(obsSclera);
+    if (raw !== base) drifted++;
+    if (fix === base) recovered++;
+    console.log(`  ${skinName.padEnd(10)} ${lightName.padEnd(14)} ${String(cct).padStart(5)}K` +
+                `  未補償 ${toneLabel(raw).padEnd(4)}${raw === base ? '  ' : '✗ '}` +
+                `→ 補償後 ${toneLabel(fix)}${fix === base ? ' ✓' : ' ✗'}`);
+  }
+}
+ok(drifted > 0, `不補償時有 ${drifted}/12 組被燈光帶偏（證明這個問題是真的，不是假想）`);
+ok(recovered === 12, `補償後 ${recovered}/12 組還原成 D65 下的判定`);
+
+console.log('\n\x1b[1m10. 色溫估計\x1b[0m');
+for (const [n, rgb, want] of [['D65 純白', [255,255,255], 6504], ['暖白', [255,214,170], 4100], ['冷白', [214,226,255], 8800]]) {
+  const c = estimateCCT(rgb);
+  console.log(`  ${n.padEnd(10)} ${String(c).padStart(5)} K`);
+  if (n === 'D65 純白') ok(Math.abs(c - 6504) < 30, `D65 純白 → ${c}K（標準值 6504K）`);
+}
+ok(estimateCCT([255,214,170]) < estimateCCT([214,226,255]), '暖光的色溫低於冷光（方向沒有搞反）');
+
+console.log('\n\x1b[1m11. 顯示端校色 — 偏掉的螢幕能不能救回來\x1b[0m');
+// 一台便宜機台螢幕：三原色偏移 + 每通道 gamma 不一致
+const BAD = {
+  gamma: [2.45, 2.25, 2.05],
+  M: [[0.4500, 0.3300, 0.1900],
+      [0.2300, 0.7000, 0.0700],
+      [0.0150, 0.0950, 1.0300]],
+};
+// 共同白點用 sRGB 的白 —— 各自用自己的白會把白點偏差「適應掉」，
+// 那是自欺欺人：我們要的是跟實品的絕對一致。
+const WHITE = simulateDisplay([255, 255, 255], SRGB_PANEL);
+const labOn = (rgb, panel, transfer) => xyzToLab(sim(rgb, panel, transfer), WHITE);
+function sim([r, g, b], panel, transfer) {
+  const lin = [r / 255, g / 255, b / 255].map((v, i) =>
+    transfer ? transfer(v, panel.gamma[i])
+    : panel.transfer ? panel.transfer(v)
+    : Math.pow(v, panel.gamma[i]));
+  return {
+    X: panel.M[0][0]*lin[0] + panel.M[0][1]*lin[1] + panel.M[0][2]*lin[2],
+    Y: panel.M[1][0]*lin[0] + panel.M[1][1]*lin[1] + panel.M[1][2]*lin[2],
+    Z: panel.M[2][0]*lin[0] + panel.M[2][1]*lin[1] + panel.M[2][2]*lin[2],
+  };
+}
+const measure = (panel, transfer, noise = 0) => {
+  const m = {};
+  for (const p of PATCHES) {
+    const v = sim(p.rgb, panel, transfer);
+    const n = () => 1 + (noise ? (Math.random() * 2 - 1) * noise : 0);
+    m[p.id] = { X: v.X * n(), Y: v.Y * n(), Z: v.Z * n() };
+  }
+  return m;
+};
+
+const shades = PRODUCTS.map((p) => ({ id: p.id, rgb: hexRgb(p.color) }));
+function evaluate(panel, transfer, model) {
+  let before = 0, after = 0, worst = 0, clip = 0;
+  for (const s of shades) {
+    const want = labOn(s.rgb, SRGB_PANEL);
+    before += deltaE(want, labOn(s.rgb, panel, transfer));
+    const c = correctRgb(s.rgb, model);
+    if (c.clipped) clip++;
+    const d = deltaE(want, labOn(c.rgb, panel, transfer));
+    after += d; worst = Math.max(worst, d);
+  }
+  return { before: before / shades.length, after: after / shades.length, worst, clip };
+}
+
+const modelExact = fitDisplay(measure(BAD));
+ok(!modelExact.error, `擬合成功　γ = [${modelExact.gamma?.map((g) => g.toFixed(3)).join(', ')}]（真值 2.45, 2.25, 2.05）`);
+const rExact = evaluate(BAD, null, modelExact);
+console.log(`  理想量測      平均 ΔE ${rExact.before.toFixed(1)} → ${rExact.after.toFixed(2)}　最差 ${rExact.worst.toFixed(2)}　夾限 ${rExact.clip}/12`);
+ok(rExact.after < 0.5, `校正後平均 ΔE ${rExact.after.toFixed(2)}（校正前 ${rExact.before.toFixed(1)}）`);
+
+// 色差儀有雜訊 —— 校正必須撐得住，不能只在完美資料下成立
+const rNoise = evaluate(BAD, null, fitDisplay(measure(BAD, null, 0.005)));
+console.log(`  ±0.5% 量測雜訊 平均 ΔE ${rNoise.before.toFixed(1)} → ${rNoise.after.toFixed(2)}　最差 ${rNoise.worst.toFixed(2)}`);
+ok(rNoise.after < 2.3, `有量測雜訊時校正後平均 ΔE ${rNoise.after.toFixed(2)} < 2.3（肉眼可分辨門檻）`);
+
+// 真實面板不是純冪次曲線。這裡加一段 S 形偏差，量出模型本身的極限。
+const sCurve = (v, g) => Math.pow(v, g) * (1 + 0.06 * Math.sin(Math.PI * v));
+const rS = evaluate(BAD, sCurve, fitDisplay(measure(BAD, sCurve)));
+console.log(`  非純冪次響應   平均 ΔE ${rS.before.toFixed(1)} → ${rS.after.toFixed(2)}　最差 ${rS.worst.toFixed(2)}`);
+ok(rS.after < rS.before * 0.25, `模型不完全吻合時仍改善 ${(rS.before / rS.after).toFixed(1)} 倍（殘差 ΔE ${rS.after.toFixed(2)}）`);
+
+// 色差儀的輸出單位不固定：有的給 cd/m²，有的以白 = 100。
+// 擬合結果必須與尺度無關，否則校正會安靜地錯掉好幾個數量級。
+const scaled = (() => { const m = measure(BAD); const o = {};
+  for (const k of Object.keys(m)) o[k] = { X: m[k].X * 100, Y: m[k].Y * 100, Z: m[k].Z * 100 };
+  return o; })();
+const rScaled = evaluate(BAD, null, fitDisplay(scaled));
+console.log(`  量測值 ×100    平均 ΔE ${rScaled.before.toFixed(1)} → ${rScaled.after.toFixed(2)}`);
+ok(Math.abs(rScaled.after - rExact.after) < 0.05, `量測單位放大 100 倍，結果不變（ΔE ${rExact.after.toFixed(2)} vs ${rScaled.after.toFixed(2)}）`);
+
+// 缺量測值要明講，不能默默用半套資料擬合
+ok(fitDisplay({ R100: { X: 1, Y: 1, Z: 1 } }).error?.includes('缺少'), '量測不完整時回報錯誤而不是硬算');
+
+
+console.log('\n\x1b[1m12. 筆壓\x1b[0m');
+{
+  const SENS = 0.65;                       // 面板預設值
+
+  // 不支援筆壓的裝置：規格規定按下去回 0.5、放開回 0。
+  // 0 一定要當成「未知 → 滿壓」，否則所有滑鼠使用者的妝會無故淡掉。
+  ok(pressureLevel(0, SENS) === 1 && pressureLevel(-1, SENS) === 1 && pressureLevel(NaN, SENS) === 1,
+     '裝置不回報筆壓（0 / 負值 / NaN）時一律滿壓，不會莫名其妙變淡');
+
+  // 靈敏度 0 必須「完全等於」沒有筆壓，不是「影響很小」——
+  // 一般觸控螢幕的機台要能把它整個關掉。
+  const off = [0.01, 0.2, 0.5, 0.8, 1].every((r) => pressureLevel(r, 0) === 1);
+  ok(off, '靈敏度 0 時任何筆壓都回 1，與加筆壓之前逐位元組相同');
+
+  // 單調遞增：壓越大一定越濃，不能有反轉
+  const lv = [0.05, 0.2, 0.4, 0.6, 0.8, 1].map((r) => pressureLevel(r, 1));
+  ok(lv.every((v, i) => i === 0 || v > lv[i - 1]),
+     '筆壓越大濃度越高（' + lv.map((v) => v.toFixed(2)).join(' < ') + '）');
+
+  // 滿壓一定回到 1，否則使用力壓也達不到滑桿設定的濃度
+  ok(Math.abs(pressureLevel(1, 1) - 1) < 1e-9 && Math.abs(pressureLevel(1, SENS) - 1) < 1e-9,
+     '滿壓 = 濃度滑桿的設定值（靈敏度多少都一樣）');
+
+  // 曲線用 p^0.65 而不是線性：輕壓要還看得見。
+  // 線性的話 0.1 的力道只有 0.10 的濃度，等於白畫。
+  const light = pressureLevel(0.1, 1);
+  ok(light > 0.2 && light < 0.3,
+     '輕壓（0.1）仍有 ' + light.toFixed(2) + ' 的濃度，線性對應只會有 0.10');
+
+  // 半徑跟濃度的關係：濃度線性掉到 0，半徑只掉到 0.62。
+  // 兩個都線性歸零的話，輕壓會變成又小又淡的一點，看起來像沒畫到。
+  const base = { color: '#C0293E', alpha: 0.088, radius: 26, bias: 0 };
+  const soft = applyPressure(base, pressureLevel(0.1, 1));
+  const hard = applyPressure(base, pressureLevel(1, 1));
+  ok(Math.abs(hard.alpha - base.alpha) < 1e-9 && Math.abs(hard.radius - base.radius) < 1e-9,
+     '滿壓時的一筆與沒有筆壓時完全相同（alpha ' + hard.alpha + '、radius ' + hard.radius + '）');
+  ok(soft.alpha < base.alpha * 0.3 && soft.radius > base.radius * 0.6,
+     '輕壓濃度掉到 ' + (soft.alpha / base.alpha).toFixed(2) + ' 倍，半徑只掉到 ' +
+     (soft.radius / base.radius).toFixed(2) + ' 倍（不會變成一個小點）');
+
+  // bias 不另外乘：stamp() 裡珠光是 alpha * bias，濃度乘下去就跟著淡了
+  ok(soft.bias === base.bias && applyPressure({ ...base, bias: 40 }, 0.5).bias === 40,
+     '珠光的 bias 不被重複乘一次（stamp 裡本來就是 alpha × bias）');
+}
+
+
+console.log('\n\x1b[1m13. 情境推薦（心情 / 天氣 / 行程）\x1b[0m');
+{
+  // 沒選 = 完全不影響。這條最重要：不說話的人不該被系統自作主張
+  const none = contextAdvice({});
+  ok(!none.any && none.reasons.length === 0 && Object.keys(none.finish).length === 0 &&
+     ['lip', 'eye', 'cheek'].every((k) => none.amount[k] === 1),
+     '三項都沒選時：不改質地、不改濃度、沒有任何理由');
+
+  const base = { lip: 0.65, eye: 0.40, cheek: 0.42 };
+  ok(JSON.stringify(adjustIntensity(base, none.amount)) === JSON.stringify(base),
+     '　濃度與妝容原本設定逐項相同');
+
+  // 天氣 → 質地
+  ok(contextAdvice({ weather: 'hot' }).finish.lip === 'matte', '悶熱 → 唇改霧面（不易脫妝）');
+  ok(contextAdvice({ weather: 'cold' }).finish.lip === 'gloss', '乾冷 → 唇改水光（唇容易裂）');
+  ok(contextAdvice({ weather: 'humid' }).finish.eye === 'matte', '潮濕 → 眼妝改霧面（不易暈染）');
+
+  // 心情 → 濃度，且不會超過滑桿上限
+  const tired = contextAdvice({ mood: 'tired' });
+  ok(tired.amount.cheek > 1.2, '疲憊 → 腮紅加強（' + tired.amount.cheek.toFixed(2) + ' 倍）');
+  ok(adjustIntensity({ lip: 0.9, eye: 0.9, cheek: 0.9 }, tired.amount).cheek === 1,
+     '　加強後仍夾在滑桿上限 1 以內');
+
+  // 行程 → 妝容加權方向不同
+  const pick = (c) => Object.entries(contextAdvice(c).look).sort((a, b) => b[1] - a[1])[0][0];
+  ok(pick({ plan: 'meeting' }) === 'clean' && pick({ plan: 'party' }) === 'retro' && pick({ plan: 'date' }) === 'kbeauty',
+     '面試 → 清透通勤、聚會 → 復古氣質、約會 → 韓系微光');
+
+  // 情境只加權，不改膚色契合分
+  const ranked = [{ look: { id: 'natural' }, score: 88 }, { look: { id: 'retro' }, score: 91 }];
+  const after = rankWithContext(ranked, contextAdvice({ plan: 'errand' }));
+  ok(after.every((r) => r.score === ranked.find((x) => x.look.id === r.look.id).score),
+     '情境加權不會改動膚色契合分（量測與情境分開記）');
+  ok(after[0].look.id === 'natural' && after[0].total === 96,
+     '　加權後排序會變：88 + 8 = 96，排到復古氣質（91）前面');
+
+  // 每一條調整都要附理由
+  const full = contextAdvice({ mood: 'tired', weather: 'hot', plan: 'date' });
+  ok(full.reasons.length === 3 && full.reasons.every((r) => /^ctx\.why\./.test(r.key)),
+     '三項都選時，每一項各有一條可顯示的理由');
+
+  // 表情 → 心情只是猜測
+  ok(moodFromFace(null) === null, '沒有表情資料時不亂猜（回傳 null）');
+  ok(moodFromFace({ mouthSmileLeft: 0.6, mouthSmileRight: 0.55 }) === 'bright', '在笑 → 猜「有精神」');
+  ok(moodFromFace({ eyeBlinkLeft: 0.7, eyeBlinkRight: 0.66 }) === 'tired', '眼皮沉重 → 猜「疲憊」');
+  ok(moodFromFace({}) === 'calm', '沒有明顯表情 → 猜「平靜」');
+
+  // 天氣的外部掛勾：只吃認得的值，離線保證不破
+  ok(externalWeather('?weather=hot') === 'hot' && externalWeather('?weather=typhoon') === null,
+     '外部天氣只接受認得的代碼，其餘一律忽略');
+}
+
+console.log('\n\x1b[1m14. AI 顧問：有依據才說話\x1b[0m');
+{
+  const skinN = { itaDeg: 41.2, lab: { L: 72, a: 8, b: 14 }, residual: 1.2, undertone: 'neutral', depthKey: 'light', warnings: [] };
+  const skinW = { itaDeg: 30.0, lab: { L: 66, a: 10, b: 20 }, residual: 11.4, undertone: 'warm', depthKey: 'light', warnings: [] };
+  const skinD = { itaDeg: -32, lab: { L: 38, a: 12, b: 18 }, residual: 6, undertone: 'warm', depthKey: 'dark', warnings: ['warn.deep'] };
+  const all = (arr) => arr.map((l) => l.key);
+  const kinds = (arr) => arr.map((l) => l.kind);
+
+  ok(all(onSkin(skinW)).includes('adv.toneClear'), '底調明確（殘差 11.4°）→ 給有依據的肯定');
+  ok(all(onSkin(skinN)).includes('adv.toneVersatile'), '底調接近中性（殘差 1.2°）→ 講成「可選範圍大」，仍附數字');
+  ok(kinds(onSkin(skinD)).includes('caution'), '深膚色 → 主動說明判定信心較低');
+
+  // 低分情境：一句好話都撐不起來時，不准硬誇
+  const bad = onFinish({ fit: 25, dh: 62, standout: -1.2, match: 41, gain: 3.1 }, skinN);
+  ok(!kinds(bad).includes('praise'), '契合度 41、色相差 62°、存在感 −1.2 → 沒有任何一句稱讚');
+  ok(kinds(bad).includes('tip'), '　但一定附上可以照做的下一步');
+
+  // 高分情境：稱讚要出現，而且句子裡帶得出數字
+  const good = onFinish({ fit: 100, dh: 12, standout: 17.9, match: 91, gain: 18.7 }, skinN);
+  ok(kinds(good).filter((k) => k === 'praise').length >= 3, '契合度 91、色相差 12°、存在感 17.9 → 多句肯定');
+  ok(good.filter((l) => l.kind === 'praise').every((l) => Object.keys(l.params).length > 0 || l.key === 'adv.fitAll'),
+     '　每一句肯定都帶著它引用的數字');
+
+  // 使用者換到跟底調相反的色號：照實說更搶眼，不假裝那是最佳解
+  const off = onShadeChange({ id: 'L307', color: '#C0293E', tone: 'cool' }, { id: 'L204', color: '#B4553F', tone: 'warm' }, skinW);
+  ok(!kinds(off).includes('praise') && kinds(off).includes('tip'), '換到相反底調 → 給建議而不是稱讚');
+  ok(all(off).includes('adv.shadeGap'), '　並且說出跟前一支差多少（ΔE）');
+  const same = onShadeChange({ id: 'L204', color: '#B4553F', tone: 'warm' }, null, skinW);
+  ok(kinds(same).includes('praise'), '換到同底調 → 這時才給肯定');
+
+  // 配方
+  const P3 = { lip: { tone: 'warm', stock: 12 }, eye: { tone: 'warm', stock: 9 }, cheek: { tone: 'warm', stock: 14 } };
+  ok(all(onPicks(P3, skinW)).includes('adv.picksAll'), '三件都對上底調 → 肯定');
+  const P2 = { lip: { tone: 'cool', stock: 5 }, eye: { tone: 'neutral', stock: 9 }, cheek: { tone: 'warm', stock: 14 } };
+  ok(all(onPicks(P2, skinW)).includes('adv.lowStock'), '庫存偏低 → 主動提醒');
+
+  // 妝容
+  const ranked = [{ look: { id: 'retro' }, score: 90, why: ['why.brightLip'] }, { look: { id: 'natural' }, score: 78, why: ['why.lowChroma'] }];
+  ok(all(onLook(ranked, { id: 'retro' })).includes('adv.lookStrong'), '選到第一名（90 分）→ 肯定');
+  ok(all(onLook(ranked, { id: 'natural' })).includes('adv.lookAlt'), '選到非第一名 → 照實說哪一款分數更高');
+
+  // 濃度只在兩端說話
+  ok(onAmount('lip', 0.55).length === 0, '濃度落在中間 → 不囉嗦');
+  ok(onAmount('lip', 0.92)[0].kind === 'tip' && onAmount('lip', 0.1)[0].kind === 'tip', '濃度過高或過低 → 各給一句建議');
+
+  // 全部句子的形狀一致，畫面才不會出現空字串或不存在的鍵
+  const every = [...onSkin(skinW), ...onSkin(skinN), ...onSkin(skinD), ...bad, ...good, ...off, ...same,
+                 ...onPicks(P3, skinW), ...onPicks(P2, skinW), ...onLook(ranked, { id: 'natural' }), ...onAmount('eye', 0.95)];
+  ok(every.every((l) => /^adv\./.test(l.key) && KINDS.includes(l.kind) && l.params && typeof l.params === 'object'),
+     '所有句子都是 { adv.* 文案鍵, 已知類別, 參數物件 }（共 ' + every.length + ' 句）');
+}
+
+console.log('\n\x1b[1m15. 現場光線的誠實提示\x1b[0m');
+{
+  ok(lightNote(true, false, 0.42).length === 0, '眼白量得到、光線足夠 → 不囉嗦');
+  ok(lightNote(false, true, 0.42)[0].key === 'adv.lightFallback', '眼白量不到但高光可用 → 說明改用高光估光源');
+  ok(lightNote(false, false, 0.42)[0].key === 'adv.lightNone', '兩種都估不出來 → 說明顏色沿用相機白平衡');
+  ok(lightNote(true, true, 0.12)[0].key === 'adv.lightDark', '太暗時優先提醒光線（就算眼白量得到）');
+  ok(lightNote(true, true, null).length === 0, '量不到亮度時不亂猜');
+  ok(lightNote(false, false, 0.42)[0].kind === 'caution', '這類提示一律標成「留意」');
+}
+
+
+console.log('\n\x1b[1m16. 對話式互動：建議之後給選項\x1b[0m');
+{
+  const skinW = { undertone: 'warm', lab: { L: 66 }, hue: 78.4, residual: 11.4 };
+  const ranked = [{ look: { id: 'retro' }, score: 90 }, { look: { id: 'natural' }, score: 78 }];
+  const allOpts = [...optsForSkin(ranked, { id: 'natural' }), ...optsForPicks({ lip: { tone: 'cool' } }, skinW),
+                   ...optsForAR(false), ...optsForFinish()];
+  ok(allOpts.every((o) => /^opt\./.test(o.key) && ACTS.includes(o.act)),
+     '每個選項都是 { opt.* 文案鍵, 已知動作 }（共 ' + allOpts.length + ' 個）');
+  ok(optsForSkin(ranked, { id: 'natural' }).some((o) => o.act === 'useTop'),
+     '選到的不是第一名 → 給「換成分數最高的那款」');
+  ok(!optsForSkin(ranked, { id: 'retro' }).some((o) => o.act === 'useTop'),
+     '選到的就是第一名 → 不給這個選項（不做多餘的建議）');
+  ok(optsForPicks({ lip: { tone: 'cool' }, eye: { tone: 'warm' }, cheek: { tone: 'warm' } }, skinW).some((o) => o.act === 'toNeutral'),
+     '有商品與底調相反 → 給「換成中性色」');
+  ok(!optsForPicks({ lip: { tone: 'warm' }, eye: { tone: 'neutral' }, cheek: { tone: 'warm' } }, skinW).some((o) => o.act === 'toNeutral'),
+     '沒有相反的 → 不給這個選項');
+  ok(optsForAR(true).some((o) => o.key === 'opt.zoomOff') && optsForAR(false).some((o) => o.key === 'opt.zoom'),
+     '放大開關的文字跟著目前狀態走');
+  const why = explain('tone', skinW)[0];
+  ok(why.key === 'adv.whyTone' && why.params.base === '63' && why.params.resid === '11.4',
+     '「為什麼這樣判斷」攤開算式：L* 66 的中性基準 63°，殘差 11.4°');
+  ok(explain('match', { fit: 100, dh: 16, gain: 18.7, match: 88 })[0].key === 'adv.whyMatch',
+     '「這分數怎麼算的」回傳加權算式');
+  ok(onAR({ shade: '#307 冷調正紅' }, 0.74)[0].key === 'adv.arIntro' && onAR(null).length === 0,
+     '進 AR 先說鏡子裡是什麼；沒有商品時不亂講');
+  ok(explain('tone', null).length === 0 && explain('nope', {}).length === 0, '沒有資料或不認得的題目 → 不亂編');
+
+  // 對話不該繞回原點
+  const arOpts = optsForAR(false);
+  ok(dropAsked(optsForFinish(), ['whyMatch']).every((o) => o.act !== 'whyMatch'),
+     '問過的「為什麼」就從選項收掉（同一題問第二次沒有新資訊）');
+  ok(dropAsked(arOpts, ['whyMatch']).length === arOpts.length, '　但不會誤收其他選項');
+  ok(!dropDeadAmount(arOpts, { lip: 1, eye: 1, cheek: 1 }).some((o) => o.act === 'stronger'),
+     '濃度全部到頂 → 收掉「更明顯一點」');
+  ok(!dropDeadAmount(arOpts, { lip: 0.15, eye: 0.15, cheek: 0.15 }).some((o) => o.act === 'softer'),
+     '濃度全部到對話的下限（0.15）→ 收掉「再淡一點」');
+  ok(dropDeadAmount(arOpts, { lip: 0.6, eye: 0.4, cheek: 0.5 }).length === arOpts.length,
+     '中間值 → 兩個都留著');
+  ok(optsForAR(false, 'bare').some((o) => o.key === 'opt.compareOff')
+     && optsForAR(false, 'full').some((o) => o.key === 'opt.compare'),
+     '素顏對比開著時，選項改寫成「收起」（再按一次關得掉）');
+  ok(optsForAR(false, 'dual').some((o) => o.key === 'opt.dualOff')
+     && optsForAR(false, 'bare').some((o) => o.key === 'opt.dual'),
+     '雙色對比同理，而且兩個開關互不影響');
+}
+
+console.log('\n\x1b[1m17. 互動：AI 反問、偏好記憶、主動開口\x1b[0m');
+{
+  // 反問的那一題：答案要真的改得動東西，所以三個答案都在 ACTS 裡
+  const q = askAmount(0.7);
+  ok(q.lines[0].kind === 'ask' && q.lines[0].params.n === 70, '反問一樣掛著數字（現在的濃度 70）');
+  ok(q.opts.length === 3 && q.opts.every((o) => ACTS.includes(o.act)), '三個答案都對應真的執行得了的動作');
+
+  // 偏好：只認行為，而且證據不夠就不下結論
+  const lipC = { id: 'c1', tone: 'cool' }, lipC2 = { id: 'c2', tone: 'cool' }, lipW = { id: 'w1', tone: 'warm' };
+  const p = newPref();
+  noteDwell(p, lipC, DWELL_MS - 1);
+  ok(p.kept.length === 0 && prefTone(p) === null, `停留 ${(DWELL_MS - 1) / 1000} 秒不算數（只是滑過去）`);
+  noteDwell(p, lipC, DWELL_MS + 500);
+  ok(p.kept.length === 1 && prefTone(p) === null, '只停過一支 → 還不算偏好');
+  noteDwell(p, lipC, DWELL_MS + 900);
+  ok(p.kept.length === 1, '同一支停兩次只記一次');
+  noteDwell(p, lipC2, DWELL_MS + 200);
+  ok(prefTone(p) === 'cool', '兩支冷調都停下來 → 偏好成立');
+  noteDwell(p, lipW, DWELL_MS + 200); noteDwell(p, { id: 'w2', tone: 'warm' }, DWELL_MS + 200);
+  ok(prefTone(p) === null, '冷暖各兩支 → 打平就不下結論');
+
+  const q2 = newPref();
+  notePref(q2, 'soft'); ok(prefBias(q2) === null, '按一次「再淡一點」不算偏好');
+  notePref(q2, 'soft'); ok(prefBias(q2) === 'soft', '連按兩次才算');
+  notePref(q2, 'bold'); ok(prefBias(q2) === null, '一來一回 → 回到沒有偏好');
+
+  // 換色號：有偏好時優先同底調，而且說得出依據
+  const list = [{ id: 'a', tone: 'warm' }, { id: 'b', tone: 'warm' }, { id: 'c', tone: 'cool' }, { id: 'd', tone: 'cool' }];
+  const cool = newPref(); noteDwell(cool, list[2], 9e3); noteDwell(cool, list[3], 9e3);
+  ok(pickNext(list, 'a', newPref()).id === 'b', '沒有偏好 → 照原本的順序輪');
+  ok(pickNext(list, 'a', cool).id === 'c', '偏好冷調 → 先給冷調的那一支');
+  ok(pickNext(list, 'd', cool).id === 'c', '輪到最後一支會繞回來，而且不會給回自己');
+  ok(prefNote(cool, list[2])[0].key === 'adv.prefTone' && prefNote(cool, list[0]).length === 0,
+     '依偏好挑的時候講出依據；不是那個底調就不硬掰');
+
+  // 記住的偏好要能一鍵照做，不然「我記得你喜歡」只是嘴上說說
+  const picksWarm = { lip: { id: 'w1', tone: 'warm' }, eye: { id: 'e', tone: 'neutral' }, cheek: { id: 'k', tone: 'neutral' } };
+  const picksCool = { lip: { id: 'c1', tone: 'cool' }, eye: { id: 'e', tone: 'neutral' }, cheek: { id: 'k', tone: 'neutral' } };
+  ok(optsForPicks(picksWarm, { undertone: 'warm' }, cool).some((o) => o.act === 'usePref'),
+     '記得偏好冷調、現在是暖調 → 給「換成我停留過的那種」');
+  ok(!optsForPicks(picksCool, { undertone: 'warm' }, cool).some((o) => o.act === 'usePref'),
+     '現在就是那個底調 → 不給（點了也不會變）');
+  ok(!optsForPicks(picksWarm, { undertone: 'warm' }, newPref()).some((o) => o.act === 'usePref'),
+     '還沒有偏好 → 不給');
+  ok(prefRecall(cool, picksWarm)[0].key === 'adv.prefRecall' && prefRecall(newPref(), picksWarm).length === 0,
+     '回到配方畫面會把記住的偏好講出來；沒記到就不講');
+  ok(prefRecall(cool, picksCool).length === 0, '唇色已經是那個底調 → 閉嘴（沒有答案的問題不要問）');
+
+  // 主動開口：一種情況一場只講一次，而且要有數字
+  const base = { idleMs: 0, tried: 1, lipPct: 14, curDe: 30, said: new Set() };
+  ok(observe({ ...base }) === null, '有人正在操作 → 不插話');
+  ok(observe({ ...base, lipPct: 6 }).id === 'tooFar', '唇只佔畫面寬 6% → 提醒靠近一點');
+  ok(observe({ ...base, lipPct: 6, said: new Set(['tooFar']) }) === null, '講過的就不再講');
+  const best = { shade: '#307 冷調正紅', de: 31.4 };
+  const ask = observe({ ...base, idleMs: 13e3, tried: 3, best });
+  ok(ask.id === 'askBest' && ask.lines[0].kind === 'ask' && ask.opts.length === 2,
+     '閒著 13 秒又試過 3 支 → 反問「要不要換成對比最大的那支」');
+  ok(observe({ ...base, idleMs: 13e3, tried: 2, best }) === null, '只試過 2 支 → 還沒有東西好比，不問');
+  ok(observe({ ...base, idleMs: 21e3 }).id === 'idleTry', '閒著 21 秒 → 給一個帶數字的下一步');
+
+  // 收尾：引用真的發生過的事，沒發生的不掰
+  const sum = sessionSummary({ tried: 4, shade: '#307', amount0: 0.92, amount1: 0.6, pref: cool });
+  ok(sum.map((l) => l.key).join() === 'adv.sumTried,adv.sumAmount,adv.sumTone',
+     '收尾講：試了幾支、濃度自己調了多少、停留過的底調');
+  ok(sum.every((l) => l.kind === 'fact'), '收尾是陳述，不是再誇一次');
+  const none = sessionSummary({ tried: 1, shade: '#307', amount0: 0.7, amount1: 0.7, pref: newPref() });
+  ok(none.length === 0, '只試一支、濃度沒動、沒有偏好 → 一句都不講');
+}
+
+console.log('\n\x1b[1m18. 對話不會走進死路 + 情境三題\x1b[0m');
+{
+  // 還沒選妝容時問完「為什麼」→ 不能變成沒有選項（實際發生過的當機情境）
+  const s2 = optsForSkin([{ look: { id: 'clean' }, score: 90 }], null);
+  ok(s2.some((o) => o.act === 'whyTone') && s2.some((o) => o.act === 'useTop'),
+     '還沒選妝容時，除了「為什麼」也給一條往前的路');
+  ok(dropAsked(s2, ['whyTone']).length >= 1, '　問完「為什麼」之後仍然有得點');
+  const s5 = dropAsked(optsForFinish(), ['whyMatch']);
+  ok(s5.length >= 1 && s5[0].act === 'retry', '回饋畫面問完「這分數怎麼算的」也還有退路');
+
+  // 一次性的答案：答完就收掉，不會累積在選項列
+  const mixed = [...optsForAR(false, 'full'), { key: 'opt.prefSoft', act: 'prefSoft' },
+                 { key: 'opt.ctxYes', act: 'ctxMood' }];
+  ok(dropAnswers(mixed).length === optsForAR(false, 'full').length,
+     '回答用的選項是一次性的，答完就收掉');
+  ok(dropAnswers(optsForAR(false, 'full')).length === optsForAR(false, 'full').length,
+     '　但不會誤收平常的動作');
+
+  // 情境三題：量不到的事用問的，答案標成「你說的」
+  const items = MOODS.map((id) => ({ id, key: 'ctx.mood.' + id }));
+  const plain = askContext('mood', items, null);
+  ok(plain.lines[0].kind === 'ask' && plain.lines[0].key === 'adv.askmood', '沒有猜測時直接問');
+  ok(plain.opts.length === MOODS.length + 1 && plain.opts.every((o) => ACTS.includes(o.act)),
+     `四個心情 + 一個「不想說」，動作都在 ACTS 裡`);
+  ok(plain.opts.every((o) => o.act === 'ctxSkip' || o.val), '每個答案都帶著它代表的選項值');
+  const guessed = askContext('mood', items, 'tired');
+  ok(guessed.lines[0].key === 'adv.askmoodGuess' && guessed.lines[0].params.guess === 'ctx.mood.tired',
+     '表情猜到了 → 改成「我猜是這個，對嗎」而不是直接當成事實');
+  ok(guessed.opts[0].key === 'opt.ctxYes' && guessed.opts[0].val === 'tired',
+     '　第一個選項是「對，就是這個」');
+  ok(guessed.opts.filter((o) => o.val === 'tired').length === 1, '　猜到的那一個不會重複出現兩次');
+  ok(askContext('plan', PLANS.map((id) => ({ id, key: 'ctx.plan.' + id })), null).opts.length === PLANS.length + 1,
+     '行程同樣是「所有選項 + 不想說」');
+
+  const got = onContext('mood', 'ctx.mood.tired', 'ctx.why.tired');
+  ok(got[0].kind === 'told' && KINDS.includes('told'),
+     '情境的回答標成「你說的」—— 跟量出來的分開（可信度不一樣）');
+  ok(got[0].params.why === 'ctx.why.tired', '　而且附上「因為你這樣說，所以怎麼調」');
+  ok(onContext('mood', null)[0].key === 'adv.ctxSkipped', '不想說 → 照實說這一項不列入');
+}
+
+console.log('\n\x1b[1m19. 追問：解釋不是死路，可以一路問下去\x1b[0m');
+{
+  const s2 = optsAfterWhy('s2'), s5 = optsAfterWhy('s5');
+  ok(s2.length === 3 && s5.length === 3, '膚色與分數各給三個追問');
+  ok([...s2, ...s5].every((o) => ACTS.includes(o.act) && EXPLAIN_ACTS.includes(o.act)),
+     '追問都是已知動作，而且都算「問過就收掉」的那一類');
+  ok(dropAsked([...s2, { key: 'opt.useTop', act: 'useTop' }], ['whyDepth', 'whyLight']).length === 2,
+     '問過的追問收掉，往前的路留著');
+
+  const skin = classifySkin(hexRgb('#f0d7c2'));
+  const band = [{ min: 55, key: 'very-light' }].find((c) => skin.itaDeg > c.min) || { min: 41 };
+  const dep = explain('depth', { ...skin, band })[0];
+  ok(dep.key === 'adv.whyDepth' && dep.params.depth === 'depth.' + skin.depthKey && +dep.params.ita === +skin.itaDeg.toFixed(1),
+     `深淺的追問報出實際的 ITA°（${skin.itaDeg.toFixed(1)}°）與它落在的帶`);
+
+  const lit = explain('light', { reliable: true, samples: 762, cct: 5709.4 })[0];
+  ok(lit.key === 'adv.whyLight' && lit.params.n === 762 && lit.params.cct === 5709,
+     '光線的追問報出眼白取樣點數與估到的色溫');
+  const dark = explain('light', { reliable: false, samples: 12 })[0];
+  ok(dark.key === 'adv.whyLightNo' && dark.kind === 'caution',
+     '眼白量不到 → 照實說判定會比較不穩，而且標成「留意」');
+
+  const pick = explain('pick', { total: 5, n: 3, tone: 'cool' })[0];
+  ok(pick.params.total === 5 && pick.params.n === 3, '「這跟推薦有什麼關係」用的是櫃上真的有貨的支數');
+
+  const v = { fit: 100, harmony: 73, done: 74, match: 84, dh: 16.2, gain: 28.3, want: 19.6, standout: 26.2,
+              band: { id: 'band.clear' } };
+  ok(explain('hue', v)[0].params.n === 73 && explain('hue', v)[0].params.dh === '16', '色相差的追問給出算式與結果');
+  ok(explain('level', v)[0].params.diff === '8.7', '上妝幅度的追問算出離期望值多遠');
+  ok(explain('standout', v)[0].params.band === 'band.clear.say', '存在感的追問報出它落在的級距');
+
+  ok(['depth', 'light', 'pick', 'hue', 'level', 'standout'].every((k) => explain(k, null).length === 0),
+     '沒有資料的追問一律不回答，不亂編');
+}
+
+console.log('\n\x1b[1m20. 互動方式：點鏡子、圈回臉上、點頭搖頭\x1b[0m');
+{
+  // 點鏡子裡的臉：最近而且在範圍內才算
+  const anchors = [{ kind: 'lip', x: 100, y: 200, r: 40 }, { kind: 'eye', x: 100, y: 100, r: 30 },
+                   { kind: 'cheek', x: 160, y: 160, r: 30 }];
+  ok(nearestRegion({ x: 105, y: 205 }, anchors) === 'lip', '點在唇附近 → 唇');
+  ok(nearestRegion({ x: 100, y: 108 }, anchors) === 'eye', '點在眼附近 → 眼');
+  ok(nearestRegion({ x: 400, y: 400 }, anchors) === null, '點在很遠的地方 → 不亂猜（回 null）');
+  const twin = [{ kind: 'lip', x: 0, y: 0, r: 50 }, { kind: 'cheek', x: 60, y: 0, r: 50 }];
+  ok(nearestRegion({ x: 40, y: 0 }, twin) === 'cheek', '兩個範圍重疊時 → 取比較近的那一個');
+  ok(nearestRegion({ x: 0, y: 0 }, []) === null && nearestRegion({ x: 0, y: 0 }, null) === null,
+     '沒有臉的時候不會炸掉');
+
+  // 點了之後講那個部位量到什麼
+  const lipLine = onRegion('lip', { shade: '#307', amount: 0.92, de: 63.62 })[0];
+  ok(lipLine.key === 'adv.regLip' && lipLine.params.n === 92 && lipLine.params.de === '63.6',
+     '點唇 → 報出色號、濃度與色卡跟膚色的差');
+  const skinLine = onRegion('skin', { itaDeg: 72.34, lab: { L: 74.2 }, undertone: 'cool', patches: 10 })[0];
+  ok(skinLine.params.n === 10 && skinLine.params.ita === '72.3',
+     '點臉 → 報出量膚色的那幾塊與 ITA°（圈起來的就是量的地方）');
+  ok(onRegion('lip', null).length === 0 && onRegion('nope', {}).length === 0, '沒有資料或不認得的部位 → 不亂講');
+
+  // 點頭／搖頭
+  const buf = (fn) => { const now = 1e6, out = [];
+    for (let i = 0; i < 42; i++) out.push({ t: now - 1400 + i * 33, ...fn(i) });
+    return out; };
+  const wave = (i) => 0.05 * Math.sin((i / 42) * 4 * Math.PI);      // 1400ms 內來回兩次
+  ok(readGesture(buf((i) => ({ x: 0, y: wave(i) })), 1e6) === 'nod', '上下來回兩次 → 點頭');
+  ok(readGesture(buf((i) => ({ x: wave(i), y: 0 })), 1e6) === 'shake', '左右來回兩次 → 搖頭');
+  ok(readGesture(buf(() => ({ x: 0, y: 0 })), 1e6) === null, '完全不動 → 不算');
+  ok(readGesture(buf((i) => ({ x: 0, y: i * 0.004 })), 1e6) === null,
+     '慢慢低頭（幅度夠但沒有來回）→ 不算，不然低頭看商品就被當成點頭');
+  ok(readGesture(buf((i) => ({ x: 0, y: 0.01 * Math.sin((i / 42) * 4 * Math.PI) })), 1e6) === null,
+     '幅度太小的晃動 → 不算');
+  ok(readGesture(buf((i) => ({ x: wave(i), y: wave(i) })), 1e6) === null,
+     '兩軸幅度差不多（畫圈）→ 分不出是點頭還是搖頭，就不猜');
+  ok(readGesture([{ t: 1e6, x: 0, y: 0 }], 1e6) === null, '樣本太少 → 不判定');
+
+  // 停在同一支夠久 → 問要不要留（是非題，所以手勢派得上用場）
+  const keep = observe({ idleMs: 11e3, dwellMs: 11e3, curShade: '#307', curId: 'L307',
+                         tried: 2, lipPct: 14, curDe: 30, said: new Set() });
+  ok(keep.id === 'askKeep:L307' && keep.yesNo === true && keep.opts.length === 2,
+     '停留 11 秒又沒動作 → 問「要留這支嗎」，而且標成是非題');
+  ok(observe({ idleMs: 11e3, dwellMs: 11e3, curShade: '#307', curId: 'L307', tried: 2, lipPct: 14,
+               curDe: 30, said: new Set(['askKeep:L307']) })?.id !== 'askKeep:L307',
+     '同一支只問一次');
+  ok(observe({ idleMs: 2e3, dwellMs: 11e3, curShade: '#307', curId: 'L307', tried: 2, lipPct: 14,
+               curDe: 30, said: new Set() }) === null, '還在操作就不插話（就算停留很久）');
+}
+
+console.log('\n\x1b[1m21. 臉型：分類、推薦理由、白話說法\x1b[0m');
+{
+  // 每一種臉型的典型值 → 分到自己
+  ok(FACE_SHAPES.every((s) => classifyFace(PROTOTYPES[s]).shape === s), '六種臉型的典型比例各自分回自己');
+
+  const base = { ...PROTOTYPES.oval };
+  ok(classifyFace({ ...base, R: 1.75, jr: 0.86 }).shape === 'oblong', '臉長拉到 1.75 倍、下顎變寬 → 長臉');
+  ok(classifyFace({ ...base, R: 1.1, jr: 0.91, jawDeg: 127 }).shape === 'square', '臉短、下顎寬又有角 → 方形臉');
+  ok(classifyFace({ ...base, R: 1.12, jr: 0.8, jawDeg: 146, taper: 0.63 }).shape === 'round', '臉短、下顎圓 → 圓臉');
+  ok(classifyFace({ ...base, fr: 1.04, jr: 0.7, taper: 0.46 }).shape === 'heart', '額頭最寬、下巴尖 → 心形臉');
+
+  // 測試臉實際量到的特徵：落在鵝蛋臉與長臉交界，應該照實講「介於兩者之間」
+  const cam = classifyFace({ R: 1.576, fr: 0.955, jr: 0.773, taper: 0.554, jawDeg: 138.8 });
+  ok(cam.between && [cam.shape, cam.second].sort().join() === 'oblong,oval',
+     `測試臉（長寬比 1.58）→ 介於鵝蛋臉和長臉之間，不硬選一個（差距 ${cam.margin.toFixed(2)}）`);
+  ok(classifyFace({ R: 5, fr: 3, jr: 0.1, taper: 2, jawDeg: 20 }).unsure, '量出來的比例完全不像人臉（側臉、遮擋）→ 不給結論');
+  ok(classifyFace(null) === null, '沒有特徵 → 不亂猜');
+
+  // 臉型要真的影響推薦，而不只是說明
+  const ovalBonus = faceLookBonus(classifyFace(PROTOTYPES.oval));
+  ok(ovalBonus.kbeauty > (ovalBonus.clean || 0) && ovalBonus.kbeauty >= 10,
+     `鵝蛋臉 → 韓系微光加 ${ovalBonus.kbeauty} 分（量級要跟膚色分數的差距相當，才推得動排序）`);
+  ok(Object.keys(faceLookBonus({ unsure: true })).length === 0, '臉型量不準 → 完全不加分');
+  const mixed = faceLookBonus(cam);
+  ok(mixed.natural > 0 && mixed.kbeauty > 0, '介於兩者之間 → 兩種臉型各自適合的妝都加一點，不全押一邊');
+
+  const r1 = faceReasonFor(cam, 'natural'), r2 = faceReasonFor({ shape: 'round', second: 'oval' }, 'kbeauty');
+  ok(r1 && r1.key.startsWith('face.why.'), '這款襯臉型時，講得出是襯哪一種');
+  ok(r2 && r2.shape === 'oval', '第一名臉型沒有理由時，改用第二名 —— 而且講出來的是第二名的臉型，不張冠李戴');
+  ok(faceReasonFor({ shape: 'heart', second: 'oblong' }, 'clean') === null, '兩種臉型都跟這款無關 → 不硬掰理由');
+
+  // 白話說法：主要說辭不塞數字，數字留在「臉型是怎麼看的」
+  const skinC = classifySkin(hexRgb('#f0d7c2'));
+  const ranked = [{ look: { id: 'natural' }, score: 78 }, { look: { id: 'retro' }, score: 90 }];
+  const plain = [...plainFace(cam), ...plainSkin(skinC), ...plainBlush(cam),
+                 ...plainLook(ranked, { id: 'retro' }, cam, skinC), ...plainCeleb(cam)];
+  const hasNumber = (l) => Object.values(l.params).some((v) => typeof v === 'number' || /\d/.test(String(v).replace(/^[a-z.]+$/i, '')));
+  ok(plain.length >= 5 && !plain.some((l) => l.key.startsWith('adv.p.') && l.key !== 'adv.p.celeb' && hasNumber(l)),
+     '推薦畫面的主要說辭（臉型、膚色、腮紅、為什麼適合）都不帶數字');
+  ok(plainFace(cam)[0].key === 'adv.p.faceBetween', '分不太開時，第一句就是「介於兩者之間」');
+  ok(plainLook(ranked, { id: 'retro' }, cam, skinC).some((l) => l.key === 'adv.p.lookAlt'),
+     '選的不是第一名 → 照實說哪一款更襯');
+  const why = explain('face', { f: { R: 1.576, fr: 0.955, jr: 0.773, taper: 0.554, estimated: true }, cls: cam });
+  ok(why[0].params.R === '1.58' && why[0].params.fr === 96 && why.some((l) => l.key === 'adv.p.faceEst'),
+     '數字在追問裡：長寬比 1.58、額頭 96%；髮際線用估的要照實講');
+
+  // 明星例子：多份清單一致才收，而且同一個人不能出現在兩種臉型
+  const all = Object.values(CELEBS).flat();
+  ok(FACE_SHAPES.every((s) => CELEBS[s]?.length >= 2), '每種臉型至少兩個例子');
+  ok(all.every((c) => c.name && c.name_en && c.name_ja), '三種語言的名字都有');
+  ok(new Set(all.map((c) => c.name_en)).size === all.length, '沒有人同時被列在兩種臉型（有爭議的就不收）');
+  ok(plainCeleb({ unsure: true }).length === 0, '臉型量不準 → 不舉例');
+
+  // 用詞：不說修飾、顯瘦、小臉、缺點（臉型分類表的原始前提就是「修成鵝蛋臉」，這台機器不採用）
+  const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8')
+    .split('\n').filter((l) => /'(face\.|adv\.p\.|look\.cardFace|why\.)/.test(l));
+  const banned = ['修飾', '顯瘦', '小臉', '缺點', '顯臉小', 'slim', 'flaw', '欠点', '小顔'];
+  const hits = dict.filter((l) => banned.some((w) => l.includes(w)));
+  ok(dict.length > 60 && hits.length === 0, `臉型相關的 ${dict.length} 條文案沒有修飾／顯瘦／小臉這類說法`);
+}
+
+console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);
+process.exit(fail ? 1 : 0);

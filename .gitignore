@@ -1,0 +1,9 @@
+# 建置產物：每次 node build.mjs 都會重新產生，不放進主分支
+# （線上版放在 gh-pages 分支，由 GitHub Pages 發布）
+dist/
+lucid-demo.html
+
+# 本機工具設定
+.claude/
+node_modules/
+*.log
