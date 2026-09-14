@@ -826,3 +826,61 @@ body {
 /* 「參考」（明星例子）跟量測、建議長得不一樣：它是例子，不是依據 */
 .advisor .msg.ai.ref .k { color:var(--ink-3); background:transparent; box-shadow:inset 0 0 0 1px var(--line); font-style:italic; }
 .advisor .msg.ai.ref .x { color:var(--ink-3); }
+
+/* ── 內容比畫面長的步驟要能捲動 ─────────────────────────
+   第 2、3 步加了臉型說明與對話之後，內容常比畫面長。.screen 原本沒有設 overflow，
+   多出來的部分會直接溢出，壓到底部「重拍／選定妝容」按鈕與頁尾下面（手機上最明顯）。
+   改成內容區自己捲動；照片框固定高度，免得捲動容器把 flex:1 的照片框擠扁。 */
+#s2, #s3 { overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; }
+#s2 > .frame { flex:none; height:clamp(220px, 46%, 440px); }
+
+/* ── 手機 ─────────────────────────────────────────────── */
+@media (max-width:560px) {
+  /* 鏡面卡撐滿整個螢幕：原本是 78vh 的卡片，上下各留一大片空白，內容反而更擠 */
+  #stage { padding:0; gap:0; }
+  #mirror { width:100%; height:100vh; height:100dvh; border-radius:0; box-shadow:none; }
+  #mirror::after { border-radius:0; }
+
+  /* 標題列：標題只給一行，放不下就省略。原本標題被擠到 54px 寬，一個字一行，整列高度爆掉 */
+  #bar { gap:8px; padding:env(safe-area-inset-top) 10px 0; height:calc(var(--bar-h) + env(safe-area-inset-top)); }
+  #bar h1 { flex:1; min-width:0; font-size:12px; letter-spacing:.05em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #bar h1 small { font-size:10px; letter-spacing:.06em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #badge { display:none; }
+  #lang { margin-left:0; margin-right:2px; }
+  #lang button { padding:4px 7px; }
+
+  #view { padding:10px 12px 0; }
+  #rail-steps { padding:8px 12px 0; }
+  #dock { padding:10px 12px 10px; }
+  #foot { padding:0 12px max(8px, env(safe-area-inset-bottom)); }
+  #calib-tag { display:none; }
+
+  /* 膚色卡：色碼與 L*a*b* 那一欄在手機上擠到斷行，而且推薦畫面已經改成白話說法 ——
+     這些數字在「肌の色はどう見たの？」的追問裡仍然看得到 */
+  .tone-strip .nums { display:none; }
+
+  #s2 > .frame { height:clamp(200px, 40%, 360px); }
+  #s4 > .frame { height:62%; min-height:300px; }
+}
+
+/* ── AR 鏡面上的浮動元件重新分區 ─────────────────────────
+   素顏小圖、模式列、放大按鈕原本全部擠在左上角（left:12px top:12px），互相蓋住；
+   手機上鏡面變小後連效能讀數與色號標籤也疊上來。改成：
+     左上  模式列、放大按鈕（操作）
+     右上  素顏小圖（對照），效能讀數移到它下面
+     下方  色號標籤（單行）與「按住看素顏」提示 */
+#s4 #before { left:auto; right:12px; top:12px; width:88px; }
+#s4 #fps { top:138px; right:12px; }          /* 素顏小圖正下方；右下角留給手動上妝的復原鈕 */
+#s4 #callout { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#s4 .zoom-btn { top:52px; }                  /* 模式列高 35px，原本 top:46px 會跟它疊 1px */
+
+@media (max-width:560px) {
+  #s4 #before { width:64px; top:10px; right:10px; border-radius:10px; }
+  #s4 #before span { font-size:8px; letter-spacing:.06em; }
+  #s4 #fps { display:none; }                    /* 開發用的讀數，手機上不佔鏡面 */
+  #s4 .seg.float { left:8px; top:8px; }
+  #s4 .seg.float button { padding:5px 8px; font-size:10px; }
+  #s4 .zoom-btn { left:8px; top:48px; font-size:10px; }
+  #s4 #callout { right:10px; bottom:40px; max-width:calc(100% - 20px); font-size:10.5px; padding:6px 10px; }
+  #s4 .hold-hint { left:10px; bottom:10px; font-size:10px; }
+}
