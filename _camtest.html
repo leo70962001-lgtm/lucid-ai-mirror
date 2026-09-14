@@ -87,10 +87,31 @@
           <button class="zoom-btn" id="zoom-btn" type="button">放大唇部</button>
           <div class="hist" id="s4-hist"></div>
         </div>
-        <div id="s4-looks"></div>
-        <div class="tabs" id="s4-tabs"></div>
-        <div id="s4-panel"></div>
-        <div class="advisor" id="adv4" hidden></div>
+        <!-- 控制項收在浮動抽屜裡：鏡子是主角，要調整或聊天時再拉開（參考 AI 對話 App 的底部抽屜） -->
+        <div class="sheet" id="sheet" data-state="open" data-tab="ai">
+          <div class="sheet-head">
+            <button class="sheet-grip" id="sheet-grip" type="button" data-i18n-title="sheet.toggle" title="收合"></button>
+            <div class="sheet-row">
+              <div class="sheet-tabs">
+                <button type="button" data-tab="ai"><span data-i18n="sheet.ai">AI 顧問</span><i class="dot"></i></button>
+                <button type="button" data-tab="tune"><span data-i18n="sheet.tune">妝容調整</span></button>
+              </div>
+              <div class="sheet-shade" id="sheet-shade"></div>
+              <button class="sheet-toggle" id="sheet-toggle" type="button" data-i18n-title="sheet.toggle" title="收合">⌄</button>
+            </div>
+            <div class="sheet-peek" id="sheet-peek"></div>
+          </div>
+          <div class="sheet-body">
+            <div class="sheet-pane" data-pane="ai">
+              <div class="advisor" id="adv4" hidden></div>
+            </div>
+            <div class="sheet-pane" data-pane="tune">
+              <div id="s4-looks"></div>
+              <div class="tabs" id="s4-tabs"></div>
+              <div id="s4-panel"></div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- ── 評價與報告（畫面上的第 4 步）── -->

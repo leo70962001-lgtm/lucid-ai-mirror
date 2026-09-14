@@ -947,6 +947,89 @@ body {
   #s4-panel .sl output { flex:none; min-width:20px; text-align:right; }
 }
 
+/* ══ AR：鏡子為主，控制項收進浮動抽屜 ══════════════════════
+   參考 AI 對話 App：畫面主體是鏡子，底部一個半透明抽屜，
+   上面兩個分頁（AI 顧問／妝容調整），可以收到只剩一條。
+   這一段放在最後，覆蓋前面「鏡面固定 68%、下方捲動」的做法。 */
+#s4 { position:relative; overflow:hidden; }
+#s4 > .frame { position:absolute; inset:0; height:auto; min-height:0; }
+@media (max-width:560px) { #s4 > .frame { height:auto; min-height:0; } }
+
+/* 鏡面上只留：左上模式切換、右上素顏小圖、左側復原；其他資訊都在抽屜裡 */
+#s4 .zoom-btn, #s4 #callout, #s4 .hold-hint { display:none; }
+#s4 .hist { left:12px; right:auto; top:52px; bottom:auto; }
+@media (max-width:560px) { #s4 .hist { left:8px; top:46px; } }
+
+.sheet {
+  position:absolute; left:10px; right:10px; bottom:10px; z-index:6;
+  display:flex; flex-direction:column; max-height:calc(100% - 64px);
+  border-radius:20px; overflow:hidden;
+  background:rgba(255,250,249,.9); backdrop-filter:blur(16px) saturate(1.1); -webkit-backdrop-filter:blur(16px) saturate(1.1);
+  box-shadow:0 10px 34px rgba(var(--shadow-rgb),.28), 0 0 0 1px rgba(255,255,255,.6) inset;
+  transition:max-height .25s ease;
+}
+.sheet-head { flex:none; padding:4px 10px 8px; }
+.sheet-grip {
+  display:block; margin:0 auto 4px; width:44px; height:14px; padding:0; border:0; cursor:pointer; background:none; position:relative;
+}
+.sheet-grip::after { content:""; position:absolute; left:8px; right:8px; top:5px; height:4px; border-radius:3px; background:rgba(var(--line-rgb),.55); }
+.sheet-row { display:flex; align-items:center; gap:8px; }
+.sheet-tabs { display:flex; gap:4px; padding:3px; border-radius:14px; background:rgba(var(--line-rgb),.14); flex:none; }
+.sheet-tabs button {
+  position:relative; padding:6px 12px; border-radius:11px; border:0; cursor:pointer;
+  font:600 11.5px/1 inherit; color:var(--ink-3); background:transparent; transition:.15s;
+}
+.sheet-tabs button.on { background:#fff; color:var(--rose-soft); box-shadow:0 1px 6px rgba(var(--shadow-rgb),.16); }
+.sheet-tabs .dot { position:absolute; right:4px; top:4px; width:7px; height:7px; border-radius:50%; background:var(--rose); display:none; }
+.sheet.unread .sheet-tabs button[data-tab="ai"] .dot { display:block; }
+.sheet-shade { flex:1; min-width:0; display:flex; align-items:center; gap:6px; font-size:11px; color:var(--ink-2); }
+.sheet-shade i { flex:none; width:14px; height:14px; border-radius:50%; box-shadow:0 0 0 1px rgba(var(--edge-rgb),.25); }
+.sheet-shade span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sheet-toggle {
+  flex:none; width:30px; height:30px; border-radius:50%; border:1px solid var(--line); background:#fff; cursor:pointer;
+  font-size:15px; line-height:1; color:var(--ink-2);
+}
+/* 收起來時的一行預覽：AI 最新一句 */
+.sheet-peek { display:none; margin-top:6px; font-size:11.5px; color:var(--ink-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; }
+.sheet[data-state="min"] .sheet-peek { display:block; }
+.sheet[data-state="min"] .sheet-body { display:none; }
+
+.sheet-body { flex:1; min-height:0; display:flex; flex-direction:column; border-top:1px solid rgba(var(--line-rgb),.35); }
+.sheet-pane { display:none; min-height:0; padding:8px 12px 10px; }
+.sheet[data-tab="ai"] .sheet-pane[data-pane="ai"],
+.sheet[data-tab="tune"] .sheet-pane[data-pane="tune"] { display:flex; flex-direction:column; gap:8px; }
+.sheet-pane[data-pane="tune"] { overflow-y:auto; }
+.sheet-pane[data-pane="tune"] > * { flex-shrink:0; }
+/* 聊天分頁高度固定在鏡面的三分之一左右，調整分頁可以高一點 */
+.sheet[data-tab="ai"] .sheet-body { max-height:min(34vh, 260px); }
+.sheet[data-tab="tune"] .sheet-body { max-height:min(46vh, 340px); }
+
+/* 抽屜裡的對話：像聊天 App —— AI 靠左泡泡、自己靠右，快速回覆固定在下方一排左右滑 */
+#adv4 { flex:1; min-height:0; margin:0; padding:0; background:none; box-shadow:none; gap:6px; }
+#adv4 .who { display:none; }
+#adv4 .log { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:6px; padding-right:2px; }
+#adv4 .msg.ai {
+  align-self:flex-start; max-width:92%; padding:7px 10px; border-radius:4px 14px 14px 14px;
+  background:#fff; box-shadow:0 1px 4px rgba(var(--shadow-rgb),.1);
+}
+#adv4 .msg.you { font-size:11px; }
+#adv4 .opts { flex:none; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; margin:0 -12px; padding:2px 12px 0; }
+#adv4 .opts::-webkit-scrollbar { display:none; }
+#adv4 .opts button { flex:none; white-space:nowrap; }
+
+@media (max-width:560px) {
+  .sheet { left:0; right:0; bottom:0; border-radius:18px 18px 0 0; max-height:calc(100% - 52px); }
+  .sheet-tabs button { padding:6px 10px; font-size:11px; }
+  .sheet[data-tab="ai"] .sheet-body { max-height:min(36vh, 240px); }
+  .sheet[data-tab="tune"] .sheet-body { max-height:min(50vh, 330px); }
+}
+
+/* 抽屜打開時鏡面畫面往上推（高度由 app.js 依抽屜實際高度算好放在 --lift） */
+#s4 > .frame > canvas#ar { transform-origin:50% 0; transform:translateY(calc(var(--lift, 0px) * -1)) scale(var(--mirror-scale, 1)); transition:transform .25s ease; }
+/* 鏡頭影片只是畫布的來源：畫布縮小或上推後不能從四周露出來（會變成一層重影）。
+   用 opacity 而不是 display:none —— 有些瀏覽器看不到的 <video> 會停止解碼 */
+#s4 > .frame > video { opacity:0; }
+
 </style>
 </head>
 <body>
@@ -1030,10 +1113,31 @@ body {
           <button class="zoom-btn" id="zoom-btn" type="button">放大唇部</button>
           <div class="hist" id="s4-hist"></div>
         </div>
-        <div id="s4-looks"></div>
-        <div class="tabs" id="s4-tabs"></div>
-        <div id="s4-panel"></div>
-        <div class="advisor" id="adv4" hidden></div>
+        <!-- 控制項收在浮動抽屜裡：鏡子是主角，要調整或聊天時再拉開（參考 AI 對話 App 的底部抽屜） -->
+        <div class="sheet" id="sheet" data-state="open" data-tab="ai">
+          <div class="sheet-head">
+            <button class="sheet-grip" id="sheet-grip" type="button" data-i18n-title="sheet.toggle" title="收合"></button>
+            <div class="sheet-row">
+              <div class="sheet-tabs">
+                <button type="button" data-tab="ai"><span data-i18n="sheet.ai">AI 顧問</span><i class="dot"></i></button>
+                <button type="button" data-tab="tune"><span data-i18n="sheet.tune">妝容調整</span></button>
+              </div>
+              <div class="sheet-shade" id="sheet-shade"></div>
+              <button class="sheet-toggle" id="sheet-toggle" type="button" data-i18n-title="sheet.toggle" title="收合">⌄</button>
+            </div>
+            <div class="sheet-peek" id="sheet-peek"></div>
+          </div>
+          <div class="sheet-body">
+            <div class="sheet-pane" data-pane="ai">
+              <div class="advisor" id="adv4" hidden></div>
+            </div>
+            <div class="sheet-pane" data-pane="tune">
+              <div id="s4-looks"></div>
+              <div class="tabs" id="s4-tabs"></div>
+              <div id="s4-panel"></div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- ── 評價與報告（畫面上的第 4 步）── -->
@@ -1541,6 +1645,11 @@ const DICT = {
   'face.range.oblong': ['臉長 1.5 倍臉寬以上、三處寬度接近', 'more than 1.5× as long as wide, with similar widths', '縦が横の 1.5 倍以上で幅が近い'],
   'face.range.diamond': ['臉長約 1.35–1.55 倍臉寬、顴骨最寬且額頭與下巴都窄', 'about 1.35–1.55× as long as wide, cheekbones widest with a narrow forehead and chin', '縦が横の 1.35〜1.55 倍ほどで、頬骨が広くおでこ・あごが細い'],
   'adv.whyCeleb': ['明星的臉型在不同雜誌常有不同說法 —— 有研究整理過，{total} 位女星裡有 {n} 位被分到不同臉型。所以這裡只列多份清單都分在同一類的例子，而且只是這種臉型的參考，不是說你像誰。', 'Celebrity face shapes often differ between magazines — one study found {n} of {total} actresses listed under different shapes. So only names several lists agree on are shown, and they are examples of the shape, not a comparison with you.', '有名人の顔の形は雑誌によって説が分かれがちで、ある研究では {total} 人中 {n} 人が別の形に分類されていました。そのため複数のリストで一致した例だけを載せています。形の参考であり、あなたが誰に似ているという意味ではありません。'],
+
+  // AR 的控制抽屜
+  'sheet.ai':        ['AI 顧問', 'AI adviser', 'AI アドバイザー'],
+  'sheet.tune':      ['妝容調整', 'Adjust', 'メイク調整'],
+  'sheet.toggle':    ['收合／展開', 'Collapse / expand', '閉じる／開く'],
 
   // 「為什麼」之後的追問
   'opt.whyDepth':    ['深淺是怎麼分的？', 'How is the depth decided?', '明るさの区分は？'],
@@ -4811,6 +4920,7 @@ const S = {
   prevLip: null,                    // 上一支唇色 —— 對話裡可以直接換回去
   said: new Set(),                  // AI 主動講過的事，一場只講一次
   mark: null,                       // 鏡面上要圈出來的部位（AI 講到哪就指到哪）
+  sheet: { state: 'open', tab: 'ai', seen: '' },   // AR 的控制抽屜：open / min，ai / tune
   gesture: [],                      // 鼻尖軌跡（只在有是非題等著回答時才餵）
   yesNo: null,                      // 現在等著回答的是非題 { yes, no }
   lastAct: 0,                       // 使用者最後一次動作 —— 判斷「閒著」用
@@ -5435,18 +5545,17 @@ function mountChat(where) {
   box.hidden = !c.msgs.length;
   if (!c.msgs.length) return;
   box.appendChild(el('div', 'who', t('adv.who')));
-  // 只留最近幾則，面板不會越長越長
-  // 手機的 AR 畫面空間最緊：只放最新的兩則（通常是「你：…」加 AI 的回應），鏡子才是主角
-  const compact = where === 's4' && globalThis.matchMedia?.('(max-width:560px)').matches;
-  // 精簡版只放 AI 最新的一句：自己剛點了什麼，使用者看得到；空間留給鏡子
-  const shown = compact ? c.msgs.filter((m) => m.who === 'ai').slice(-1) : c.msgs.slice(-6);
-  for (const m of shown) {
-    if (m.who === 'you') { box.appendChild(el('div', 'msg you', m.text)); continue; }
+  // AR 的對話在抽屜裡：訊息區自己捲動、選項固定在下方（像聊天 App）；其他畫面照舊只留最近幾則
+  const inSheet = where === 's4';
+  const log = inSheet ? el('div', 'log') : box;
+  for (const m of c.msgs.slice(inSheet ? -12 : -6)) {
+    if (m.who === 'you') { log.appendChild(el('div', 'msg you', m.text)); continue; }
     const row = el('div', 'msg ai ' + m.l.kind);
     row.appendChild(el('span', 'k', t('adv.kind.' + m.l.kind)));
     row.appendChild(el('span', 'x', advLine(m.l)));
-    box.appendChild(row);
+    log.appendChild(row);
   }
+  if (inSheet) { box.appendChild(log); requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; }); }
   let opts = dropDeadAmount(dropAsked(c.opts, c.asked), S.amount);
   // 全部被收掉就退回預設 —— 對話永遠要留得下一步，這是最後一道保險
   if (!opts.length) opts = dropDeadAmount(dropAsked(defaultOpts(where), c.asked), S.amount);
@@ -5460,6 +5569,65 @@ function mountChat(where) {
     box.appendChild(row);
   }
   if (where === 's5') box.appendChild(el('div', 'foot', t('adv.note')));
+  if (inSheet) syncSheet();
+}
+
+// ── AR 的控制抽屜 ───────────────────────────────────────
+// 鏡子是主角：抽屜可以收到只剩一條（目前色號＋AI 最新一句），要調整或聊天時再拉開。
+// AI 有新的話時不強制打開抽屜 —— 只在分頁上亮一個點，收起來的那一條也會換成新的那句。
+
+/**
+ * 抽屜打開時把鏡面畫面往上推抽屜高度的一半。
+ * 抽屜蓋住的是鏡面下半部 —— 剛好是嘴唇，而唇是試妝最需要看的地方。
+ * 推上去之後，下緣露出的空白正好藏在抽屜後面。點擊與拖曳的座標換算用的是畫布的實際位置，所以不受影響。
+ */
+function liftMirror() {
+  const sh = $('#sheet'), s4 = $('#s4'); if (!sh || !s4) return;
+  requestAnimationFrame(() => {
+    const h = sh.getBoundingClientRect().height, H = s4.clientHeight;
+    // 調整分頁比較高：往上推會把眼睛推出畫面，所以改成整面縮小、放進抽屜上方（修圖 App 的做法）
+    const fit = S.sheet.state === 'open' && S.sheet.tab === 'tune';
+    const scale = fit ? Math.max(0.5, Math.min(1, (H - h - 14) / H)) : 1;
+    s4.style.setProperty('--mirror-scale', scale.toFixed(3));
+    s4.style.setProperty('--lift', (fit ? -6 : Math.round(Math.min(h * 0.5, H * 0.22))) + 'px');
+  });
+}
+addEventListener('resize', () => { if (S.step === 4) liftMirror(); });
+
+function mountSheet() {
+  const sh = $('#sheet'); if (!sh) return;
+  const flip = () => { S.sheet.state = S.sheet.state === 'min' ? 'open' : 'min'; syncSheet(); };
+  $('#sheet-toggle').onclick = flip;
+  $('#sheet-grip').onclick = flip;
+  // 收起來時點那一條任何地方都能打開 —— 按鈕太小，手機上不好點
+  $('#sheet-peek').onclick = () => { if (S.sheet.state === 'min') { S.sheet.state = 'open'; syncSheet(); } };
+  for (const b of sh.querySelectorAll('.sheet-tabs button')) {
+    b.onclick = () => {
+      const same = S.sheet.tab === b.dataset.tab && S.sheet.state === 'open';
+      S.sheet.tab = b.dataset.tab;
+      S.sheet.state = same ? 'min' : 'open';     // 再點一次目前的分頁 = 收起來
+      syncSheet();
+    };
+  }
+  syncSheet();
+}
+
+function syncSheet() {
+  const sh = $('#sheet'); if (!sh) return;
+  const c = S.chat.s4;
+  const lastAI = c ? [...c.msgs].reverse().find((m) => m.who === 'ai') : null;
+  const sig = lastAI ? sigOf(lastAI.l) : '';
+  const reading = S.sheet.state === 'open' && S.sheet.tab === 'ai';
+  if (reading) S.sheet.seen = sig;
+  sh.dataset.state = S.sheet.state;
+  sh.dataset.tab = S.sheet.tab;
+  sh.classList.toggle('unread', !!sig && sig !== S.sheet.seen);
+  for (const b of sh.querySelectorAll('.sheet-tabs button')) b.classList.toggle('on', b.dataset.tab === S.sheet.tab && S.sheet.state === 'open');
+  $('#sheet-toggle').textContent = S.sheet.state === 'min' ? '⌃' : '⌄';
+  $('#sheet-peek').textContent = lastAI ? advLine(lastAI.l) : '';
+  liftMirror();
+  const p = S.picks?.lip;
+  if (p) $('#sheet-shade').innerHTML = `<i style="background:${disp(p.color)}"></i><span>${tf(p, 'shade')}</span>`;
 }
 
 /** 每個畫面的預設選項 —— 對話走到沒得點的時候，用它把路接回來 */
@@ -6311,6 +6479,7 @@ function enter4() {
   mountModes();
   mountPanel();
   mountHistory();
+  mountSheet();
 
   $('#zoom-btn').onclick = () => { S.zoom = !S.zoom; mountZoomBtn(); syncAROpts(); };
   mountZoomBtn();
@@ -6787,6 +6956,7 @@ function mountZoomBtn() {
 
 function updateCallout() {
   $('#callout').textContent = t('callout', { shade: tf(S.picks.lip, 'shade'), finish: finishLabel(S.picks.lip.finish) });
+  syncSheet();          // 抽屜標題上的色號跟著換
 }
 
 /** 臉的中線在畫布上的水平位置（0..1）：鼻樑、鼻尖、上唇、下唇四點平均，頭稍微轉也穩 */
