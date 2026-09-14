@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>LUCID AI Smart Mirror — AI × AR 智慧美妝體驗儀</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="stylesheet" href="main.css">
+</head>
+<body>
+
+<!-- 開機畫面 -->
+<div id="boot">
+  <div class="logo"><b>LUCID</b> AI SMART MIRROR</div>
+  <div class="bar"><i></i></div>
+  <p id="boot-msg" data-i18n="boot.init">初始化…</p>
+</div>
+
+<div id="stage">
+
+  <!-- ══════════ 鏡面主體 ══════════ -->
+  <div id="mirror">
+    <div id="bar">
+      <button id="back" data-i18n-title="btn.back" title="上一步">‹</button>
+      <h1 id="title">STEP 1: FACIAL PHOTO<small id="subtitle">智慧拍照 · 請對準引導框</small></h1>
+      <div id="lang"></div>
+      <button id="set-btn" type="button" aria-haspopup="true">⚙</button>
+      <div id="badge">AI &amp; AR<br>Powered</div>
+    </div>
+    <div id="settings" hidden></div>
+
+    <div id="rail-steps">
+      <i class="pip on"></i><i class="pip"></i><i class="pip"></i><i class="pip"></i>
+    </div>
+
+    <div id="view">
+
+      <!-- ── STEP 1 ── -->
+      <section class="screen" id="s1">
+        <div class="frame">
+          <video id="cam" playsinline muted autoplay></video>
+          <canvas id="guide"></canvas>
+          <div id="count" hidden></div>
+          <div id="hint" data-i18n="hint.starting">正在啟動鏡頭…</div>
+        </div>
+        <div class="err" id="cam-err" hidden></div>
+      </section>
+
+      <!-- ── STEP 2 ── -->
+      <section class="screen" id="s2" hidden>
+        <div class="frame compact">
+          <canvas id="shot"></canvas>
+          <div class="hold-hint" id="shot-hint" data-i18n="hold.hint" hidden>按住畫面看素顏</div>
+        </div>
+        <div class="tone-strip">
+          <i class="chip-color" id="tone-sw"></i>
+          <div>
+            <b id="tone-name">—</b>
+            <div class="meta" id="tone-meta">—</div>
+          </div>
+          <div class="nums" id="tone-nums"></div>
+        </div>
+        <div class="note" id="tone-warn" hidden></div>
+        <div class="advisor" id="adv2" hidden></div>
+        <div class="sect-title" data-i18n="sect.looks">BEAUTY STYLE RECOMMENDATION</div>
+        <div id="looks"></div>
+      </section>
+
+      <!-- ── STEP 3 ── -->
+      <section class="screen" id="s3" hidden>
+        <div class="frame compact"><canvas id="preview"></canvas></div>
+        <div class="advisor" id="adv3" hidden></div>
+        <div class="sect-title" data-i18n="ctx.title">TODAY'S CONTEXT</div>
+        <div id="ctx"></div>
+        <div class="sect-title" data-i18n="s3.title">此妝容的配方</div>
+        <div id="items"></div>
+      </section>
+
+      <!-- ── STEP 4 ── -->
+      <section class="screen" id="s4" hidden>
+        <div class="frame">
+          <canvas id="ar"></canvas>
+          <div id="before" hidden><span>BEFORE</span><canvas id="before-c"></canvas></div>
+          <div id="callout">LIVE AR</div>
+          <div class="hold-hint" data-i18n="hold.hint">按住畫面看素顏</div>
+          <div id="fps"></div>
+          <div class="seg float" id="s4-mode"></div>
+          <button class="zoom-btn" id="zoom-btn" type="button">放大唇部</button>
+          <div class="hist" id="s4-hist"></div>
+        </div>
+        <div id="s4-looks"></div>
+        <div class="tabs" id="s4-tabs"></div>
+        <div id="s4-panel"></div>
+        <div class="advisor" id="adv4" hidden></div>
+      </section>
+
+      <!-- ── 評價與報告（畫面上的第 4 步）── -->
+      <!-- 這一步的主題是評價，所以星等放最上面；報告、契合度與購物接在下面 -->
+      <section class="screen" id="s5" hidden>
+        <div id="s5-scroll">
+
+        <div class="sect-title" data-i18n="adv.title">給你的回饋</div>
+        <div class="advisor big" id="adv5" hidden></div>
+
+        <div class="sect-title" data-i18n="sect.feedback">YOUR FEEDBACK</div>
+        <div id="thanks">
+          <div class="heart">😊</div>
+          <h2>Thank You!</h2>
+          <div id="stars"></div>
+          <div id="rate-label" data-i18n="rate.0">請給我們今天的體驗評分</div>
+          <div id="tags"></div>
+        </div>
+
+        <div class="sect-title" data-i18n="sect.report">EXPERIENCE REPORT</div>
+        <div class="ba">
+          <figure><canvas id="rep-before"></canvas><figcaption data-i18n="ba.before">BEFORE</figcaption></figure>
+          <figure><canvas id="rep-after"></canvas><figcaption data-i18n="ba.after">AFTER</figcaption></figure>
+        </div>
+        <div class="sect-title" data-i18n="sect.match">MATCH SCORE</div>
+        <div id="verdict"></div>
+
+        <div class="rep-grid" id="rep-grid"></div>
+        <div class="note" id="rep-note"></div>
+
+        <div class="sect-title" data-i18n="sect.rec">RECOMMENDED FOR YOU</div>
+        <div id="rec-items"></div>
+
+        <div class="sect-title" data-i18n="sect.recAfter">BASED ON YOUR RESULT</div>
+        <div id="rec-after"></div>
+
+        <div class="note" id="rec-total"></div>
+
+        </div>
+      </section>
+
+    </div>
+
+    <div id="dock"><div class="row" id="actions"></div></div>
+
+    <div id="foot"><span>AI &amp; AR Powered</span><span id="calib-tag"></span><span id="clock">--:--</span></div>
+  </div>
+
+  <!-- ══════════ 右側浮動商品卡 ══════════ -->
+  <aside id="panel" hidden>
+    <div class="cap" id="panel-cap">FEATURED PRODUCT</div>
+    <div class="nm" id="p-name">—</div>
+    <div id="hero"></div>
+    <div id="swatches"></div>
+    <div class="spec"><span data-i18n="panel.finish">FINISH</span><b id="p-finish">—</b></div>
+    <div class="spec"><span data-i18n="panel.shade">SHADE</span><b id="p-shade">—</b></div>
+    <div class="spec" id="spec-stock"><span data-i18n="panel.stock">STOCK</span><b id="p-stock">—</b></div>
+    <div class="spec" id="spec-price"><span data-i18n="panel.price">PRICE</span><b class="price" id="p-price">—</b></div>
+    <button class="btn primary" id="bag" data-i18n="bag.btn">ADD TO BAG</button>
+    <div id="bagmsg"></div>
+  </aside>
+
+</div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

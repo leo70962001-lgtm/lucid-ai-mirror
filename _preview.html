@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<title>CSS 元件預覽</title>
+<link rel="stylesheet" href="main.css">
+<style>
+ body{overflow:auto;padding:26px}
+ h3{font-size:11px;letter-spacing:.16em;color:var(--ink-3);margin:26px 0 12px}
+ .bay{display:flex;gap:26px;align-items:flex-end;flex-wrap:wrap;
+      padding:20px;border-radius:14px;background:rgba(10,26,54,.6);box-shadow:var(--glow)}
+ .cell{text-align:center;font-size:10px;color:var(--ink-3)}
+ .cell>*:first-child{margin:0 auto 8px}
+ #looks{max-width:620px}
+ #items{max-width:520px}
+ #swatches{max-width:300px}
+</style></head><body>
+<div id="out"></div>
+<script type="module">
+import { PRODUCTS, LOOKS, resolveLook, finishLabel, catLabel } from './js/products.js';
+
+const swatchHTML = (p, extra='') => `<i class="fin ${p.finish} ${extra}" style="--c:${p.color}"></i>`;
+function productHTML(p){
+  if(p.cat==='lip') return `<div class="obj lipstick" style="--c:${p.color}"><i class="bullet"></i><i class="ring"></i><i class="tube"></i></div>`;
+  if(p.cat==='eye'){
+    const pans=[`color-mix(in oklab, ${p.color} 45%, white)`,`color-mix(in oklab, ${p.color} 78%, white)`,p.color,`color-mix(in oklab, ${p.color} 68%, black)`];
+    return `<div class="obj palette">${pans.map(c=>`<i class="fin ${p.finish}" style="--c:${c}"></i>`).join('')}</div>`;
+  }
+  return `<div class="obj compact"><i class="fin ${p.finish}" style="--c:${p.color}"></i></div>`;
+}
+
+const H=[];
+H.push('<h3>商品實體 — 唇膏（6 色號，含 1 缺貨）</h3><div class="bay">');
+for(const p of PRODUCTS.filter(x=>x.cat==='lip'))
+  H.push(`<div class="cell">${productHTML(p)}${p.shade}<br>${finishLabel(p.finish)}${p.stock<=0?' · 缺貨':''}</div>`);
+H.push('</div>');
+
+H.push('<h3>商品實體 — 眼影盤與腮紅餅</h3><div class="bay">');
+for(const p of PRODUCTS.filter(x=>x.cat!=='lip'))
+  H.push(`<div class="cell">${productHTML(p)}${p.shade}<br>${finishLabel(p.finish)}</div>`);
+H.push('</div>');
+
+H.push('<h3>質地必須看得出差別（同一個顏色，三種質地）</h3><div class="bay">');
+for(const f of ['matte','gloss','shimmer'])
+  H.push(`<div class="cell"><i class="fin ${f}" style="--c:#C0293E;display:block;width:74px;height:74px;border-radius:12px"></i>${finishLabel(f)}</div>`);
+H.push('</div>');
+
+H.push('<h3>右側色票列</h3><div class="bay"><div id="swatches" style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;flex:1">');
+const rec=resolveLook(LOOKS[0],'warm').lip.id;
+for(const q of PRODUCTS.filter(x=>x.cat==='lip'))
+  H.push(`<button class="sw-btn ${q.id===rec?'on rec':''} ${q.stock<=0?'oos':''}">${swatchHTML(q)}${q.shade.split(' ')[1]}</button>`);
+H.push('</div></div>');
+
+H.push('<h3>妝容縮圖 — 四款妝容 × 四種膚色（用該妝容的真實商品色渲染）</h3>');
+for(const [name,skin,tone] of [['淺 · 暖','#e8c8ae','warm'],['中等 · 中性','#cea684','neutral'],['小麥 · 暖','#ad805f','warm'],['深 · 冷','#785044','cool']]){
+  H.push(`<div style="font-size:11px;color:var(--ink-3);margin:16px 0 7px">${name}</div><div id="looks" style="display:grid;grid-template-columns:repeat(4,1fr);gap:9px">`);
+  for(const look of LOOKS){
+    const pk=resolveLook(look,tone);
+    const vars=[`--skin:${skin}`,`--lip:${pk.lip.color}`,`--eye:${pk.eye.color}`,`--cheek:${pk.cheek.color}`,
+      `--lipA:${Math.min(1,look.intensity.lip*1.1).toFixed(2)}`,`--eyeA:${Math.min(1,look.intensity.eye*1.9).toFixed(2)}`,`--cheekA:${Math.min(1,look.intensity.cheek*1.9).toFixed(2)}`,
+      `--lipGloss:${pk.lip.finish==='gloss'?0.9:0}`].join(';');
+    H.push(`<div class="look"><div class="face" style="${vars}">
+      <i class="lid l"></i><i class="lid r"></i><i class="lash l"></i><i class="lash r"></i>
+      <i class="blush l"></i><i class="blush r"></i><i class="lips"></i></div>
+      <div class="txt"><div class="top"><b>${look.name}</b></div>
+      <div class="why">${pk.lip.shade}</div></div></div>`);
+  }
+  H.push('</div>');
+}
+
+H.push('<h3>Step 3 商品列</h3><div id="items" style="display:flex;flex-direction:column;gap:8px">');
+const pk=resolveLook(LOOKS[1],'warm');
+for(const c of ['lip','eye','cheek']){
+  const p=pk[c];
+  H.push(`<div class="item">${swatchHTML(p,'sw')}<div><div class="n">${p.brand} ${p.name}</div>
+    <div class="s">${catLabel(c)} · ${p.shade} · ${finishLabel(p.finish)}</div>
+    <div class="tagline">${p._reason.join('　·　')}</div></div>
+    <div class="p">$${p.price}<small>庫存 ${p.stock}</small></div></div>`);
+}
+H.push('</div>');
+
+document.getElementById('out').innerHTML = H.join('');
+</script></body></html>

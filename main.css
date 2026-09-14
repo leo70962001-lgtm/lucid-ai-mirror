@@ -1,0 +1,828 @@
+/* LUCID AI Smart Mirror — kiosk UI
+   版型作法沿用 threejs.org：全部尺寸與顏色走 CSS 變數，
+   深色模式與 RWD 只改變數值，不重寫任何 layout 規則。 */
+
+:root {
+  /* 柔和女性向：暖米白打底，玫瑰粉當重點色，金屬件走香檳金。
+     一個例外：**影像框內一律是中性灰**（--neutral）。粉色包圍會讓人
+     把口紅顏色看偏（同時對比效應），試色的可信度就是這樣掉的 ——
+     整台機器的價值來自「顏色可信」，這一點不能為了好看讓步。 */
+  --cream-0:#fbf5f3; --cream-1:#fffdfc; --cream-2:#f8eeec; --cream-3:#f2e0e0;
+  --rose:#d1738c; --rose-soft:#a95069; --rose-dim:rgba(209,115,140,.34);
+  --gold:#9c7340;
+  --ink:#453640; --ink-2:#6b5560; --ink-3:#826a76;
+  --ok:#4b9268; --warn:#a9752a;
+  --radius:22px; --radius-sm:15px;
+  --rail-w:300px; --bar-h:62px;
+  --glass:rgba(255,252,251,.84);
+  --line:rgba(190,152,163,.34);
+  --glow:0 0 0 1px var(--line), 0 10px 32px rgba(var(--glow-rgb),.18), inset 0 1px 0 rgba(255,255,255,.75);
+  --neutral:#e9e6e6;      /* 影像框的中性底，判色不受粉色干擾 */
+  --onImage:rgba(74,52,60,.78);   /* 疊在照片上的膠囊底色 */
+  /* 以下是原本散落在各處、寫死的粉色系。抽成變數，換配色才不會殘留粉紅。
+     *-rgb 是給 rgba(var(--x-rgb), .3) 用的「不含透明度」的三個數字。 */
+  --rose-rgb:209,115,140;
+  --tint:#fdeef1; --tint-2:#fbe6ea; --tint-3:#f6dfe4;   /* 選中狀態的淡底色 */
+  --line-rgb:190,152,163;
+  --glow-rgb:196,146,162; --drop-rgb:184,132,150;       /* 外框光暈、大投影 */
+  --shadow-rgb:150,110,120;                             /* 小元件投影 */
+  --edge-rgb:120,90,100;                                /* 色票外框細線 */
+  --ink-rgb:90,60,70;                                   /* 深色內陰影 */
+  --bg-1:#fbe4ea; --bg-2:#f7ebdd; --bg-3:#fdf8f6; --bg-4:#f7ece9;   /* 頁面背景的光暈 */
+  --radius-lg:30px;
+  --primary-1:#e08fa4; --primary-2:#c66884; --primary-rgb:198,104,132;   /* 主要按鈕 */
+  --card-1:#fdf4f2; --card-2:#f6e7e6; --boot-1:#fdf6f4; --boot-2:#f7e9e6;
+  --orb-1:#fff0f5; --orb-2:#f6b3ca; --orb-3:#d47f9f;                    /* 完成頁的裝飾圓球 */
+  --on-image-hi:#ffd9e2; --bar-lo:#f0b3c2; --star-off-rgb:170,140,150;
+  color-scheme: light;
+}
+
+* { box-sizing:border-box; }
+html,body { height:100%; }
+body {
+  margin:0; overflow:hidden;
+  font:15px/1.6 "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  color:var(--ink);
+  background:
+    radial-gradient(1100px 680px at 20% 10%, var(--bg-1) 0%, transparent 62%),
+    radial-gradient(900px 600px at 84% 86%, var(--bg-2) 0%, transparent 60%),
+    linear-gradient(160deg,var(--cream-0),var(--bg-3) 55%,var(--bg-4));
+}
+
+/* ── 舞台 ───────────────────────────────────────────── */
+#stage {
+  height:100%; display:flex; align-items:safe center; justify-content:safe center;
+  gap:22px; padding:22px;
+}
+
+/* 鏡面主體：直式 */
+#mirror {
+  position:relative; height:min(100%,940px); aspect-ratio:3/4.05;
+  display:flex; flex-direction:column;
+  background:linear-gradient(165deg,rgba(255,253,252,.97),rgba(250,240,239,.97));
+  border-radius:var(--radius-lg); box-shadow:var(--glow), 0 34px 80px rgba(var(--drop-rgb),.28);
+  overflow:hidden;
+}
+#mirror::after {  /* 玻璃反光 */
+  content:""; position:absolute; inset:0; pointer-events:none; border-radius:30px;
+  background:linear-gradient(118deg,rgba(255,255,255,.55) 0%,transparent 26%,transparent 74%,rgba(255,255,255,.3) 100%);
+}
+
+/* 頂部標題列 */
+#bar {
+  height:var(--bar-h); flex:none; display:flex; align-items:center; gap:12px;
+  padding:0 16px; border-bottom:1px solid var(--line); background:rgba(255,250,249,.7);
+}
+#back {
+  width:30px; height:30px; flex:none; border-radius:9px; cursor:pointer;
+  border:1px solid var(--line); background:transparent; color:var(--ink-2);
+  font-size:16px; line-height:1; transition:.15s;
+}
+#back:hover:not(:disabled) { color:var(--rose); border-color:var(--rose); background:var(--cream-2); }
+#back:disabled { opacity:.25; cursor:default; }
+#bar h1 { margin:0; font-size:13.5px; letter-spacing:.09em; font-weight:700; }
+#bar h1 small { display:block; font-size:10.5px; letter-spacing:.16em; color:var(--ink-3); font-weight:600; }
+/* 語言切換：中 / EN / 日 */
+#lang { display:flex; gap:3px; margin-left:auto; margin-right:10px; }
+#lang button {
+  padding:4px 9px; border-radius:14px; cursor:pointer;
+  font:600 10.5px/1 system-ui,sans-serif; letter-spacing:.03em;
+  border:1px solid var(--line); background:transparent; color:var(--ink-3); transition:.14s;
+}
+#lang button:hover { color:var(--ink); border-color:var(--rose-dim); }
+#lang button.on { background:var(--rose); border-color:transparent; color:#fff; }
+
+#badge {
+  margin-left:auto; flex:none; font-size:9.5px; letter-spacing:.11em; text-align:center;
+  width:56px; height:56px; border-radius:50%; display:grid; place-content:center;
+  border:1px solid var(--rose-dim); color:var(--rose-soft);
+  background:radial-gradient(circle,var(--tint),var(--tint-3));
+}
+
+/* 進度軌 */
+#rail-steps { flex:none; display:flex; gap:5px; padding:11px 16px 0; }
+.pip { flex:1; height:3px; border-radius:2px; background:rgba(var(--line-rgb),.24); transition:.35s; }
+.pip.on   { background:var(--rose); box-shadow:0 0 10px var(--rose-dim); }
+.pip.done { background:rgba(var(--rose-rgb),.5); }
+
+/* 內容區 */
+#view { flex:1; min-height:0; display:flex; flex-direction:column; padding:14px 23px 0; }
+.screen { flex:1; min-height:0; display:flex; flex-direction:column; gap:12px; }
+.screen[hidden] { display:none !important; }
+
+/* 影像框 */
+.frame {
+  position:relative; flex:1; min-height:0; border-radius:var(--radius); overflow:hidden;
+  background:var(--neutral);
+  box-shadow:0 0 0 7px var(--neutral), 0 0 0 8px var(--line), 0 8px 22px rgba(var(--shadow-rgb),.16);
+}
+.frame canvas, .frame video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
+.frame video { transform:scaleX(-1); }
+.frame.compact { flex:none; height:190px; }
+
+/* 取景引導 */
+#guide { position:absolute; inset:0; pointer-events:none; }
+#hint {
+  position:absolute; left:50%; bottom:12px; transform:translateX(-50%);
+  max-width:82%; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  padding:5px 13px; border-radius:20px;
+  font-size:12px; letter-spacing:.05em;
+  background:var(--onImage); color:#fff;
+}
+#hint.ok { background:rgba(62,120,86,.82); color:#eafff1; }
+#count {
+  position:absolute; inset:0; display:grid; place-content:center;
+  font-size:96px; font-weight:200; color:#fff; text-shadow:0 2px 8px rgba(var(--ink-rgb),.5), 0 0 42px rgba(var(--rose-rgb),.8);
+}
+
+/* 底部操作區 */
+#dock { flex:none; padding:12px 16px 14px; }
+.row { display:flex; gap:9px; align-items:center; }
+
+/* 按鈕 */
+.btn {
+  flex:1; padding:13px 16px; border-radius:var(--radius-sm); cursor:pointer;
+  font:600 14px/1.2 inherit; letter-spacing:.04em; transition:.16s;
+  border:1px solid var(--rose-dim); color:var(--rose-soft);
+  background:linear-gradient(180deg,#fff,#fbeff1);
+}
+.btn:hover:not(:disabled) { border-color:var(--rose); box-shadow:0 4px 18px rgba(var(--rose-rgb),.24); color:var(--rose-soft); }
+.btn:disabled { opacity:.4; cursor:default; }
+.btn.primary {
+  background:linear-gradient(180deg,var(--primary-1),var(--primary-2)); border-color:transparent; color:#fff;
+  box-shadow:0 5px 14px rgba(var(--primary-rgb),.24);
+}
+.btn.primary:hover { box-shadow:0 7px 20px rgba(var(--primary-rgb),.38); color:#fff; }
+.btn.ghost { flex:none; background:#fff; color:var(--ink-2); border-color:var(--line); }
+.btn.ghost:hover { color:var(--ink); }
+.btn.ghost.on { color:var(--rose); border-color:var(--rose-dim); }
+
+/* ── Step 2：分析結果 ─────────────────────────────────── */
+.tone-strip { display:flex; gap:10px; align-items:center; padding:11px 13px;
+  border-radius:var(--radius-sm); background:rgba(255,251,250,.9); box-shadow:0 0 0 1px var(--line); }
+.chip-color { width:40px; height:40px; flex:none; border-radius:12px; box-shadow:0 0 0 1px rgba(var(--edge-rgb),.22); }
+.tone-strip b { font-size:14px; }
+.tone-strip .meta { font-size:11px; color:var(--ink-3); letter-spacing:.03em; }
+.tone-strip .nums { margin-left:auto; text-align:right; font:500 10.5px/1.5 ui-monospace,monospace; color:var(--ink-3); }
+
+.sect-title { font-size:10.5px; letter-spacing:.17em; color:var(--ink-3); font-weight:700; margin:2px 0 -2px; }
+
+#looks { display:grid; grid-template-columns:repeat(2,1fr); gap:9px; }
+.look {
+  display:flex; gap:10px; align-items:flex-start;
+  text-align:left; cursor:pointer; padding:10px 11px; border-radius:var(--radius-sm);
+  border:1px solid var(--line); background:rgba(255,252,251,.82); color:var(--ink); transition:.16s;
+}
+.look:hover { border-color:var(--rose-dim); background:#fdf3f4; }
+.look.on { border-color:var(--rose); box-shadow:0 6px 18px rgba(var(--rose-rgb),.22); background:var(--tint); }
+.look .txt { flex:1; min-width:0; }
+.look .top { display:flex; align-items:baseline; gap:6px; }
+.look b { font-size:13px; }
+.look .score { margin-left:auto; font:700 11px ui-monospace,monospace; color:var(--rose); }
+.look .why { font-size:10px; color:var(--ink-3); margin-top:3px; line-height:1.45; }
+
+/* ══ 純 CSS 美術：質地、商品實體、妝容縮圖 ══════════════
+   全部用 CSS 畫，不依賴任何生成或去背圖檔。
+   顏色一律由 --c 從商品色值注入，所以畫面上的每一塊顏色
+   都等於 Step 3 推薦的那支商品，跟 AR 渲染同一個來源。   */
+
+/* ── 質地：霧面 / 水光 / 珠光 三種要看得出差別 ── */
+.fin { position:relative; overflow:hidden; background:var(--c); }
+.fin::after { content:""; position:absolute; inset:0; }
+.fin.matte::after {
+  background:linear-gradient(160deg,rgba(255,255,255,.10),transparent 45%);
+  box-shadow:inset 0 -4px 8px rgba(var(--ink-rgb),.2);
+}
+.fin.gloss::after {
+  background:
+    radial-gradient(70% 45% at 30% 22%, rgba(255,255,255,.72), rgba(255,255,255,0) 60%),
+    linear-gradient(200deg, rgba(255,255,255,.18), transparent 55%);
+}
+/* 珠光是細閃粉，不是點點花紋 —— 顆粒要小、要疏、亮度要壓 */
+.fin.shimmer::after {
+  background:
+    radial-gradient(circle at 30% 28%, rgba(255,255,255,.85) 0 .4px, transparent .95px),
+    radial-gradient(circle at 72% 58%, rgba(255,255,255,.62) 0 .35px, transparent .85px),
+    radial-gradient(circle at 14% 78%, rgba(255,255,255,.5)  0 .3px,  transparent .8px),
+    linear-gradient(150deg, rgba(255,255,255,.20), transparent 55%);
+  background-size:9px 9px, 13px 13px, 17px 17px, 100% 100%;
+}
+
+/* ── 商品實體 ── */
+.obj { position:relative; }
+
+/* 唇膏：斜切膏體 + 金屬管身 */
+.obj.lipstick { width:38px; height:88px; }
+.obj.lipstick .bullet {
+  position:absolute; left:6px; top:0; width:26px; height:38px;
+  border-radius:3px 5px 2px 2px;
+  clip-path:polygon(0 26%, 100% 0, 100% 100%, 0 100%);
+  background:linear-gradient(102deg,
+    color-mix(in oklab, var(--c) 68%, white) 0%,
+    var(--c) 38%,
+    color-mix(in oklab, var(--c) 74%, black) 100%);
+}
+.obj.lipstick .bullet::after {
+  content:""; position:absolute; left:3px; top:32%; width:5px; bottom:6px;
+  border-radius:3px; background:linear-gradient(rgba(255,255,255,.5),transparent);
+}
+.obj.lipstick .tube {
+  position:absolute; left:3px; top:36px; width:32px; bottom:0; border-radius:3px 3px 5px 5px;
+  background:linear-gradient(100deg,#7d5f52 0%,#e5d0c2 30%,#fdf6f0 42%,#c1a08d 58%,#6b5045 100%);
+  box-shadow:0 6px 16px rgba(var(--ink-rgb),.28);
+}
+.obj.lipstick .ring {
+  position:absolute; left:1px; top:34px; width:36px; height:7px; border-radius:2px;
+  background:linear-gradient(100deg,#9a7340,#f7e6c6 38%,#d6ad74 60%,#7b5b32);
+}
+
+/* 眼影盤：四格 */
+.obj.palette { width:104px; height:60px; border-radius:7px; padding:7px;
+  display:grid; grid-template-columns:repeat(4,1fr); gap:4px;
+  background:linear-gradient(150deg,#fbf1ee,#e6d2d0);
+  box-shadow:0 6px 18px rgba(var(--shadow-rgb),.24), inset 0 1px 0 rgba(255,255,255,.85); }
+.obj.palette i { border-radius:4px; box-shadow:inset 0 0 0 1px rgba(var(--ink-rgb),.16); }
+
+/* 腮紅粉餅：圓盒 */
+.obj.compact { width:74px; height:74px; border-radius:50%; padding:8px;
+  background:linear-gradient(150deg,#fbf1ee,#e6d2d0);
+  box-shadow:0 6px 18px rgba(var(--shadow-rgb),.24), inset 0 1px 0 rgba(255,255,255,.85); }
+.obj.compact i { display:block; width:100%; height:100%; border-radius:50%;
+  box-shadow:inset 0 0 10px rgba(var(--ink-rgb),.22); }
+
+/* ── 妝容縮圖：用偵測到的膚色 + 該妝容實際商品色 畫的迷你臉 ── */
+.face {
+  position:relative; flex:none; width:46px; height:58px; border-radius:50% 50% 46% 46%;
+  background:linear-gradient(165deg,
+    color-mix(in oklab, var(--skin) 88%, white),
+    var(--skin) 45%,
+    color-mix(in oklab, var(--skin) 80%, black));
+  box-shadow:inset 0 -5px 9px rgba(var(--ink-rgb),.16), 0 2px 7px rgba(var(--shadow-rgb),.24);
+}
+.face i { position:absolute; }
+/* 眼影：上眼瞼的一抹色，不是眼球 */
+.face .lid {
+  top:32%; width:28%; height:11%; border-radius:52% 52% 28% 28%;
+  background:var(--eye); opacity:var(--eyeA); filter:blur(1px);
+}
+.face .lid.l { left:14%; } .face .lid.r { right:14%; }
+/* 睫毛線：細，只用來定位五官，不能搶戲 */
+.face .lash {
+  top:42%; width:22%; height:1.6px; border-radius:2px;
+  background:rgba(var(--ink-rgb),.6);
+}
+.face .lash.l { left:17%; } .face .lash.r { right:17%; }
+.face .blush {
+  top:48%; width:34%; height:25%; border-radius:50%;
+  background:radial-gradient(circle, var(--cheek) 0%, transparent 68%);
+  opacity:var(--cheekA); filter:blur(2.4px);
+}
+.face .blush.l { left:1%; } .face .blush.r { right:1%; }
+.face .lips {
+  left:32%; top:69%; width:36%; height:12%; border-radius:46% 46% 52% 52%;
+  background:var(--lip); opacity:var(--lipA); filter:blur(.4px);
+}
+.face .lips::after {
+  content:""; position:absolute; inset:0; border-radius:inherit;
+  background:radial-gradient(60% 50% at 50% 68%, rgba(255,255,255,.5), transparent 62%);
+  opacity:var(--lipGloss,0);
+}
+
+/* ── Step 3：商品清單 ────────────────────────────────── */
+#items { flex:1; min-height:0; display:flex; flex-direction:column; gap:8px; overflow:auto; }
+.item { display:flex; gap:10px; align-items:center; padding:10px 12px;
+  border-radius:var(--radius-sm); background:rgba(255,251,250,.88); box-shadow:0 0 0 1px var(--line); }
+.item .sw { width:34px; height:34px; flex:none; border-radius:10px; box-shadow:0 0 0 1px rgba(var(--edge-rgb),.22); }
+.item .n { font-size:13px; font-weight:600; }
+.item .s { font-size:10.5px; color:var(--ink-3); }
+.item .p { margin-left:auto; text-align:right; font:700 13px ui-monospace,monospace; color:var(--gold); }
+.item .p small { display:block; font:500 9.5px/1.4 inherit; color:var(--ink-3); }
+.tagline { font-size:10px; color:var(--rose-soft); opacity:.9; }
+
+/* ── Step 4：AR 控制 ─────────────────────────────────── */
+#before {
+  position:absolute; left:12px; top:12px; width:104px; aspect-ratio:3/4;
+  border-radius:14px; overflow:hidden; box-shadow:0 0 0 2px rgba(255,255,255,.85), 0 6px 18px rgba(0,0,0,.25); background:var(--neutral);
+}
+#before canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+#before span { position:absolute; left:0; right:0; top:0; text-align:center; font-size:9.5px;
+  letter-spacing:.14em; padding:3px 0; background:var(--onImage); color:rgba(255,255,255,.9); }
+#before[hidden] { display:none; }
+
+/* 按住畫面卸妝的提示與狀態
+   「有沒有上妝」用分屏比不出來（左右是不同的臉），
+   同一個位置前後對照才看得準。 */
+.hold-hint {
+  position:absolute; left:14px; bottom:12px; pointer-events:none;
+  padding:5px 10px; border-radius:20px;
+  font-size:10.5px; letter-spacing:.06em;
+  background:var(--onImage); color:rgba(255,255,255,.9);
+  transition:opacity .18s;
+}
+.frame.bare .hold-hint { opacity:0; }
+.frame.bare::after {
+  content:attr(data-bare); position:absolute; left:50%; top:12px;
+  transform:translateX(-50%); pointer-events:none;
+  padding:5px 12px; border-radius:20px;
+  font-size:11px; letter-spacing:.08em;
+  background:var(--onImage); color:#fff; box-shadow:0 4px 14px rgba(0,0,0,.2);
+}
+.frame { cursor:pointer; }
+
+#callout {
+  position:absolute; right:14px; bottom:46px; max-width:60%;
+  padding:7px 12px; border-radius:20px; font-size:11.5px; letter-spacing:.05em;
+  background:var(--onImage); box-shadow:0 4px 14px rgba(0,0,0,.2); color:var(--on-image-hi);
+}
+
+/* ── Step 4 的操作區 ─────────────────────────────────────
+   組織方式參考輕顏相機與美圖秀秀：妝容是一排圓形膠囊，
+   細調收進分頁，檢視開關浮在畫面上不佔版面。 */
+
+/* 對比模式：浮在鏡面左上 */
+.seg.float {
+  position:absolute; left:12px; top:12px; z-index:2;
+  display:flex; gap:4px; padding:3px; border-radius:16px;
+  background:var(--onImage); backdrop-filter:blur(6px);
+}
+.seg.float[hidden] { display:none; }
+.seg.float button {
+  padding:5px 10px; border-radius:13px; cursor:pointer;
+  font:600 10.5px/1 inherit; letter-spacing:.03em;
+  border:0; background:transparent; color:rgba(255,255,255,.72); transition:.14s;
+}
+.seg.float button:hover { color:#fff; }
+.seg.float button.on { background:#fff; color:var(--rose-soft); }
+
+/* 撤銷／重做：浮在鏡面右上。美圖秀秀是編輯器，這一對永遠在最上面 —— 
+   少了它，使用者一路點下去弄壞了只能整個重來。 */
+.hist { position:absolute; right:12px; bottom:12px; z-index:2; display:flex; gap:4px; }
+.hist button {
+  padding:6px 11px; border-radius:14px; cursor:pointer;
+  font:600 10.5px/1 inherit; letter-spacing:.03em;
+  border:0; background:var(--onImage); color:rgba(255,255,255,.9);
+  backdrop-filter:blur(6px); transition:.14s;
+}
+.hist button:hover:not(:disabled) { background:rgba(var(--rose-rgb),.9); }
+.hist button:disabled { opacity:.32; cursor:default; }
+
+/* 質地篩選：先選霧面／水光／珠光，再挑色號 */
+#s4-panel .fins { display:flex; gap:6px; }
+#s4-panel .fins button {
+  padding:5px 12px; border-radius:14px; cursor:pointer;
+  font:600 10.5px/1 inherit; letter-spacing:.03em;
+  border:1px solid var(--line); background:#fff; color:var(--ink-3); transition:.14s;
+}
+#s4-panel .fins button:hover { color:var(--rose-soft); border-color:var(--rose-dim); }
+#s4-panel .fins button.on { background:var(--rose); border-color:transparent; color:#fff; }
+
+/* 妝容膠囊列 —— 縮圖是使用者自己的臉 */
+#s4-looks { display:flex; gap:10px; overflow-x:auto; padding:2px 2px 4px; scrollbar-width:none; }
+#s4-looks::-webkit-scrollbar { display:none; }
+#s4-looks .cap {
+  flex:none; width:64px; padding:0; border:0; background:none; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; gap:5px;
+}
+#s4-looks .cap canvas, #s4-looks .cap i {
+  width:56px; height:56px; border-radius:50%; display:block; object-fit:cover;
+  box-shadow:0 0 0 2px var(--cream-1), 0 0 0 3px var(--line); transition:.16s;
+}
+#s4-looks .cap i.bare { background:linear-gradient(150deg,#fdf3f1,#ecdad8); }
+#s4-looks .cap span {
+  font-size:9.5px; line-height:1.25; color:var(--ink-3); text-align:center;
+  max-width:64px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+#s4-looks .cap.on canvas, #s4-looks .cap.on i {
+  box-shadow:0 0 0 2px var(--cream-1), 0 0 0 4px var(--rose), 0 4px 14px rgba(var(--rose-rgb),.32);
+}
+#s4-looks .cap.on span { color:var(--rose-soft); font-weight:600; }
+
+/* 細調分頁 */
+.tabs { display:flex; gap:6px; }
+.tabs button {
+  flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
+  padding:8px 4px; border-radius:12px; cursor:pointer;
+  font:600 11.5px/1 inherit; border:1px solid var(--line); background:#fff;
+  color:var(--ink-2); transition:.15s;
+}
+.tabs button i { width:14px; height:14px; flex:none; border-radius:50%; background:var(--c);
+  box-shadow:0 0 0 1px rgba(var(--edge-rgb),.22); }
+.tabs button:hover { border-color:var(--rose-dim); }
+.tabs button.on { border-color:var(--rose); background:var(--tint); color:var(--rose-soft); }
+
+/* 分頁內容 */
+#s4-panel { display:flex; flex-direction:column; gap:8px; }
+#s4-panel .sides { display:flex; gap:7px; }
+#s4-panel .sides button {
+  flex:1; display:flex; align-items:center; gap:8px; cursor:pointer; text-align:left;
+  padding:7px 10px; border-radius:12px; font:inherit;
+  border:1px solid var(--line); background:#fff; transition:.15s;
+}
+#s4-panel .sides button.on { border-color:var(--rose); background:var(--tint); }
+#s4-panel .sides i { width:22px; height:22px; flex:none; border-radius:7px; background:var(--c);
+  box-shadow:0 0 0 1px rgba(var(--edge-rgb),.22); }
+#s4-panel .sides span { font-size:10px; letter-spacing:.08em; color:var(--ink-3); display:block; }
+#s4-panel .sides b { font-size:11.5px; font-weight:600; color:var(--ink); display:block; }
+#s4-panel .strip { display:flex; gap:7px; }
+#s4-panel .chip {
+  flex:1; height:32px; padding:0; cursor:pointer; border-radius:11px;
+  border:1px solid var(--line); background:#fff; transition:.15s;
+}
+#s4-panel .chip i { display:block; height:100%; border-radius:9px; background:var(--c); }
+#s4-panel .chip:hover { border-color:var(--rose-dim); }
+#s4-panel .chip.on { border-color:var(--rose); box-shadow:0 3px 12px rgba(var(--rose-rgb),.3); }
+#s4-panel .chip.oos { opacity:.35; }
+#s4-panel .shade-name { font-size:11px; color:var(--ink-2); letter-spacing:.03em; }
+#s4-panel .tools { display:flex; gap:7px; }
+#s4-panel .tools button {
+  flex:1; display:flex; align-items:center; justify-content:center; gap:7px;
+  padding:8px 6px; border-radius:12px; cursor:pointer;
+  font:600 11.5px/1 inherit; border:1px solid var(--line); background:#fff;
+  color:var(--ink-2); transition:.15s;
+}
+#s4-panel .tools button i { width:16px; height:16px; flex:none; border-radius:50%;
+  background:var(--c); box-shadow:0 0 0 1px rgba(var(--edge-rgb),.22); }
+#s4-panel .tools button.on { border-color:var(--rose); background:var(--tint); color:var(--rose-soft); }
+/* 這一列跟上面的部位分頁字面完全一樣（唇彩／眼影／腮紅），
+   不加前綴的話兩排看起來是同一個東西重複了兩次。 */
+#s4-panel .tools .rowlab { flex:none; align-self:center; font-size:11px; letter-spacing:.06em;
+  color:var(--ink-3); font-weight:700; padding-right:2px; }
+#s4-panel .tools .wipe { flex:none; padding:8px 12px; color:var(--ink-3); }
+#s4-panel .tip { font-size:10.5px; line-height:1.55; color:var(--ink-3); }
+/* 「這台裝置沒有筆壓」的說明。用得比一般提示醒目一點 —— 它解釋的是
+   一個使用者一定會誤會成「壞掉」的現象，看不到就沒有意義。 */
+#s4-panel .tip.warn { color:var(--rose-soft); margin-top:5px;
+  padding:7px 9px; border-radius:var(--radius-sm); background:var(--tint); }
+.frame.dragging { cursor:ew-resize; }
+.frame.painting { cursor:crosshair; }
+
+.sliders { display:flex; flex-direction:column; gap:7px; }
+.sl { display:flex; align-items:center; gap:10px; font-size:11.5px; color:var(--ink-2); }
+.sl label { width:34px; flex:none; }
+.sl input { flex:1; accent-color:var(--rose); height:3px; }
+.sl output { width:34px; flex:none; text-align:right; font:600 11px ui-monospace,monospace; color:var(--ink-3); }
+
+/* ── Step 5：回饋 ────────────────────────────────────── */
+/* ── Step 5：報告 → 推薦商品 → 回饋 ──────────────────── */
+/* 購物移到最後一步，前面幾步只談妝、不談錢 —— 先讓人喜歡，再談買。 */
+#s5-scroll {
+  flex:1; min-height:0; overflow:auto;
+  display:flex; flex-direction:column; gap:12px; padding-right:5px;
+}
+#s5-scroll::-webkit-scrollbar { width:5px; }
+#s5-scroll::-webkit-scrollbar-thumb { background:var(--line); border-radius:3px; }
+
+/* 前後對照 */
+.ba { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+.ba figure {
+  margin:0; position:relative; aspect-ratio:4/3; overflow:hidden;
+  border-radius:var(--radius-sm); background:var(--neutral);
+  box-shadow:0 0 0 5px var(--neutral), 0 0 0 6px var(--line);
+}
+.ba canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.ba figcaption {
+  position:absolute; left:8px; bottom:7px; padding:3px 9px; border-radius:20px;
+  font-size:9.5px; letter-spacing:.08em; background:var(--onImage); color:rgba(255,255,255,.92);
+}
+
+/* 量測數據 */
+.rep-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.rep-grid > div {
+  padding:9px 11px; border-radius:var(--radius-sm);
+  background:rgba(255,251,250,.88); box-shadow:0 0 0 1px var(--line);
+}
+.rep-grid span { display:block; font-size:9.5px; letter-spacing:.09em; color:var(--ink-3); }
+.rep-grid b { font-size:13px; font-weight:600; }
+.rep-grid b small { display:block; font:500 10px/1.5 ui-monospace,monospace; color:var(--ink-3); }
+
+/* 上妝結果契合度 —— 分項都是量出來的，所以旁邊要把數字印出來。
+   打的是「這組妝跟你合不合」，不是「你好不好看」。 */
+#verdict {
+  display:flex; gap:15px; align-items:flex-start; padding:12px 14px;
+  border-radius:var(--radius-sm); background:rgba(255,251,250,.88); box-shadow:0 0 0 1px var(--line);
+}
+#verdict .score { flex:none; width:78px; text-align:center; padding-top:2px; }
+#verdict .score b { display:block; font:700 30px/1 ui-monospace,monospace; color:var(--rose); }
+#verdict .score span { display:block; font-size:9px; letter-spacing:.09em; color:var(--ink-3); }
+#verdict .score u { display:block; margin-top:5px; text-decoration:none;
+  font-size:10px; font-weight:600; color:var(--rose-soft); }
+#verdict .bars { flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }
+.bar { display:flex; align-items:center; gap:9px; font-size:10.5px; color:var(--ink-2); }
+.bar > span { width:52px; flex:none; }
+.bar i { flex:1; height:4px; border-radius:3px; background:rgba(var(--line-rgb),.24); }
+.bar i b { display:block; height:100%; border-radius:2px;
+  background:linear-gradient(90deg,var(--bar-lo),var(--rose)); }
+.bar em { flex:none; width:52px; text-align:right; font:600 10px ui-monospace,monospace; color:var(--ink-3); }
+#verdict .say { margin-top:4px; font-size:11px; line-height:1.65; color:var(--rose-soft); }
+
+/* 推薦商品 */
+#rec-items, #rec-after { display:flex; flex-direction:column; gap:8px; }
+.item .n .tag {
+  margin-left:8px; padding:2px 8px; border-radius:20px; font-size:9.5px; font-weight:600;
+  background:var(--tint-2); color:var(--rose-soft); vertical-align:middle;
+}
+.item .add {
+  flex:none; margin-left:auto; padding:7px 13px; border-radius:20px; cursor:pointer;
+  font-size:11px; letter-spacing:.04em; white-space:nowrap;
+  border:1px solid var(--rose-dim); background:#fff; color:var(--rose-soft);
+  transition:.14s;
+}
+.item .add:hover { background:var(--tint-2); }
+.item .add.in { background:var(--rose); color:#fff; border-color:transparent; }
+.item .add:disabled { opacity:.4; cursor:not-allowed; }
+
+#thanks { flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:13px; text-align:center; }
+.heart {
+  width:104px; height:104px; border-radius:50%; display:grid; place-content:center; font-size:46px;
+  background:radial-gradient(circle at 35% 30%,var(--orb-1),var(--orb-2) 45%,var(--orb-3));
+  box-shadow:0 12px 40px rgba(var(--rose-rgb),.42);
+}
+#thanks h2 { margin:0; font-size:27px; font-weight:300; letter-spacing:.02em; }
+#stars { display:flex; gap:7px; }
+#stars button { background:none; border:0; cursor:pointer; font-size:32px; line-height:1;
+  color:rgba(var(--star-off-rgb),.3); transition:.14s; padding:0; }
+#stars button.lit { color:#e0a54a; text-shadow:0 3px 14px rgba(224,165,74,.45); }
+#stars button:hover { transform:scale(1.14); }
+#rate-label { font-size:12px; color:var(--ink-3); min-height:18px; }
+
+#tags { display:flex; flex-wrap:wrap; gap:7px; justify-content:center; max-width:330px; }
+#tags button { cursor:pointer; font:inherit; font-size:11.5px; padding:6px 12px; border-radius:16px;
+  border:1px solid var(--line); background:#fff; color:var(--ink-2); transition:.15s; }
+#tags button.on { border-color:var(--rose); color:var(--rose-soft); background:var(--tint-2); }
+
+
+/* 底部時鐘 */
+#foot { flex:none; display:flex; align-items:center; padding:0 16px 11px;
+  font-size:10px; letter-spacing:.13em; color:var(--ink-3); }
+#foot #clock { margin-left:auto; }
+
+/* ── 右側浮動商品卡 ──────────────────────────────────── */
+#panel {
+  width:var(--rail-w); flex:none; align-self:center; padding:17px;
+  border-radius:var(--radius); background:var(--glass); backdrop-filter:blur(14px);
+  box-shadow:var(--glow), 0 26px 60px rgba(var(--drop-rgb),.26);
+  transition:opacity .3s, transform .3s;
+}
+#panel[hidden] { display:none; }
+#panel .cap { font-size:9.5px; letter-spacing:.15em; color:var(--ink-3); font-weight:700; }
+#panel .nm { font-size:15px; font-weight:600; margin:5px 0 12px; }
+#panel .nm em { font-style:normal; color:var(--rose-soft); }
+/* flex 而非 grid+place-content：格線軌道會被內容撐開，
+   讓子元素的 max-height:100% 失去參照，商品照就會溢出。 */
+#hero { height:148px; border-radius:var(--radius-sm); margin-bottom:13px; padding:9px; overflow:hidden;
+  background:linear-gradient(150deg,var(--card-1),var(--card-2)); box-shadow:inset 0 0 0 1px var(--line);
+  display:flex; align-items:center; justify-content:center; }
+
+#swatches { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-bottom:13px; }
+.sw-btn { cursor:pointer; border-radius:9px; padding:7px 4px 6px; font:600 9.5px/1.2 inherit;
+  border:1px solid var(--line); background:rgba(255,252,251,.8); color:var(--ink-2); transition:.15s; }
+.sw-btn i { display:block; height:20px; border-radius:6px; margin-bottom:5px; box-shadow:0 0 0 1px rgba(var(--edge-rgb),.2); }
+.sw-btn:hover { border-color:var(--rose-dim); color:var(--ink); }
+.sw-btn.on { border-color:var(--rose); color:var(--rose-soft); box-shadow:0 4px 14px rgba(var(--rose-rgb),.26); }
+.sw-btn.rec::after { content:attr(data-rec); display:block; font-size:8.5px; color:var(--rose); letter-spacing:.06em; }
+.sw-btn.oos { opacity:.42; }
+
+.spec { display:flex; justify-content:space-between; font-size:11.5px; padding:5px 0;
+  border-bottom:1px solid rgba(var(--line-rgb),.22); }
+.spec:last-of-type { border:0; }
+.spec span { color:var(--ink-3); letter-spacing:.08em; font-size:10px; }
+.spec b { font-weight:600; }
+.spec b.price { color:var(--gold); font-family:ui-monospace,monospace; }
+
+#bag { width:100%; margin-top:12px; }
+#bagmsg { font-size:11px; color:var(--ok); text-align:center; min-height:16px; margin-top:7px; }
+
+/* ── 載入 / 錯誤 ─────────────────────────────────────── */
+#boot {
+  position:fixed; inset:0; display:grid; place-content:center; gap:16px; justify-items:center;
+  background:linear-gradient(160deg,var(--boot-1),var(--boot-2)); z-index:50; transition:opacity .4s;
+}
+#boot.gone { opacity:0; pointer-events:none; }
+#boot .logo { font-size:22px; letter-spacing:.28em; font-weight:200; }
+#boot .logo b { font-weight:700; color:var(--rose); }
+#boot .bar { width:230px; height:3px; background:rgba(var(--line-rgb),.26); border-radius:3px; overflow:hidden; }
+#boot .bar i { display:block; height:100%; width:30%; background:var(--rose); animation:sweep 1.15s infinite ease-in-out; }
+@keyframes sweep { 0%{transform:translateX(-110%)} 100%{transform:translateX(360%)} }
+#boot p { font-size:11.5px; color:var(--ink-3); letter-spacing:.06em; margin:0; }
+
+.err { padding:13px; border-radius:var(--radius-sm); font-size:12px; line-height:1.6;
+  background:#fdecec; box-shadow:0 0 0 1px rgba(200,110,110,.3); color:#8f3a3a; }
+.err[hidden] { display:none; }
+.note { font-size:10.5px; color:var(--warn); line-height:1.5; }
+
+/* 視窗又高又窄時，#mirror 的寬度是由「高度 × aspect-ratio」推導出來的，
+   它加上右側 300px 商品卡就可能超出視窗寬。body 是 overflow:hidden，
+   置中的 flex 溢出會被左右各切掉一半而且捲不到 —— Step 4 的模式列、
+   部位分頁與濃度標籤就是這樣消失在畫面左外側的。橫排且商品卡在場時，
+   再用「可用寬度」把高度夾一次，寬度自然就進得來。 */
+@media (min-width:1041px) {
+  #stage:has(#panel:not([hidden])) #mirror {
+    height:min(100%, 940px, calc((100vw - 66px - var(--rail-w)) * 4.05 / 3));
+  }
+}
+
+/* ── RWD：只改變數與方向 ─────────────────────────────── */
+@media (max-width:1040px) {
+  #stage { flex-direction:column; padding:12px; gap:12px; overflow:auto; }
+  /* flex:none 是必要的 —— 直式堆疊時 #mirror 是 flex 子元素，
+     預設 flex-shrink:1 會把它壓扁，aspect-ratio 直接失效：
+     影像區塌成一條細長條、Step 3 的商品清單整個消失。 */
+  #mirror { flex:none; height:auto; width:min(100%,520px); aspect-ratio:3/4.2; }
+  #panel { flex:none; }
+  #panel { width:min(100%,520px); }
+}
+@media (max-width:560px) {
+  :root { --bar-h:54px; }
+  #looks { grid-template-columns:1fr; }
+  #mirror { flex:none; aspect-ratio:auto; height:78vh; }
+}
+
+/* 真實商品照（放進 products/ 就會取代上面的 CSS 版本） */
+.pimg {
+  max-width:100%; max-height:100%; object-fit:contain;
+  filter:drop-shadow(0 8px 20px rgba(var(--shadow-rgb),.32));
+}
+
+/* Step 4 的即時效能讀數 —— 櫃位人員與開發都需要看得到掉幀 */
+#fps {
+  position:absolute; right:12px; top:12px;
+  padding:4px 9px; border-radius:14px;
+  font:600 10px/1 ui-monospace,monospace; letter-spacing:.06em;
+  background:var(--onImage); color:rgba(255,255,255,.8);
+}
+
+/* 校色狀態：未校色時要看得見，不能讓人以為顏色是準的 */
+#calib-tag { margin-left:14px; letter-spacing:.08em; }
+
+/* Step 2 的妝容縮圖：使用者本人套上該妝容的真實預覽 */
+.look .thumb {
+  flex:none; width:74px; height:92px; border-radius:9px; display:block;
+  object-fit:cover; box-shadow:0 0 0 1px var(--line), 0 3px 10px rgba(var(--shadow-rgb),.24);
+}
+.look.on .thumb { box-shadow:0 0 0 2px var(--rose), 0 5px 16px rgba(var(--rose-rgb),.35); }
+
+/* ── 介面設定：配色與圓角 ─────────────────────────────────
+   只換「外框」。三樣東西刻意不跟著配色走：
+   --neutral（影像框的中性灰）、商品色票、AR 上妝顏色。
+   粉色或綠色包圍會讓人把口紅顏色看偏（同時對比效應），
+   整台機器的價值來自「顏色可信」，配色不能拿這個去換。 */
+:root[data-theme="gold"] {
+  --primary-1:#d0a970; --primary-2:#a87d43; --primary-rgb:168,125,67; --card-1:#fffdf9; --card-2:#f5eee3; --boot-1:#fffdf9; --boot-2:#f5eee3; --orb-1:#fff8ec; --orb-2:#e8cfa3; --orb-3:#b38850; --on-image-hi:#f6e6c8; --bar-lo:#e8d3ae; --star-off-rgb:150,130,100;
+  --cream-0:#fbf7f1; --cream-1:#fffdf9; --cream-2:#f5eee3; --cream-3:#ecdfcb;
+  --rose:#b38850; --rose-soft:#86632f; --rose-dim:rgba(179,136,80,.34); --rose-rgb:179,136,80;
+  --gold:#8a6a3c; --ink:#43382c; --ink-2:#675847; --ink-3:#7f6f5c;
+  --line:rgba(180,158,122,.36); --line-rgb:180,158,122; --glass:rgba(255,253,249,.86);
+  --tint:#f7eedf; --tint-2:#f3e6d0; --tint-3:#eedfc6;
+  --glow-rgb:190,164,124; --drop-rgb:170,140,100; --shadow-rgb:140,115,85; --edge-rgb:115,95,72; --ink-rgb:80,64,46;
+  --bg-1:#f5e8d3; --bg-2:#eee6dc; --bg-3:#fcf9f4; --bg-4:#f2e9dc;
+}
+:root[data-theme="lilac"] {
+  --primary-1:#ab95dc; --primary-2:#7f63bd; --primary-rgb:127,99,189; --card-1:#fdfcff; --card-2:#efebf7; --boot-1:#fdfcff; --boot-2:#efebf7; --orb-1:#f7f3ff; --orb-2:#cdbdf0; --orb-3:#8f74c9; --on-image-hi:#e6dcff; --bar-lo:#cfc0f0; --star-off-rgb:140,130,170;
+  --cream-0:#f7f5fb; --cream-1:#fdfcff; --cream-2:#efebf7; --cream-3:#e3dcf1;
+  --rose:#8f74c9; --rose-soft:#65499e; --rose-dim:rgba(143,116,201,.34); --rose-rgb:143,116,201;
+  --gold:#7d6aa0; --ink:#3b3450; --ink-2:#5b5372; --ink-3:#736b8a;
+  --line:rgba(160,148,192,.36); --line-rgb:160,148,192; --glass:rgba(253,252,255,.86);
+  --tint:#efeafb; --tint-2:#e8e0f8; --tint-3:#e0d6f4;
+  --glow-rgb:160,142,200; --drop-rgb:140,122,182; --shadow-rgb:112,98,148; --edge-rgb:92,82,122; --ink-rgb:62,52,88;
+  --bg-1:#e9e1fa; --bg-2:#e3ecf7; --bg-3:#faf9fd; --bg-4:#eeeaf7;
+}
+:root[data-theme="sage"] {
+  --primary-1:#86b59c; --primary-2:#578a70; --primary-rgb:87,138,112; --card-1:#fcfefc; --card-2:#e9f1eb; --boot-1:#fcfefc; --boot-2:#e9f1eb; --orb-1:#f1faf4; --orb-2:#b5d8c4; --orb-3:#5f9479; --on-image-hi:#d4f0df; --bar-lo:#b7d9c5; --star-off-rgb:120,150,135;
+  --cream-0:#f4f8f5; --cream-1:#fcfefc; --cream-2:#e9f1eb; --cream-3:#dbe8df;
+  --rose:#5f9479; --rose-soft:#3f6f56; --rose-dim:rgba(95,148,121,.34); --rose-rgb:95,148,121;
+  --gold:#6f7f5a; --ink:#303f37; --ink-2:#4f6056; --ink-3:#67786f;
+  --line:rgba(136,168,150,.36); --line-rgb:136,168,150; --glass:rgba(252,254,252,.86);
+  --tint:#e7f2eb; --tint-2:#ddeee3; --tint-3:#d3e8da;
+  --glow-rgb:136,172,152; --drop-rgb:116,152,132; --shadow-rgb:92,122,106; --edge-rgb:76,98,86; --ink-rgb:52,68,60;
+  --bg-1:#ddeee3; --bg-2:#efeee0; --bg-3:#f9fcfa; --bg-4:#eaf1ec;
+}
+:root[data-theme="mist"] {
+  --primary-1:#86a7cc; --primary-2:#55799f; --primary-rgb:85,121,159; --card-1:#fcfdfe; --card-2:#e9eff5; --boot-1:#fcfdfe; --boot-2:#e9eff5; --orb-1:#f1f6fc; --orb-2:#b9cde6; --orb-3:#5f86b3; --on-image-hi:#d8e6f7; --bar-lo:#b9cde6; --star-off-rgb:120,140,165;
+  --cream-0:#f4f7fa; --cream-1:#fcfdfe; --cream-2:#e9eff5; --cream-3:#dbe4ee;
+  --rose:#5f86b3; --rose-soft:#3e6390; --rose-dim:rgba(95,134,179,.34); --rose-rgb:95,134,179;
+  --gold:#6c7f99; --ink:#2f3a47; --ink-2:#4d5b6b; --ink-3:#657384;
+  --line:rgba(140,160,186,.36); --line-rgb:140,160,186; --glass:rgba(252,253,254,.86);
+  --tint:#e7eff8; --tint-2:#dde8f5; --tint-3:#d3e1f1;
+  --glow-rgb:140,164,196; --drop-rgb:118,142,176; --shadow-rgb:92,112,140; --edge-rgb:76,92,116; --ink-rgb:50,62,80;
+  --bg-1:#dde8f5; --bg-2:#eef0e8; --bg-3:#f9fbfd; --bg-4:#e9eef4;
+}
+/* 俐落：圓角收小。只動三個圓角變數，版面尺寸完全不變 */
+:root[data-shape="crisp"] { --radius:10px; --radius-sm:7px; --radius-lg:14px; }
+
+/* 設定面板：頁首齒輪按鈕打開，浮在鏡面右上 */
+#set-btn {
+  width:28px; height:28px; margin-right:8px; flex:none; border-radius:50%; cursor:pointer;
+  border:1px solid var(--line); background:var(--cream-1); color:var(--ink-3); font-size:14px; line-height:1;
+}
+#set-btn:hover, #set-btn.on { color:var(--rose-soft); border-color:var(--rose-dim); }
+#settings {
+  position:absolute; top:calc(var(--bar-h) + 4px); right:14px; z-index:30; width:272px; padding:14px 14px 12px;
+  border-radius:var(--radius-sm); background:var(--glass); backdrop-filter:blur(14px);
+  box-shadow:var(--glow), 0 18px 40px rgba(var(--drop-rgb),.28);
+}
+#settings[hidden] { display:none; }
+#settings h4 { margin:0 0 8px; font-size:10px; letter-spacing:.14em; color:var(--ink-3); font-weight:700; }
+#settings .row { display:flex; gap:6px; margin-bottom:13px; }
+#settings .theme {
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; padding:2px 0;
+  border:0; background:none; cursor:pointer; font:500 10.5px/1.2 inherit; color:var(--ink-2);
+}
+#settings .theme i { width:30px; height:30px; border-radius:50%; background:var(--c);
+  box-shadow:0 0 0 2px var(--cream-1), 0 0 0 3px rgba(var(--edge-rgb),.22); }
+#settings .theme.on { color:var(--rose-soft); font-weight:700; }
+#settings .theme.on i { box-shadow:0 0 0 2px var(--cream-1), 0 0 0 4px var(--rose); }
+#settings .shape {
+  flex:1; padding:9px 0; cursor:pointer; border:1px solid var(--line); background:var(--cream-1);
+  color:var(--ink-2); font:600 11.5px/1 inherit;
+}
+#settings .shape.soft { border-radius:14px; }
+#settings .shape.crisp { border-radius:4px; }
+#settings .shape.on { border-color:var(--rose); background:var(--tint); color:var(--rose-soft); }
+#settings .note { margin:0; font-size:10px; line-height:1.55; color:var(--ink-3); }
+
+/* ── 情境：心情 / 天氣 / 行程 ─────────────────────────────
+   使用者自己選的，不是量測值。樣式刻意跟量測結果的區塊不同，
+   免得看起來像同一種證據。 */
+#ctx { display:flex; flex-direction:column; gap:6px; margin-bottom:6px; }
+.ctx-row { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+.ctx-row .lab { flex:none; width:32px; font-size:10.5px; font-weight:700; letter-spacing:.06em; color:var(--ink-3); }
+.ctx-row button {
+  padding:5px 10px; border-radius:13px; cursor:pointer; font:600 11px/1 inherit;
+  border:1px solid var(--line); background:var(--cream-1); color:var(--ink-2); transition:.14s;
+}
+.ctx-row button:hover { border-color:var(--rose-dim); }
+.ctx-row button.on { border-color:var(--rose); background:var(--tint); color:var(--rose-soft); }
+.ctx-row .auto { font-size:9.5px; color:var(--ink-3); }
+#ctx .tip { font-size:10.5px; line-height:1.55; color:var(--ink-3); }
+#ctx .ctx-swap {
+  align-self:flex-start; margin-top:2px; padding:7px 12px; cursor:pointer;
+  border-radius:var(--radius-sm); font:600 11.5px/1 inherit;
+  border:1px solid var(--rose); background:var(--tint); color:var(--rose-soft);
+}
+
+/* ── AI 顧問 ────────────────────────────────────────────
+   每一句旁邊標出依據的種類。刻意跟「情境」（使用者自述）長得不一樣 ——
+   量出來的跟你說的，不該用同一種視覺語言。 */
+.advisor { display:flex; flex-direction:column; gap:5px; margin-bottom:8px; padding:10px 12px;
+  border-radius:var(--radius-sm); background:var(--cream-2); box-shadow:inset 0 0 0 1px var(--line); }
+.advisor[hidden] { display:none; }
+.advisor .who { font-size:9.5px; letter-spacing:.14em; font-weight:700; color:var(--ink-3); }
+.advisor .say { display:flex; gap:7px; align-items:baseline; font-size:11.5px; line-height:1.62; color:var(--ink-2); }
+.advisor .say .k { flex:none; padding:2px 6px; border-radius:8px; font-size:9.5px; font-weight:700;
+  background:var(--cream-1); color:var(--ink-3); box-shadow:inset 0 0 0 1px var(--line); }
+.advisor .say.praise .k { color:var(--ok); }
+.advisor .say.tip .k { color:var(--rose-soft); }
+.advisor .say.caution .k { color:var(--warn); }
+.advisor .foot { margin-top:3px; font-size:10px; line-height:1.5; color:var(--ink-3); }
+.advisor.big { background:var(--cream-1); padding:13px 14px; }
+.advisor.big .say { font-size:12.5px; }
+
+/* AR：唇部放大檢視的開關。浮在鏡面左上、模式列下面 */
+.zoom-btn {
+  position:absolute; left:12px; top:46px; z-index:2; cursor:pointer;
+  padding:5px 10px; border-radius:13px; border:0; font:600 10.5px/1 inherit;
+  background:var(--onImage); color:rgba(255,255,255,.82); letter-spacing:.03em;
+}
+.zoom-btn:hover { color:#fff; }
+.zoom-btn.on { background:#fff; color:var(--rose-soft); }
+
+/* 對話式顧問：AI 的話靠左、使用者的選擇靠右，選項在最底下 */
+.advisor .msg { display:flex; gap:7px; align-items:baseline; font-size:11.5px; line-height:1.62; color:var(--ink-2); }
+.advisor .msg.you {
+  align-self:flex-end; max-width:80%; padding:5px 10px; border-radius:13px 13px 3px 13px;
+  background:var(--rose); color:#fff; font-weight:600; font-size:11px;
+}
+.advisor .msg.ai .k { flex:none; padding:2px 6px; border-radius:8px; font-size:9.5px; font-weight:700;
+  background:var(--cream-1); color:var(--ink-3); box-shadow:inset 0 0 0 1px var(--line); }
+.advisor .msg.ai.praise .k { color:var(--ok); }
+.advisor .msg.ai.tip .k { color:var(--rose-soft); }
+.advisor .msg.ai.caution .k { color:var(--warn); }
+/* AI 反問：問題要看得出來是問題，不然使用者不會知道下面那排是「答案」 */
+.advisor .msg.ai.ask { font-weight:600; color:var(--ink-1); }
+/* 「你說的」跟「量測」長得不一樣 —— 兩種證據的可信度不同，視覺上就該分開 */
+.advisor .msg.ai.told .k { color:var(--ink-2); background:transparent; box-shadow:inset 0 0 0 1px var(--rose-dim); }
+.advisor .msg.ai.ask .k { color:var(--rose); box-shadow:inset 0 0 0 1px var(--rose-dim); }
+.advisor .opts { display:flex; flex-wrap:wrap; gap:6px; margin-top:3px; }
+.advisor .opts button {
+  padding:6px 11px; border-radius:14px; cursor:pointer; font:600 11px/1 inherit;
+  border:1px solid var(--rose-dim); background:var(--cream-1); color:var(--rose-soft);
+}
+.advisor .opts button:hover { border-color:var(--rose); background:var(--tint); }
+
+/* ── AR 鏡面放大 ────────────────────────────────────────
+   原本鏡面是 flex:1、min-height:0：下面的對話和選項一多，鏡面就被往下壓，
+   對話長一點時整面鏡子會被擠到幾乎看不見。現在鏡面固定佔畫面大部分高度，
+   下面的色號、細調、對話改成在鏡面下方自己捲動 —— 試妝的主角是鏡子，不是按鈕。 */
+#s4 { overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; }
+#s4 > .frame { flex:none; height:68%; min-height:360px; }
+/* 在鏡面上拖分界線、畫手動上妝、點臉時，不能讓瀏覽器把手勢當成捲動 */
+#s4 > .frame { touch-action:none; }
+
+/* ── 臉型推薦（第 2 步）── */
+.look .best {
+  margin-left:auto; padding:2px 7px; border-radius:9px; font-size:9.5px; font-weight:700; letter-spacing:.04em;
+  color:#fff; background:var(--rose);
+}
+/* 「參考」（明星例子）跟量測、建議長得不一樣：它是例子，不是依據 */
+.advisor .msg.ai.ref .k { color:var(--ink-3); background:transparent; box-shadow:inset 0 0 0 1px var(--line); font-style:italic; }
+.advisor .msg.ai.ref .x { color:var(--ink-3); }
