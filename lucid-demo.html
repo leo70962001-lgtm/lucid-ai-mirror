@@ -892,6 +892,61 @@ body {
   #s4 .hold-hint { left:10px; bottom:10px; font-size:10px; }
 }
 
+/* ── 可捲動的步驟裡，區塊不准被壓縮 ─────────────────────
+   第 2～4 步改成可捲動之後，裡面的區塊仍是預設 flex-shrink:1。內容一長，瀏覽器會先把
+   「本身可以捲動」的區塊壓扁 —— AR 的妝容圓圖列就這樣被壓到只剩 6px，只露出圓圖的底邊。
+   區塊一律保持原本高度，多出來的交給外層捲動。 */
+#s2 > *, #s3 > *, #s4 > * { flex-shrink:0; }
+
+/* ── AR 畫面（手機）：鏡面 + 一次只做一件事 ────────────────
+   原本鏡面上 6 個浮動元件、下方 7 列控制，再加一整塊對話。簡化成：
+     鏡面上  模式切換（左上）、素顏小圖（右上）、復原（右下）
+     鏡面下  妝容 → 部位 → 色號 → 色號名＋濃度 → AI 一句話＋選項
+   拿掉的東西都還有別的入口：放大唇部在 AI 選項裡、也能直接點唇；
+   色號名在色號列下方；「長按看素顏」跟模式切換重複；質地篩選在只有 6 支色號時沒有意義。 */
+@media (max-width:560px) {
+  #s4 { gap:8px; }
+  #s4 > .frame { height:54%; min-height:280px; }
+
+  #s4 .zoom-btn, #s4 #callout, #s4 .hold-hint { display:none; }
+  #s4 .hist { right:8px; bottom:8px; }
+  #s4 .hist button { padding:6px 9px; font-size:10px; }
+
+  #s4-looks { gap:6px; padding:2px 0; }
+  #s4-looks .cap { width:54px; gap:3px; }
+  #s4-looks .cap canvas, #s4-looks .cap i { width:44px; height:44px; }
+  #s4-looks .cap span { font-size:9px; max-width:54px; }
+
+  #s4-tabs { gap:5px; }
+  #s4-tabs button { padding:7px 2px; font-size:11px; border-radius:10px; gap:4px; }
+  #s4-tabs button i { width:11px; height:11px; }
+
+  #s4-panel { gap:6px; }
+  #s4-panel .fins { display:none; }
+  #s4-panel .strip { gap:6px; }
+  #s4-panel .shade-name { font-size:10.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  /* AI 對話精簡版：只放最新一句（app.js 會少畫幾則），選項改成一排左右滑 */
+  #adv4 { padding:8px 10px; gap:6px; margin-bottom:4px; }
+  #adv4 .who { display:none; }
+  #adv4 .msg { font-size:11px; line-height:1.5; }
+  #adv4 .opts { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; margin:0 -10px; padding:0 10px 2px; }
+  #adv4 .opts::-webkit-scrollbar { display:none; }
+  #adv4 .opts button { flex:none; white-space:nowrap; }
+}
+
+@media (max-width:560px) {
+  /* 色號名與濃度併成一行：左邊色號名、右邊濃度滑桿（只在一般分頁；雙色／手動上妝的面板結構不同，不動） */
+  #s4-panel:has(> .shade-name):has(> .sl) {
+    display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.25fr); column-gap:10px; row-gap:6px; align-items:center;
+  }
+  #s4-panel:has(> .shade-name):has(> .sl) > :not(.shade-name):not(.sl) { grid-column:1 / -1; }
+  #s4-panel .sl { min-width:0; gap:6px; font-size:10.5px; }
+  #s4-panel .sl label { width:auto; }
+  #s4-panel .sl input { min-width:0; width:100%; }
+  #s4-panel .sl output { flex:none; min-width:20px; text-align:right; }
+}
+
 </style>
 </head>
 <body>
@@ -5381,7 +5436,11 @@ function mountChat(where) {
   if (!c.msgs.length) return;
   box.appendChild(el('div', 'who', t('adv.who')));
   // 只留最近幾則，面板不會越長越長
-  for (const m of c.msgs.slice(-6)) {
+  // 手機的 AR 畫面空間最緊：只放最新的兩則（通常是「你：…」加 AI 的回應），鏡子才是主角
+  const compact = where === 's4' && globalThis.matchMedia?.('(max-width:560px)').matches;
+  // 精簡版只放 AI 最新的一句：自己剛點了什麼，使用者看得到；空間留給鏡子
+  const shown = compact ? c.msgs.filter((m) => m.who === 'ai').slice(-1) : c.msgs.slice(-6);
+  for (const m of shown) {
     if (m.who === 'you') { box.appendChild(el('div', 'msg you', m.text)); continue; }
     const row = el('div', 'msg ai ' + m.l.kind);
     row.appendChild(el('span', 'k', t('adv.kind.' + m.l.kind)));
@@ -5819,6 +5878,9 @@ function bestTried() {
  */
 function watchAR(lm, W) {
   if (S.step !== 4 || !lm || !S.skin) return;
+  // 還有問題等著回答時不插別的話 —— 否則新的提示會把答案按鈕換掉，
+  // 畫面上剩一個問題卻沒有能回答的按鈕，點頭搖頭也跟著失效
+  if (S.yesNo) return;
   const now = performance.now();
   const lipPct = Math.abs(lm[291].x - lm[61].x) * 100;
   const ob = observe({
