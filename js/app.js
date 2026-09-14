@@ -692,7 +692,11 @@ function mountChat(where) {
   if (!c.msgs.length) return;
   box.appendChild(el('div', 'who', t('adv.who')));
   // 只留最近幾則，面板不會越長越長
-  for (const m of c.msgs.slice(-6)) {
+  // 手機的 AR 畫面空間最緊：只放最新的兩則（通常是「你：…」加 AI 的回應），鏡子才是主角
+  const compact = where === 's4' && globalThis.matchMedia?.('(max-width:560px)').matches;
+  // 精簡版只放 AI 最新的一句：自己剛點了什麼，使用者看得到；空間留給鏡子
+  const shown = compact ? c.msgs.filter((m) => m.who === 'ai').slice(-1) : c.msgs.slice(-6);
+  for (const m of shown) {
     if (m.who === 'you') { box.appendChild(el('div', 'msg you', m.text)); continue; }
     const row = el('div', 'msg ai ' + m.l.kind);
     row.appendChild(el('span', 'k', t('adv.kind.' + m.l.kind)));
@@ -1130,6 +1134,9 @@ function bestTried() {
  */
 function watchAR(lm, W) {
   if (S.step !== 4 || !lm || !S.skin) return;
+  // 還有問題等著回答時不插別的話 —— 否則新的提示會把答案按鈕換掉，
+  // 畫面上剩一個問題卻沒有能回答的按鈕，點頭搖頭也跟著失效
+  if (S.yesNo) return;
   const now = performance.now();
   const lipPct = Math.abs(lm[291].x - lm[61].x) * 100;
   const ob = observe({
