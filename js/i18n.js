@@ -401,6 +401,11 @@ const DICT = {
   'face.range.diamond': ['臉長約 1.35–1.55 倍臉寬、顴骨最寬且額頭與下巴都窄', 'about 1.35–1.55× as long as wide, cheekbones widest with a narrow forehead and chin', '縦が横の 1.35〜1.55 倍ほどで、頬骨が広くおでこ・あごが細い'],
   'adv.whyCeleb': ['明星的臉型在不同雜誌常有不同說法 —— 有研究整理過，{total} 位女星裡有 {n} 位被分到不同臉型。所以這裡只列多份清單都分在同一類的例子，而且只是這種臉型的參考，不是說你像誰。', 'Celebrity face shapes often differ between magazines — one study found {n} of {total} actresses listed under different shapes. So only names several lists agree on are shown, and they are examples of the shape, not a comparison with you.', '有名人の顔の形は雑誌によって説が分かれがちで、ある研究では {total} 人中 {n} 人が別の形に分類されていました。そのため複数のリストで一致した例だけを載せています。形の参考であり、あなたが誰に似ているという意味ではありません。'],
 
+  // AR 的控制抽屜
+  'sheet.ai':        ['AI 顧問', 'AI adviser', 'AI アドバイザー'],
+  'sheet.tune':      ['妝容調整', 'Adjust', 'メイク調整'],
+  'sheet.toggle':    ['收合／展開', 'Collapse / expand', '閉じる／開く'],
+
   // 「為什麼」之後的追問
   'opt.whyDepth':    ['深淺是怎麼分的？', 'How is the depth decided?', '明るさの区分は？'],
   'opt.whyLight':    ['光線有影響嗎？', 'Does the lighting affect this?', '照明の影響は？'],

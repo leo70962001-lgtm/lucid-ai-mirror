@@ -67,6 +67,7 @@ const S = {
   prevLip: null,                    // 上一支唇色 —— 對話裡可以直接換回去
   said: new Set(),                  // AI 主動講過的事，一場只講一次
   mark: null,                       // 鏡面上要圈出來的部位（AI 講到哪就指到哪）
+  sheet: { state: 'open', tab: 'ai', seen: '' },   // AR 的控制抽屜：open / min，ai / tune
   gesture: [],                      // 鼻尖軌跡（只在有是非題等著回答時才餵）
   yesNo: null,                      // 現在等著回答的是非題 { yes, no }
   lastAct: 0,                       // 使用者最後一次動作 —— 判斷「閒著」用
@@ -691,18 +692,17 @@ function mountChat(where) {
   box.hidden = !c.msgs.length;
   if (!c.msgs.length) return;
   box.appendChild(el('div', 'who', t('adv.who')));
-  // 只留最近幾則，面板不會越長越長
-  // 手機的 AR 畫面空間最緊：只放最新的兩則（通常是「你：…」加 AI 的回應），鏡子才是主角
-  const compact = where === 's4' && globalThis.matchMedia?.('(max-width:560px)').matches;
-  // 精簡版只放 AI 最新的一句：自己剛點了什麼，使用者看得到；空間留給鏡子
-  const shown = compact ? c.msgs.filter((m) => m.who === 'ai').slice(-1) : c.msgs.slice(-6);
-  for (const m of shown) {
-    if (m.who === 'you') { box.appendChild(el('div', 'msg you', m.text)); continue; }
+  // AR 的對話在抽屜裡：訊息區自己捲動、選項固定在下方（像聊天 App）；其他畫面照舊只留最近幾則
+  const inSheet = where === 's4';
+  const log = inSheet ? el('div', 'log') : box;
+  for (const m of c.msgs.slice(inSheet ? -12 : -6)) {
+    if (m.who === 'you') { log.appendChild(el('div', 'msg you', m.text)); continue; }
     const row = el('div', 'msg ai ' + m.l.kind);
     row.appendChild(el('span', 'k', t('adv.kind.' + m.l.kind)));
     row.appendChild(el('span', 'x', advLine(m.l)));
-    box.appendChild(row);
+    log.appendChild(row);
   }
+  if (inSheet) { box.appendChild(log); requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; }); }
   let opts = dropDeadAmount(dropAsked(c.opts, c.asked), S.amount);
   // 全部被收掉就退回預設 —— 對話永遠要留得下一步，這是最後一道保險
   if (!opts.length) opts = dropDeadAmount(dropAsked(defaultOpts(where), c.asked), S.amount);
@@ -716,6 +716,65 @@ function mountChat(where) {
     box.appendChild(row);
   }
   if (where === 's5') box.appendChild(el('div', 'foot', t('adv.note')));
+  if (inSheet) syncSheet();
+}
+
+// ── AR 的控制抽屜 ───────────────────────────────────────
+// 鏡子是主角：抽屜可以收到只剩一條（目前色號＋AI 最新一句），要調整或聊天時再拉開。
+// AI 有新的話時不強制打開抽屜 —— 只在分頁上亮一個點，收起來的那一條也會換成新的那句。
+
+/**
+ * 抽屜打開時把鏡面畫面往上推抽屜高度的一半。
+ * 抽屜蓋住的是鏡面下半部 —— 剛好是嘴唇，而唇是試妝最需要看的地方。
+ * 推上去之後，下緣露出的空白正好藏在抽屜後面。點擊與拖曳的座標換算用的是畫布的實際位置，所以不受影響。
+ */
+function liftMirror() {
+  const sh = $('#sheet'), s4 = $('#s4'); if (!sh || !s4) return;
+  requestAnimationFrame(() => {
+    const h = sh.getBoundingClientRect().height, H = s4.clientHeight;
+    // 調整分頁比較高：往上推會把眼睛推出畫面，所以改成整面縮小、放進抽屜上方（修圖 App 的做法）
+    const fit = S.sheet.state === 'open' && S.sheet.tab === 'tune';
+    const scale = fit ? Math.max(0.5, Math.min(1, (H - h - 14) / H)) : 1;
+    s4.style.setProperty('--mirror-scale', scale.toFixed(3));
+    s4.style.setProperty('--lift', (fit ? -6 : Math.round(Math.min(h * 0.5, H * 0.22))) + 'px');
+  });
+}
+addEventListener('resize', () => { if (S.step === 4) liftMirror(); });
+
+function mountSheet() {
+  const sh = $('#sheet'); if (!sh) return;
+  const flip = () => { S.sheet.state = S.sheet.state === 'min' ? 'open' : 'min'; syncSheet(); };
+  $('#sheet-toggle').onclick = flip;
+  $('#sheet-grip').onclick = flip;
+  // 收起來時點那一條任何地方都能打開 —— 按鈕太小，手機上不好點
+  $('#sheet-peek').onclick = () => { if (S.sheet.state === 'min') { S.sheet.state = 'open'; syncSheet(); } };
+  for (const b of sh.querySelectorAll('.sheet-tabs button')) {
+    b.onclick = () => {
+      const same = S.sheet.tab === b.dataset.tab && S.sheet.state === 'open';
+      S.sheet.tab = b.dataset.tab;
+      S.sheet.state = same ? 'min' : 'open';     // 再點一次目前的分頁 = 收起來
+      syncSheet();
+    };
+  }
+  syncSheet();
+}
+
+function syncSheet() {
+  const sh = $('#sheet'); if (!sh) return;
+  const c = S.chat.s4;
+  const lastAI = c ? [...c.msgs].reverse().find((m) => m.who === 'ai') : null;
+  const sig = lastAI ? sigOf(lastAI.l) : '';
+  const reading = S.sheet.state === 'open' && S.sheet.tab === 'ai';
+  if (reading) S.sheet.seen = sig;
+  sh.dataset.state = S.sheet.state;
+  sh.dataset.tab = S.sheet.tab;
+  sh.classList.toggle('unread', !!sig && sig !== S.sheet.seen);
+  for (const b of sh.querySelectorAll('.sheet-tabs button')) b.classList.toggle('on', b.dataset.tab === S.sheet.tab && S.sheet.state === 'open');
+  $('#sheet-toggle').textContent = S.sheet.state === 'min' ? '⌃' : '⌄';
+  $('#sheet-peek').textContent = lastAI ? advLine(lastAI.l) : '';
+  liftMirror();
+  const p = S.picks?.lip;
+  if (p) $('#sheet-shade').innerHTML = `<i style="background:${disp(p.color)}"></i><span>${tf(p, 'shade')}</span>`;
 }
 
 /** 每個畫面的預設選項 —— 對話走到沒得點的時候，用它把路接回來 */
@@ -1567,6 +1626,7 @@ function enter4() {
   mountModes();
   mountPanel();
   mountHistory();
+  mountSheet();
 
   $('#zoom-btn').onclick = () => { S.zoom = !S.zoom; mountZoomBtn(); syncAROpts(); };
   mountZoomBtn();
@@ -2043,6 +2103,7 @@ function mountZoomBtn() {
 
 function updateCallout() {
   $('#callout').textContent = t('callout', { shade: tf(S.picks.lip, 'shade'), finish: finishLabel(S.picks.lip.finish) });
+  syncSheet();          // 抽屜標題上的色號跟著換
 }
 
 /** 臉的中線在畫布上的水平位置（0..1）：鼻樑、鼻尖、上唇、下唇四點平均，頭稍微轉也穩 */
