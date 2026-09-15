@@ -406,6 +406,8 @@ const DICT = {
   'sheet.tune':      ['妝容調整', 'Adjust', 'メイク調整'],
   'sheet.toggle':    ['收合／展開', 'Collapse / expand', '閉じる／開く'],
 
+  'adv.hi.s2':       ['嗨～照片看好了，跟你說說我看到什麼', 'Hi! I have had a look at your photo — here is what I see', 'こんにちは！写真を見てみました。わかったことをお伝えしますね'],
+  'adv.hi.s5':       ['辛苦了～這是今天試妝的結果', 'All done — here is how today’s try-on went', 'おつかれさまでした。今日のお試しの結果です'],
   'hint.diag':       ['（診斷：{mode}／自檢 {test}／鏡頭 {src}／照片 {w}×{h}）', '(diagnostics: {mode} / self-test {test} / camera {src} / photo {w}×{h})', '（診断：{mode}／自己診断 {test}／カメラ {src}／写真 {w}×{h}）'],
   'hint.captureErr':  ['分析時發生錯誤，請再拍一次；如果一直失敗，可以改用「上傳照片」。', 'Something went wrong during analysis — please try again, or use "Upload photo" instead.', '解析中にエラーが起きました。もう一度撮影するか、「写真をアップロード」をお使いください。'],
 

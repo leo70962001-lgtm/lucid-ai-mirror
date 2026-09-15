@@ -1094,6 +1094,26 @@ body {
   .advisor .msg.new, .advisor .opts button, .advisor .msg.typing .bubble i { animation:none; }
 }
 
+/* ══ 對話再精簡一點 ══════════════════════════════════════
+   頭像就代表是 AI 在講，「AI 顧問」標題拿掉；氣泡、頭像、按鈕、間距都縮小。
+   表情符號放在句子開頭，讓一眼看得出這句在講什麼（臉型 ✨、膚色 🌸、腮紅 🍑…）。 */
+.advisor { gap:6px; padding:9px 10px; }
+.advisor .who { display:none; }
+.advisor .log { gap:4px; }
+.advisor .msg { font-size:11.5px; line-height:1.5; gap:5px; }
+.advisor .msg.ai .avatar { width:20px; height:20px; font-size:8px; line-height:20px; }
+.advisor .msg.ai.cont { padding-left:25px; }
+.advisor .msg.ai .bubble { padding:6px 10px; border-radius:4px 14px 14px 14px; max-width:88%; }
+.advisor .msg.ai.cont .bubble { border-radius:14px; }
+.advisor .msg.ai .bubble .emo { margin-right:4px; }
+.advisor .msg.ai .bubble .k { font-size:9px; padding:1px 5px; margin-right:4px; }
+.advisor .msg.you { padding:5px 10px; font-size:11px; border-radius:14px 14px 4px 14px; }
+.advisor .opts { gap:5px; }
+.advisor .opts button { padding:5px 10px; font-size:11px; }
+.advisor .opts button .emo { margin-right:3px; }
+.advisor.big .msg { font-size:12px; }
+#adv4 .msg.ai.cont { padding-left:25px; }
+
 </style>
 </head>
 <body>
@@ -1715,6 +1735,8 @@ const DICT = {
   'sheet.tune':      ['妝容調整', 'Adjust', 'メイク調整'],
   'sheet.toggle':    ['收合／展開', 'Collapse / expand', '閉じる／開く'],
 
+  'adv.hi.s2':       ['嗨～照片看好了，跟你說說我看到什麼', 'Hi! I have had a look at your photo — here is what I see', 'こんにちは！写真を見てみました。わかったことをお伝えしますね'],
+  'adv.hi.s5':       ['辛苦了～這是今天試妝的結果', 'All done — here is how today’s try-on went', 'おつかれさまでした。今日のお試しの結果です'],
   'hint.diag':       ['（診斷：{mode}／自檢 {test}／鏡頭 {src}／照片 {w}×{h}）', '(diagnostics: {mode} / self-test {test} / camera {src} / photo {w}×{h})', '（診断：{mode}／自己診断 {test}／カメラ {src}／写真 {w}×{h}）'],
   'hint.captureErr':  ['分析時發生錯誤，請再拍一次；如果一直失敗，可以改用「上傳照片」。', 'Something went wrong during analysis — please try again, or use "Upload photo" instead.', '解析中にエラーが起きました。もう一度撮影するか、「写真をアップロード」をお使いください。'],
 
@@ -3204,6 +3226,100 @@ function sessionSummary(s) {
 // 兩種證據的可信度不一樣 —— 混成同一種語氣，量出來的那些也會跟著貶值。
 // ref = 參考例子（明星臉型）—— 不是量測、不是建議，只是「這種臉型的人通常這樣畫」的例子
 const KINDS = ['praise', 'fact', 'tip', 'caution', 'ask', 'told', 'ref'];
+
+
+/* ═══ js/emoji.js ═══ */
+/**
+ * 對話裡的表情符號
+ *
+ * 表情符號只在「顯示」時加在句子與按鈕前面，不寫進三種語言的文案 ——
+ * 文案保持乾淨，換語言不用重配，也不會有某個語言漏加的問題。
+ *
+ * 選符號的原則：輕鬆、像朋友傳訊息，但不評價長相（不用 😍、🔥辣、👑 美這類在說「你很好看」的用法），
+ * 也不嚇人（「留意」類的句子用 🙏，不用 ⚠️）。
+ */
+
+// 句子：依文案鍵比對，先比對到的先用（越具體的放越前面）
+const LINE = [
+  [/^adv\.hi\./, '👋'],
+  [/^adv\.p\.face(Est|Unsure)$/, '🙏'],
+  [/^adv\.p\.face/, '✨'],
+  [/^adv\.p\.skin\./, '🌸'],
+  [/^adv\.p\.blush$/, '🍑'],
+  [/^adv\.p\.look(Face|Skin)$/, '💄'],
+  [/^adv\.p\.lookAlt$/, '👉'],
+  [/^adv\.p\.celeb$/, '🌟'],
+  [/^adv\.whyFace$/, '📏'],
+  [/^adv\.whyCeleb$/, '📚'],
+  [/^adv\.why(Tone|Depth|Hue)$/, '🎨'],
+  [/^adv\.whyLight(No)?$/, '💡'],
+  [/^adv\.whyPick$/, '🛍️'],
+  [/^adv\.why(Level|Match)$/, '🧮'],
+  [/^adv\.whyStandout$/, '👀'],
+  [/^adv\.askmood/, '😊'],
+  [/^adv\.askweather/, '🌤️'],
+  [/^adv\.askplan$/, '📅'],
+  [/^adv\.ask/, '💬'],
+  [/^adv\.ctxGot$/, '📝'],
+  [/^adv\.ctxSkipped$/, '👌'],
+  [/^adv\.pref(Soft|Bold|Keep)$/, '👌'],
+  [/^adv\.(prefTone|prefRecall)$/, '💡'],
+  [/^adv\.(didPref|didBest|keptYes|shadeSame)$/, '💖'],
+  [/^adv\.arIntro$/, '🪞'],
+  [/^adv\.didSofter$/, '🌿'],
+  [/^adv\.didStronger$/, '💥'],
+  [/^adv\.(atMin|atMax|gotNod)$/, '🙆'],
+  [/^adv\.gotShake$/, '🙅'],
+  [/^adv\.shadeGap$/, '🎨'],
+  [/^adv\.(shadeNeutral|didNeutral)$/, '🤍'],
+  [/^adv\.shadeOff$/, '😉'],
+  [/^adv\.didCompare/, '👀'],
+  [/^adv\.didDual/, '⚖️'],
+  [/^adv\.didZoom/, '🔍'],
+  [/^adv\.didRevert$/, '↩️'],
+  [/^adv\.keepCur$/, '👌'],
+  [/^adv\.(tooFar)$/, '📱'],
+  [/^adv\.(idleTry|amountHigh|amountLow|fix\w+)$/, '💡'],
+  [/^adv\.light/, '💡'],
+  [/^adv\.reg/, '👆'],
+  [/^adv\.sum/, '🎉'],
+  [/^adv\.(standout|fitAll|harmony|matchHigh)$/, '🎉'],
+  [/^adv\.fitMost$/, '👍'],
+  [/^adv\.plain$/, '💭'],
+  [/^adv\.picks/, '🛍️'],
+  [/^adv\.lowStock$/, '⏳'],
+  [/^adv\.noCam$/, '📷'],
+  [/^adv\.(deep|sparse)Caution$/, '🙏'],
+];
+const KIND = { praise: '✨', fact: '💬', tip: '💡', caution: '🙏', ask: '💬', told: '📝', ref: '🌟' };
+
+function lineEmoji(l) {
+  if (!l) return '';
+  for (const [re, e] of LINE) if (re.test(l.key)) return e;
+  return KIND[l.kind] || '💬';
+}
+
+// 快速回覆按鈕：依動作（情境題依選項值）
+const ACT = {
+  whyFace: '📏', whyTone: '🎨', whyDepth: '🎨', whyLight: '💡', whyPick: '🛍️', whyCeleb: '🌟',
+  whyMatch: '🧮', whyHue: '🎨', whyLevel: '📐', whyStandout: '👀',
+  useTop: '⭐', goProducts: '🛍️', toNeutral: '🤍', softer: '🌿', stronger: '💥', startAR: '💄',
+  nextShade: '🎨', revert: '↩️', compare: '👀', dual: '⚖️', zoom: '🔍', retry: '🔄',
+  prefSoft: '🌙', prefBold: '✨', prefKeep: '👌', keepBest: '💖', noThanks: '👌',
+  keepYes: '💖', keepNo: '👉', usePref: '💡', ctxSkip: '🤐',
+};
+const CTX = {
+  bright: '😊', calm: '😌', tired: '😪', nervous: '😣',
+  hot: '☀️', humid: '🌧️', mild: '🌤️', cold: '❄️',
+  work: '💼', meeting: '🎤', date: '💕', party: '🥂', errand: '🛍️',
+};
+
+function optEmoji(o) {
+  if (!o) return '';
+  if (o.key === 'opt.ctxYes') return '👍';
+  if (/^ctx(Mood|Weather|Plan)$/.test(o.act)) return CTX[o.val] || '💬';
+  return ACT[o.act] || '';
+}
 
 
 /* ═══ js/faceshape.js ═══ */
@@ -5013,6 +5129,7 @@ const isReady = () => !!landmarker;
 
 
 
+
 // 顯示端校色：把「想讓顧客看到的顏色」換成「要送給這台螢幕的碼值」。
 // 沒有校正資料時原樣回傳，所以未校正的機台一切照舊。
 // 校正資料由 _calib.html 量測擬合後寫入 localStorage。
@@ -5728,11 +5845,12 @@ function chatSay(where, lines, opts) {
   if (opts) c.opts = opts;
   mountChat(where);
 }
-function chatYou(where, key) {
+function chatYou(where, key, emo = '') {
   const c = (S.chat[where] ||= { msgs: [], opts: [] });
+  const text = (emo ? emo + ' ' : '') + t(key);
   // 連按同一個選項時，不要把同一句「你：…」一直疊上去
   const last = c.msgs[c.msgs.length - 1];
-  if (!(last && last.who === 'you' && last.text === t(key))) c.msgs.push({ who: 'you', text: t(key) });
+  if (!(last && last.who === 'you' && last.text === text)) c.msgs.push({ who: 'you', text });
   c.opts = [];
   mountChat(where);
 }
@@ -5760,9 +5878,10 @@ function mountChat(where) {
     const row = el('div', 'msg ai ' + m.l.kind + (prevWho === 'ai' ? ' cont' : ''));   // 連續的 AI 訊息只在第一則放頭像
     if (prevWho !== 'ai') row.appendChild(el('i', 'avatar', 'AI'));
     const bubble = el('div', 'bubble');
-    // 「計測」不掛標籤：大部分句子都是量測，每句都標只是雜訊。
-    // 其他種類（提案、注意、質問、你說的、参考）照標 —— 它們跟量測的性質不同，客人要分得出來。
-    if (m.l.kind !== 'fact') bubble.appendChild(el('span', 'k', t('adv.kind.' + m.l.kind)));
+    // 句子開頭的表情符號已經看得出是哪一類（建議 💡、提問 💬、例子 🌟…），種類標籤不再每句都掛。
+    // 只留「你說的」：那句話的依據是客人自己的回答、不是量測 —— 這個差別要一直看得到。
+    bubble.appendChild(el('span', 'emo', lineEmoji(m.l)));
+    if (m.l.kind === 'told') bubble.appendChild(el('span', 'k', t('adv.kind.told')));
     bubble.appendChild(el('span', 'x', advLine(m.l)));
     row.appendChild(bubble);
     if (!m.shown) { row.classList.add('new'); m.shown = true; }
@@ -5786,7 +5905,8 @@ function mountChat(where) {
   if (opts.length) {
     const row = el('div', 'opts');
     for (const o of opts) {
-      const b = el('button', '', t(o.key));
+      const e = optEmoji(o);
+      const b = el('button', '', (e ? `<span class="emo">${e}</span>` : '') + t(o.key));
       b.onclick = () => chatAct(where, o);
       row.appendChild(b);
     }
@@ -5848,7 +5968,7 @@ function syncSheet() {
   sh.classList.toggle('unread', !!sig && sig !== S.sheet.seen);
   for (const b of sh.querySelectorAll('.sheet-tabs button')) b.classList.toggle('on', b.dataset.tab === S.sheet.tab && S.sheet.state === 'open');
   $('#sheet-toggle').textContent = S.sheet.state === 'min' ? '⌃' : '⌄';
-  $('#sheet-peek').textContent = lastAI ? advLine(lastAI.l) : '';
+  $('#sheet-peek').textContent = lastAI ? lineEmoji(lastAI.l) + ' ' + advLine(lastAI.l) : '';
   liftMirror();
   const p = S.picks?.lip;
   if (p) $('#sheet-shade').innerHTML = `<i style="background:${disp(p.color)}"></i><span>${tf(p, 'shade')}</span>`;
@@ -5869,7 +5989,7 @@ function chatAct(where, o) {
   const c = (S.chat[where] ||= { msgs: [], opts: [] });
   const prevOpts = c.opts;
   (c.asked ||= new Set()).add(o.act);      // 問過的「為什麼」不再出現在選項裡
-  chatYou(where, o.key);
+  chatYou(where, o.key, optEmoji(o));
   const r = runAct(o) || {};
   if (r.stay === false) return;                 // 換頁的動作，對話在新畫面重建
   // 動作沒帶新選項回來（例如沒東西可換）時，把原本那排放回去 ——
@@ -6341,7 +6461,8 @@ function advise2(fresh = false) {
   const lookLines = S.look ? [...plainLook(S.ranked, S.look, S.face, S.skin), ...plainCeleb(S.face)] : [];
   // 換妝容時接著講就好；整段重建會讓臉型、膚色那幾句一直重新出現，像在鬼打牆
   if (fresh || !S.chat.s2?.msgs?.length) {
-    chatReset('s2', [...plainFace(S.face), ...plainSkin(S.skin), ...plainBlush(S.face), ...lookLines], opts);
+    chatReset('s2', [{ kind: 'fact', key: 'adv.hi.s2', params: {} },
+                     ...plainFace(S.face), ...plainSkin(S.skin), ...plainBlush(S.face), ...lookLines], opts);
   } else {
     chatReplace('s2', ['adv.p.lookFace', 'adv.p.lookSkin', 'adv.p.lookAlt', 'adv.p.celeb'], lookLines, opts);
   }
@@ -7561,7 +7682,7 @@ function paintVerdict(meas) {
   noteDwell(S.pref, S.picks.lip, performance.now() - (S.shadeT0 || performance.now()));
   const sum = sessionSummary({ tried: S.tried.size, shade: tf(S.picks.lip, 'shade'),
                                amount0: S.amount0 ?? S.amount.lip, amount1: S.amount.lip, pref: S.pref });
-  chatReset('s5', [...onFinish(v, S.skin), ...sum], optsForFinish());
+  chatReset('s5', [{ kind: 'fact', key: 'adv.hi.s5', params: {} }, ...onFinish(v, S.skin), ...sum], optsForFinish());
   const bar = (label, n, extra) =>
     `<div class="bar"><span>${label}</span><i><b style="width:${n}%"></b></i><em>${extra ?? n}</em></div>`;
   box.innerHTML =
