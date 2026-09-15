@@ -16,7 +16,7 @@ import { sampleSkin, classifySkin, rankLooks, estimateIlluminant, estimateHighli
 import { PRODUCTS, LOOKS, resolveLook, toneLabel, finishLabel, catLabel } from './products.js';
 import { MOODS, WEATHERS, PLANS, contextAdvice, adjustIntensity, rankWithContext,
          moodFromFace, externalWeather } from './context.js';
-import { lastBlendshapes } from './face.js';
+import { lastBlendshapes, faceInfo } from './face.js';
 import { onSkin, onLook, onPicks, onShadeChange, onAmount, onFinish, lightNote,
          optsForSkin, optsForPicks, optsForAR, optsForFinish, explain, optsAfterWhy, onAR,
          nearestRegion, onRegion, readGesture, plainSkin, plainFace, plainBlush, plainLook, plainCeleb,
@@ -291,7 +291,7 @@ function enter1() {
 let lastProbe = 0, faceOk = false;
 // 拍照失敗的訊息要停留幾秒：取景提示每 0.25 秒更新一次，
 // 不擋住的話「偵測不到臉」會立刻被蓋回「請對準框內」，看起來就像按了沒反應。
-let hintHoldUntil = 0, shooting = false;
+let hintHoldUntil = 0, shooting = false, missCount = 0;
 
 /** 在取景畫面顯示一則要讓人看到的訊息（失敗、錯誤），停留 ms 毫秒 */
 function holdHint(text, ms = 3500) {
@@ -403,7 +403,17 @@ function pickFile() {
 // ═══════════════ STEP 2 · AI 分析 ═══════════════
 async function analyse(photoCanvas) {
   const lm = await detectImage(photoCanvas);
-  if (!lm) { holdHint(t('hint.noFace')); return; }
+  if (!lm) {
+    // 連續失敗兩次：臉很可能其實在框裡，是這台裝置的偵測有問題 —— 把診斷資訊一起顯示，截圖就能遠端判斷
+    missCount++;
+    const fi = faceInfo();
+    holdHint(t('hint.noFace') + (missCount >= 2
+      ? '　' + t('hint.diag', { mode: fi.delegate, test: fi.selftest ? 'OK' : 'NG', w: photoCanvas.width, h: photoCanvas.height,
+                               src: $('#cam').videoWidth + '×' + $('#cam').videoHeight })
+      : ''), missCount >= 2 ? 9000 : 3500);
+    return;
+  }
+  missCount = 0;
 
   const skinRaw = sampleSkin(photoCanvas, lm);
   if (!skinRaw) { holdHint(t('hint.noSkin')); return; }
@@ -1672,7 +1682,7 @@ function enter4() {
   if (DEBUG) globalThis.__LUCID_AR__ = { hasBrush, screenToUV, clearBrush, renderGL, toPixels, syncMakeup, lm: () => smooth,
                                          pressureLevel, applyPressure, press: () => ({ seen: pressSeen, sens: S.brush.press }),
                                          markFace, drawMark, tapRegion, feedGesture,
-                                         watchAR, face: () => ({ hair: S.hair, f: S.faceF, cls: S.face }),
+                                         watchAR, faceInfo, face: () => ({ hair: S.hair, f: S.faceF, cls: S.face }),
                                          yesNo: () => S.yesNo, gest: () => S.gesture };
   resetRefs();                     // 回到即時畫面：亮度基準改從鏡頭重新量
   startApply();

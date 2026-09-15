@@ -1,4 +1,5 @@
 import { t } from './i18n.js';
+import { SELFTEST_FACE } from './selftest-face.js';
 /**
  * MediaPipe Face Landmarker 封裝（478 個關鍵點）
  *
@@ -31,6 +32,31 @@ const paths = () => ({
 
 let landmarker = null;
 let mode = null;
+// 這台裝置最後用的是哪種偵測模式、自我檢查有沒有過 —— 拍照一直失敗時要顯示出來，遠端才查得到
+const info = { delegate: null, selftest: null, gpuError: null };
+export const faceInfo = () => ({ ...info });
+
+/**
+ * 開機時先用一張「確定有臉」的小圖跑一次偵測。
+ *
+ * GPU 模式在部分 Android 手機與瀏覽器的組合上（回報：Galaxy S25）會出現
+ * 「不報錯、但永遠偵測不到臉」—— 畫面上鏡頭好好的，按拍照卻一直說沒有臉。
+ * 這種情況只靠錯誤處理抓不到，所以要主動驗證：驗證沒過就改用 CPU 再來一次。
+ */
+async function selfTest(lm) {
+  try {
+    const img = new Image();
+    img.src = SELFTEST_FACE;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    c.getContext('2d').drawImage(img, 0, 0);
+    const res = lm.detect(c);
+    return !!res.faceLandmarks?.[0]?.length;
+  } catch {
+    return false;
+  }
+}
 
 export async function initFace(onProgress = () => {}) {
   if (landmarker) return landmarker;
@@ -48,8 +74,8 @@ export async function initFace(onProgress = () => {}) {
     : P.wasm;
 
   onProgress(t('boot.model'));
-  landmarker = await FaceLandmarker.createFromOptions(fileset, {
-    baseOptions: { modelAssetPath: P.model, delegate: 'GPU' },
+  const create = (delegate) => FaceLandmarker.createFromOptions(fileset, {
+    baseOptions: { modelAssetPath: P.model, delegate },
     runningMode: 'IMAGE',
     numFaces: 1,
     // 52 個表情係數：Step 2 用來「猜」心情當預設值（使用者可以改）。
@@ -58,6 +84,26 @@ export async function initFace(onProgress = () => {}) {
     minFaceDetectionConfidence: 0.4,
     minFacePresenceConfidence: 0.4,
   });
+
+  // 先試 GPU（快）；建立失敗或自我檢查沒過，就換 CPU（慢一點，但各家手機都穩）。
+  // 網址加 ?cpu 可以直接用 CPU —— 現場排查某支手機時用來比對。
+  const forceCPU = /[?&]cpu(=|&|$)/.test(location.search);
+  if (!forceCPU) try {
+    landmarker = await create('GPU');
+    info.delegate = 'GPU';
+    info.selftest = await selfTest(landmarker);
+    // ?gpufail：模擬「GPU 不報錯但偵測不到臉」，用來驗證自動換 CPU 的那條路
+    if (/[?&]gpufail(=|&|$)/.test(location.search)) info.selftest = false;
+  } catch (e) {
+    info.gpuError = String(e?.message || e).slice(0, 80);
+    info.selftest = false;
+  }
+  if (!info.selftest) {
+    try { landmarker?.close?.(); } catch { /* 已經壞掉的就不管它 */ }
+    landmarker = await create('CPU');
+    info.delegate = 'CPU';
+    info.selftest = await selfTest(landmarker);
+  }
   mode = 'IMAGE';
   onProgress(t('boot.ready'));
   return landmarker;
@@ -71,10 +117,24 @@ async function setMode(next) {
 
 /** 靜態影像偵測 → 回傳 478 個 normalized landmark，或 null */
 let lastShapes = null;
+// 影片先畫到一張小畫布再偵測：部分 Android 的 GPU 直接讀 <video> 畫面會出錯或讀到空白，
+// 而取景提示只需要知道臉在不在框裡，640px 寬綽綽有餘，手機上也快得多。
+let probe = null;
+function toProbe(video) {
+  const vw = video.videoWidth, vh = video.videoHeight;
+  if (!vw || !vh) return video;
+  const W = Math.min(640, vw), H = Math.round(vh * W / vw);
+  probe ||= document.createElement('canvas');
+  if (probe.width !== W || probe.height !== H) { probe.width = W; probe.height = H; }
+  probe.getContext('2d').drawImage(video, 0, 0, W, H);
+  return probe;
+}
+
 export async function detectImage(source) {
   if (!landmarker) return null;
   await setMode('IMAGE');
-  const res = landmarker.detect(source);
+  const input = typeof HTMLVideoElement !== 'undefined' && source instanceof HTMLVideoElement ? toProbe(source) : source;
+  const res = landmarker.detect(input);
   // 表情係數另外存，不改 detectImage 的回傳形狀（呼叫端只要關鍵點）
   const cats = res.faceBlendshapes?.[0]?.categories;
   lastShapes = cats ? Object.fromEntries(cats.map((c) => [c.categoryName, c.score])) : null;
