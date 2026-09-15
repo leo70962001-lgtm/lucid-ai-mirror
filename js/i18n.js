@@ -412,6 +412,7 @@ const DICT = {
   'opt.audWomen':    ['女性妝容', 'Women’s looks', 'レディース'],
   'opt.audMen':      ['男性妝容', 'Men’s looks', 'メンズ'],
   'opt.audAny':      ['都可以', 'Show me everything', 'どちらも'],
+  'adv.ctxDone':     ['好～綜合你的臉型、膚色和今天的狀態，最推薦「{look}」，要不要先看看？', 'Got it — putting your face shape, skin and today together, "{look}" is the top pick. Want to take a look?', 'ありがとうございます。顔の形・肌・今日の状態を合わせると、いちばんのおすすめは「{look}」です。見てみますか？'],
   'opt.audKeep':     ['就這樣', 'Keep this', 'このままで'],
   'opt.whyAud':      ['AI 怎麼判斷的？', 'How did the AI decide?', 'AI はどう判断したの？'],
   'adv.askAudGuess.men':   ['AI 先幫你排了男性妝容為主（依照片自動判斷，不一定準）—— 想換的話點下面', 'The AI has put men’s looks first (an automatic guess from the photo — it may be wrong). Tap below to change it', 'AI が写真から自動でメンズを優先して並べました（推測なので外れることもあります）。変更は下からどうぞ'],
