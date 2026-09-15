@@ -10,6 +10,8 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+// 性別判斷用的年齡性別模型（MIT，face-api.js 的維護分支）。只用性別輸出，不用年齡。
+const FA = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15';
 
 const FILES = [
   // 存成 .js 而非 .mjs：靜態主機對 .mjs 的 MIME 設定不一致，
@@ -19,6 +21,10 @@ const FILES = [
   ['vendor/vision_wasm_internal.wasm',         `${MP}/wasm/vision_wasm_internal.wasm`],
   ['vendor/vision_wasm_nosimd_internal.js',    `${MP}/wasm/vision_wasm_nosimd_internal.js`],
   ['vendor/vision_wasm_nosimd_internal.wasm',  `${MP}/wasm/vision_wasm_nosimd_internal.wasm`],
+  ['vendor/face-api.js',                      `${FA}/dist/face-api.esm.js`],
+  ['vendor/face-api.LICENSE',                 `${FA}/LICENSE`],
+  ['models/age_gender_model.json',            `${FA}/model/age_gender_model-weights_manifest.json`],
+  ['models/age_gender_model.bin',             `${FA}/model/age_gender_model.bin`],
   ['models/face_landmarker.task',
    'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task'],
 ];

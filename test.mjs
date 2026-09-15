@@ -10,6 +10,7 @@ import { pressureLevel, applyPressure } from './js/makeup-gl.js';
 import { FACE_SHAPES, PROTOTYPES, CELEBS, classifyFace, faceLookBonus, faceReasonFor } from './js/faceshape.js';
 import { readFileSync } from 'node:fs';
 import { lineEmoji, optEmoji } from './js/emoji.js';
+import { audienceFromPrediction, faceCropBox, GENDER_MIN_PROB } from './js/gender.js';
 import { contextAdvice, adjustIntensity, rankWithContext, moodFromFace, externalWeather,
          MOODS, WEATHERS, PLANS } from './js/context.js';
 import { onSkin, onLook, onPicks, onShadeChange, onAmount, onFinish, lightNote, KINDS,
@@ -18,7 +19,7 @@ import { onSkin, onLook, onPicks, onShadeChange, onAmount, onFinish, lightNote, 
          pickNext, prefNote, prefRecall, observe, sessionSummary, DWELL_MS,
          askContext, onContext, dropAnswers, optsAfterWhy, EXPLAIN_ACTS,
          nearestRegion, onRegion, readGesture, plainSkin, plainFace, plainBlush, plainLook, plainCeleb,
-         askAudience, audienceBonus, plainGroom } from './js/advisor.js';
+         askAudience, askAudienceGuess, audienceBonus, plainGroom } from './js/advisor.js';
 
 const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 
@@ -774,6 +775,33 @@ console.log('\n\x1b[1m23. 不只推薦給女性：男士妝容\x1b[0m');
   const ranked = rankLooks(LOOKS, skinC).map((r) => ({ look: r.look }));
   ok(plainLook([{ look: men }, ...ranked], men, oval, skinC)[0].key === 'adv.p.lookMen', '推薦男士妝容時講的是男士妝容的理由');
   ok(plainGroom()[0].key === 'adv.p.groom', '男士的小技巧講整理（眉毛、遮瑕），不講腮紅');
+}
+
+console.log('\n\x1b[1m24. AI 自動判斷先排哪一類妝容\x1b[0m');
+{
+  ok(audienceFromPrediction({ gender: 'female', genderProbability: 0.94 }) === 'women', '女性、把握度 94% → 先排女性妝容');
+  ok(audienceFromPrediction({ gender: 'male', genderProbability: 0.9 }) === 'men', '男性、把握度 90% → 先排男性妝容');
+  ok(audienceFromPrediction({ gender: 'male', genderProbability: 0.84 }) === null, `把握度 84%（門檻 ${GENDER_MIN_PROB * 100}%）→ 不猜，改用問的`);
+  ok(audienceFromPrediction(null) === null && audienceFromPrediction({ gender: 'x', genderProbability: 0.99 }) === null,
+     '沒有結果或看不懂的結果 → 不猜');
+
+  // 臉的裁切框：正方形、留邊、不超出照片
+  const pts = [{ x: 0.40, y: 0.30 }, { x: 0.60, y: 0.30 }, { x: 0.50, y: 0.70 }];
+  const b = faceCropBox(pts, 720, 540);
+  ok(b.size > 0.4 * 540 && b.x >= 0 && b.y >= 0 && b.x + b.size <= 720 && b.y + b.size <= 540,
+     `正方形裁切框留邊而且不超出照片（${b.size}px @ ${b.x},${b.y}）`);
+  const edge = faceCropBox([{ x: 0.0, y: 0.0 }, { x: 0.3, y: 0.5 }], 400, 300);
+  ok(edge.x === 0 && edge.y === 0 && edge.size <= 300, '臉貼在照片角落時，框會推回照片內');
+  ok(faceCropBox([], 100, 100) === null, '沒有關鍵點 → 不裁');
+
+  const g = askAudienceGuess('men');
+  ok(g.lines[0].key === 'adv.askAudGuess.men' && g.lines[0].kind === 'ask', '套用時一定照實說「AI 自動判斷，不一定準」，並當成問題');
+  ok(g.opts.map((o) => o.act).join() === 'audKeep,audWomen,audAny,whyAud', '選項：就這樣／換成另一類／都可以／AI 怎麼判斷的');
+  ok(g.opts.every((o) => ACTS.includes(o.act) && optEmoji(o)), '　全部是已知動作、都有符號');
+  ok(askAudienceGuess('women').opts[1].act === 'audMen', '猜女性時，換的選項是男性妝容');
+
+  const zh = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8').split('\n').filter((l) => /'adv\.askAudGuess\./.test(l)).join('\n');
+  ok(/不一定準/.test(zh) && !/你是男|你是女/.test(zh), '文案講「先排哪一類妝容、不一定準」，不說「你是男性／女性」');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

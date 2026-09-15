@@ -27,9 +27,10 @@ const B = (p) => readFileSync(join(ROOT, p));
 const KB = (n) => (n / 1024).toFixed(0) + ' KB';
 const MB = (n) => (n / 1048576).toFixed(2) + ' MB';
 
-const MODULES = ['js/i18n.js', 'js/products.js', 'js/context.js', 'js/analysis.js', 'js/advisor.js', 'js/emoji.js', 'js/faceshape.js', 'js/face-mesh.js', 'js/makeup.js',
+const MODULES = ['js/i18n.js', 'js/products.js', 'js/context.js', 'js/analysis.js', 'js/advisor.js', 'js/emoji.js', 'js/gender.js', 'js/faceshape.js', 'js/face-mesh.js', 'js/makeup.js',
                  'js/makeup-gl.js', 'js/calib.js', 'js/selftest-face.js', 'js/face.js', 'js/app.js'];
 const CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+const FA_CDN = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15';
 const MODEL_CDN = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
 
 // ── 把 ES 模組併成單一 scope ──────────────────────────────
@@ -125,11 +126,15 @@ if (ONLINE) {
   assetSetup = `
 globalThis.__LUCID_VISION__ = ${JSON.stringify(CDN + '/vision_bundle.mjs')};
 globalThis.__LUCID_WASM__   = ${JSON.stringify(CDN + '/wasm')};
-globalThis.__LUCID_MODEL__  = ${JSON.stringify(MODEL_CDN)};`;
+globalThis.__LUCID_MODEL__  = ${JSON.stringify(MODEL_CDN)};
+globalThis.__LUCID_FACEAPI__ = ${JSON.stringify(FA_CDN + '/dist/face-api.esm.js')};
+globalThis.__LUCID_AG_JSON__ = ${JSON.stringify(FA_CDN + '/model/age_gender_model-weights_manifest.json')};
+globalThis.__LUCID_AG_BIN__  = ${JSON.stringify(FA_CDN + '/model/age_gender_model.bin')};`;
   console.log('推論資源走 CDN（需要網路）');
 } else {
   const need = ['vendor/vision_bundle.js', 'vendor/vision_wasm_internal.js',
-                'vendor/vision_wasm_internal.wasm', 'models/face_landmarker.task'];
+                'vendor/vision_wasm_internal.wasm', 'models/face_landmarker.task',
+                'vendor/face-api.js', 'models/age_gender_model.json', 'models/age_gender_model.bin'];
   const missing = need.filter((f) => !existsSync(join(ROOT, f)));
   if (missing.length) {
     console.error(`建置中止：離線版需要以下檔案，請先執行 node vendor.mjs\n  ${missing.join('\n  ')}`);
@@ -151,6 +156,9 @@ globalThis.__LUCID_READY__ = (async function () {
     wasmBinaryPath: await toBlob(${JSON.stringify(dataUrl('vendor/vision_wasm_internal.wasm', 'application/wasm'))}, 'application/wasm'),
   };
   globalThis.__LUCID_MODEL__ = await toBlob(${JSON.stringify(dataUrl('models/face_landmarker.task', 'application/octet-stream'))}, 'application/octet-stream');
+  globalThis.__LUCID_FACEAPI__ = await toBlob(${JSON.stringify(dataUrl('vendor/face-api.js', 'text/javascript'))}, 'text/javascript');
+  globalThis.__LUCID_AG_JSON__ = await toBlob(${JSON.stringify(dataUrl('models/age_gender_model.json', 'application/json'))}, 'application/json');
+  globalThis.__LUCID_AG_BIN__  = await toBlob(${JSON.stringify(dataUrl('models/age_gender_model.bin', 'application/octet-stream'))}, 'application/octet-stream');
 })();`;
   console.log(`推論資源內嵌（${MB(assetBytes)} 原始，base64 後約 ${MB(assetBytes * 4 / 3)}）`);
 }
@@ -217,7 +225,8 @@ const copy = (rel) => {
 mkdirSync(SITE, { recursive: true });
 
 let n = 0;
-const siteFiles = ['index.html', 'main.css', 'models/face_landmarker.task', ...MODULES,
+const siteFiles = ['index.html', 'main.css', 'models/face_landmarker.task',
+  'models/age_gender_model.json', 'models/age_gender_model.bin', ...MODULES,
   ...readdirSync(ROOT).filter((x) => /^_.*\.html$/.test(x)),
   ...(existsSync(join(ROOT, 'vendor')) ? readdirSync(join(ROOT, 'vendor')).map((f) => join('vendor', f)) : []),
   ...(existsSync(imgDir) ? readdirSync(imgDir).map((f) => join('images', 'products', f)) : []),

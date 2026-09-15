@@ -55,6 +55,17 @@ export function askAudience() {
            opts: [opt('opt.audWomen', 'audWomen'), opt('opt.audMen', 'audMen'), opt('opt.audAny', 'audAny')] };
 }
 
+/**
+ * AI 自動判斷後的確認：先講「已經幫你排了哪一類、這是自動判斷不一定準」，再給換的選項。
+ * 不說「你是男性／女性」—— 講的是先排哪一類妝容。
+ */
+export function askAudienceGuess(audience) {
+  const other = audience === 'men' ? 'audWomen' : 'audMen';
+  return { lines: [line('ask', 'adv.askAudGuess.' + audience, {})],
+           opts: [opt('opt.audKeep', 'audKeep'), opt('opt.' + other, other), opt('opt.audAny', 'audAny'),
+                  opt('opt.whyAud', 'whyAud')] };
+}
+
 /** 依對象調整排序（加在膚色分數與臉型加分之上；「都可以」完全不動） */
 export function audienceBonus(looks, audience) {
   const out = {};
@@ -269,13 +280,13 @@ export function optsForFinish() {
 }
 
 // 對話不該繞回原點：點了等於沒往前走的選項要收掉。
-export const EXPLAIN_ACTS = ['whyTone', 'whyMatch', 'whyFace', 'whyCeleb',
+export const EXPLAIN_ACTS = ['whyTone', 'whyMatch', 'whyFace', 'whyCeleb', 'whyAud',
                              'whyDepth', 'whyLight', 'whyPick',      // 膚色那一題的追問
                              'whyHue', 'whyLevel', 'whyStandout'];   // 分數那一題的追問
 
 // 回答 AI 問題用的選項 —— 一次性的，答完就收掉
 export const ANSWER_ACTS = ['prefSoft', 'prefBold', 'prefKeep', 'keepBest', 'noThanks', 'keepYes', 'keepNo',
-                            'audWomen', 'audMen', 'audAny',
+                            'audWomen', 'audMen', 'audAny', 'audKeep',
                             'ctxMood', 'ctxWeather', 'ctxPlan', 'ctxSkip'];
 export const dropAnswers = (opts) => (opts || []).filter((o) => !ANSWER_ACTS.includes(o.act));
 
@@ -362,7 +373,7 @@ export const ACTS = ['whyTone', 'whyDepth', 'whyLight', 'whyPick', 'whyFace', 'w
                      'useTop', 'goProducts', 'toNeutral', 'softer', 'startAR',
                      'stronger', 'nextShade', 'compare', 'dual', 'zoom', 'whyMatch', 'retry',
                      'prefSoft', 'prefBold', 'prefKeep', 'keepBest', 'noThanks', 'revert', 'usePref',
-                     'keepYes', 'keepNo', 'audWomen', 'audMen', 'audAny',
+                     'keepYes', 'keepNo', 'audWomen', 'audMen', 'audAny', 'audKeep', 'whyAud',
                      'ctxMood', 'ctxWeather', 'ctxPlan', 'ctxSkip'];
 
 // ── 反過來問：AI 也會提問 ───────────────────────────────
