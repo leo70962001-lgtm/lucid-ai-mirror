@@ -20,12 +20,13 @@ import { lastBlendshapes, faceInfo } from './face.js';
 import { onSkin, onLook, onPicks, onShadeChange, onAmount, onFinish, lightNote,
          optsForSkin, optsForPicks, optsForAR, optsForFinish, explain, optsAfterWhy, onAR,
          nearestRegion, onRegion, readGesture, plainSkin, plainFace, plainBlush, plainLook, plainCeleb,
-         askAudience, audienceBonus, plainGroom,
+         askAudience, askAudienceGuess, audienceBonus, plainGroom,
          dropAsked, dropDeadAmount, dropAnswers, AMOUNT_MIN, AMOUNT_MAX,
          askAmount, askContext, onContext, newPref, notePref, noteDwell, prefTone, pickNext,
          prefNote, prefRecall, observe, sessionSummary, DWELL_MS } from './advisor.js';
 import { findHairline, faceFeatures, classifyFace, faceLookBonus, faceReasonFor } from './faceshape.js';
 import { lineEmoji, optEmoji } from './emoji.js';
+import { initGender, guessAudience } from './gender.js';
 import { loadCalibration, correctHex } from './calib.js';
 import { LANGS, t, tf, getLang, setLang, initLang, applyStatic } from './i18n.js';
 
@@ -70,7 +71,8 @@ const S = {
   said: new Set(),                  // AI 主動講過的事，一場只講一次
   mark: null,                       // 鏡面上要圈出來的部位（AI 講到哪就指到哪）
   sheet: { state: 'open', tab: 'ai', seen: '' },   // AR 的控制抽屜：open / min，ai / tune
-  audience: 'any', audAsked: false,  // 想看哪一類的妝容（女性／男性／都可以）—— 用問的，不從臉去猜
+  audience: 'any', audAsked: false,  // 想看哪一類的妝容（女性／男性／都可以）
+  audGuess: null, audChosen: false,  // AI 自動判斷的結果（只當預設值）／使用者是否親自選過
   gesture: [],                      // 鼻尖軌跡（只在有是非題等著回答時才餵）
   yesNo: null,                      // 現在等著回答的是非題 { yes, no }
   lastAct: 0,                       // 使用者最後一次動作 —— 判斷「閒著」用
@@ -202,6 +204,7 @@ function mountLang() {
     // 單檔離線版要先把內嵌的 base64 轉成 blob URL 才有東西可載
     if (globalThis.__LUCID_READY__) { setBoot(t('boot.assets')); await globalThis.__LUCID_READY__; }
     await initFace(setBoot);
+    initGender();          // 性別判斷模型在背景載入，不擋開機；載不起來就退回用問的
   } catch (e) {
     setBoot(t('boot.modelFail'));
     $('#cam-err').hidden = false;
@@ -452,6 +455,12 @@ async function analyse(photoCanvas) {
   S.faceF = faceFeatures(lm, photoCanvas.width, photoCanvas.height, S.hair);
   S.face = classifyFace(S.faceF);
   S.faceBonus = faceLookBonus(S.face);
+  // AI 自動判斷先排哪一類妝容：使用者親自選過就不再猜；沒把握（< 85%）或模型沒載好就不猜
+  if (!S.audChosen) {
+    S.audGuess = await guessAudience(photoCanvas, lm).catch(() => null);
+    S.audience = S.audGuess?.audience || 'any';
+    S.audAsked = false;
+  }
   S.faceLines = false;
   // 推薦順序 = 膚色契合 + 臉型加分。score 仍然只代表膚色契合，臉型另外記 —— 兩種依據不混在一個數字裡
   rankAll();
@@ -1085,14 +1094,19 @@ function runAct(o) {
   switch (o.act) {
     // 解釋完接著給追問 —— 被問第二次還答得出來，才叫肯回答
     // 想看哪一類的妝容：重排卡片，接著講對應的小技巧
-    case 'audWomen': case 'audMen': case 'audAny': {
-      S.audience = o.act === 'audMen' ? 'men' : o.act === 'audWomen' ? 'women' : 'any';
+    case 'audWomen': case 'audMen': case 'audAny': case 'audKeep': {
+      if (o.act !== 'audKeep') S.audience = o.act === 'audMen' ? 'men' : o.act === 'audWomen' ? 'women' : 'any';
+      S.audChosen = true;                  // 使用者親自選過：之後重拍也不再用 AI 猜的蓋掉
       rankAll();
       renderLooks();
       const tip = S.audience === 'men' ? plainGroom() : plainBlush(S.face);
       return { lines: [{ kind: 'fact', key: 'adv.audGot.' + S.audience, params: { look: S.ranked[0].look.id } }, ...tip],
                opts: optsForSkin(S.ranked, S.look) };
     }
+    // AI 怎麼判斷的：照實講模型、把握度、門檻，以及資料不離開機器
+    case 'whyAud':
+      return { lines: [{ kind: 'fact', key: 'adv.whyAud', params: { p: Math.round((S.audGuess?.prob || 0) * 100) } }],
+               opts: [...(S.audChosen ? [] : askAudienceGuess(S.audience).opts.filter((x) => x.act !== 'whyAud')), ...optsForSkin(S.ranked, S.look)] };
     // 臉型是怎麼看的：數字在這裡講，同時把量的線畫在照片上
     case 'whyFace':
       S.faceLines = true;
@@ -1401,7 +1415,7 @@ function advise2(fresh = false) {
   const lookLines = S.look ? [...plainLook(S.ranked, S.look, S.face, S.skin), ...plainCeleb(S.face, S.audience)] : [];
   // 換妝容時接著講就好；整段重建會讓臉型、膚色那幾句一直重新出現，像在鬼打牆
   if (fresh || !S.chat.s2?.msgs?.length) {
-    const q = S.audAsked ? null : askAudience();
+    const q = S.audAsked ? null : S.audGuess?.audience ? askAudienceGuess(S.audGuess.audience) : askAudience();
     if (q) S.audAsked = true;
     const tip = S.audience === 'men' ? plainGroom() : plainBlush(S.face);
     chatReset('s2', [{ kind: 'fact', key: 'adv.hi.s2', params: {} },
@@ -2753,7 +2767,7 @@ function reset() {
   S.tried.clear(); S.arMs = 0; S.arT0 = 0;
   S.pref = newPref(); S.said.clear(); S.prevLip = null;
   S.amount0 = null; S.asked3.clear(); S.shadeT0 = 0; S.lastAct = 0;
-  S.audience = 'any'; S.audAsked = false;
+  S.audience = 'any'; S.audAsked = false; S.audGuess = null; S.audChosen = false;
   $('#rec-items').innerHTML = ''; $('#rep-grid').innerHTML = '';
   $('#rec-after').innerHTML = ''; $('#verdict').innerHTML = '';
   [...$('#stars').children].forEach((x) => x.classList.remove('lit'));

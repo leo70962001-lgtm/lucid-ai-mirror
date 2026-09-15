@@ -18,6 +18,7 @@ const LINE = [
   [/^adv\.p\.look(Face|Skin)$/, '💄'],
   [/^adv\.p\.(lookMen|groom)$/, '🧴'],
   [/^adv\.audGot\./, '👌'],
+  [/^adv\.whyAud$/, '🤖'],
   [/^adv\.p\.lookAlt$/, '👉'],
   [/^adv\.p\.celeb/, '🌟'],
   [/^adv\.whyFace$/, '📏'],
@@ -78,7 +79,7 @@ const ACT = {
   nextShade: '🎨', revert: '↩️', compare: '👀', dual: '⚖️', zoom: '🔍', retry: '🔄',
   prefSoft: '🌙', prefBold: '✨', prefKeep: '👌', keepBest: '💖', noThanks: '👌',
   keepYes: '💖', keepNo: '👉', usePref: '💡', ctxSkip: '🤐',
-  audWomen: '💄', audMen: '🧴', audAny: '🙌',
+  audWomen: '💄', audMen: '🧴', audAny: '🙌', audKeep: '👍', whyAud: '🤖',
 };
 const CTX = {
   bright: '😊', calm: '😌', tired: '😪', nervous: '😣',
