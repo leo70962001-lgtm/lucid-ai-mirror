@@ -683,8 +683,26 @@ function advLine(l) {
 // AI 說完就給選項，點了就照做，然後接著回話。選項只有「機器做得到」的動作。
 const CHAT = { s2: '#adv2', s3: '#adv3', s4: '#adv4', s5: '#adv5' };
 
+// ── 對話的節奏 ─────────────────────────────────────────
+// AI 的回覆先顯示「輸入中…」再一句一句出現。一次倒出一整段，看起來像公告，不像對話。
+// 節奏刻意短（第一句 0.42 秒、之後每句 0.38 秒）—— 是為了讀得出「一來一回」，不是為了拖時間。
+// 偏好減少動態效果的使用者、以及網址帶 ?fast 時，全部立刻顯示。
+const REPLY_DELAY = 420, LINE_GAP = 380;
+const instantChat = () => /[?&]fast(=|&|$)/.test(location.search) ||
+  !!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+/** 幫新的 AI 訊息排出現時間：first = 第一句要等多久（剛被使用者點選時 > 0，開場時 0） */
+function schedule(msgs, first) {
+  if (instantChat()) return msgs;
+  const now = performance.now();
+  msgs.forEach((m, i) => { if (m.who === 'ai') m.revealAt = now + first + i * LINE_GAP; });
+  return msgs;
+}
+
 function chatReset(where, lines, opts) {
-  S.chat[where] = { msgs: lines.map((l) => ({ who: 'ai', l })), opts: opts || [] };
+  const old = S.chat[where];
+  if (old?.timer) clearTimeout(old.timer);
+  S.chat[where] = { msgs: schedule(lines.map((l) => ({ who: 'ai', l })), 0), opts: opts || [] };
   mountChat(where);
 }
 const sigOf = (l) => l.key + JSON.stringify(l.params);
@@ -710,12 +728,17 @@ function chatReplace(where, keys, lines, opts) {
 
 function chatSay(where, lines, opts) {
   const c = (S.chat[where] ||= { msgs: [], opts: [] });
+  const added = [];
   for (const l of lines) {
     // 同一句話不連著講第二次 —— 那是對話繞回原點的主要來源
     const last = [...c.msgs].reverse().find((m) => m.who === 'ai');
     if (last && sigOf(last.l) === sigOf(l)) continue;
-    c.msgs.push({ who: 'ai', l });
+    const m = { who: 'ai', l };
+    c.msgs.push(m); added.push(m);
   }
+  // 緊接在使用者的選擇之後 → 先「輸入中」一下；AI 自己主動開口 → 直接出現第一句
+  const replying = c.msgs[c.msgs.length - added.length - 1]?.who === 'you';
+  schedule(added, replying ? REPLY_DELAY : 0);
   if (opts) c.opts = opts;
   mountChat(where);
 }
@@ -735,22 +758,45 @@ function mountChat(where) {
   box.hidden = !c.msgs.length;
   if (!c.msgs.length) return;
   box.appendChild(el('div', 'who', t('adv.who')));
-  // AR 的對話在抽屜裡：訊息區自己捲動、選項固定在下方（像聊天 App）；其他畫面照舊只留最近幾則
+  // 對話一律是聊天的樣子：AI 頭像＋左側氣泡、自己的選擇在右側、快速回覆在下方
   const inSheet = where === 's4';
-  const log = inSheet ? el('div', 'log') : box;
-  for (const m of c.msgs.slice(inSheet ? -12 : -6)) {
-    if (m.who === 'you') { log.appendChild(el('div', 'msg you', m.text)); continue; }
-    const row = el('div', 'msg ai ' + m.l.kind);
+  const log = el('div', 'log');
+  const now = performance.now();
+  let pendingAt = 0, prevWho = null;
+  for (const m of c.msgs.slice(inSheet ? -12 : -8)) {
+    // 還沒輪到的訊息先不畫，改畫一個「輸入中」氣泡；後面的也一起等
+    if (m.who === 'ai' && m.revealAt > now) { pendingAt = m.revealAt; break; }
+    if (m.who === 'you') {
+      const row = el('div', 'msg you', m.text);
+      if (!m.shown) { row.classList.add('new'); m.shown = true; }
+      log.appendChild(row); prevWho = 'you'; continue;
+    }
+    const row = el('div', 'msg ai ' + m.l.kind + (prevWho === 'ai' ? ' cont' : ''));   // 連續的 AI 訊息只在第一則放頭像
+    if (prevWho !== 'ai') row.appendChild(el('i', 'avatar', 'AI'));
+    const bubble = el('div', 'bubble');
     // 「計測」不掛標籤：大部分句子都是量測，每句都標只是雜訊。
     // 其他種類（提案、注意、質問、你說的、参考）照標 —— 它們跟量測的性質不同，客人要分得出來。
-    if (m.l.kind !== 'fact') row.appendChild(el('span', 'k', t('adv.kind.' + m.l.kind)));
-    row.appendChild(el('span', 'x', advLine(m.l)));
-    log.appendChild(row);
+    if (m.l.kind !== 'fact') bubble.appendChild(el('span', 'k', t('adv.kind.' + m.l.kind)));
+    bubble.appendChild(el('span', 'x', advLine(m.l)));
+    row.appendChild(bubble);
+    if (!m.shown) { row.classList.add('new'); m.shown = true; }
+    log.appendChild(row); prevWho = 'ai';
   }
-  if (inSheet) { box.appendChild(log); requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; }); }
+  if (pendingAt) {
+    const row = el('div', 'msg ai typing' + (prevWho === 'ai' ? ' cont' : ''));
+    if (prevWho !== 'ai') row.appendChild(el('i', 'avatar', 'AI'));
+    row.appendChild(el('div', 'bubble', '<i></i><i></i><i></i>'));
+    log.appendChild(row);
+    clearTimeout(c.timer);
+    c.timer = setTimeout(() => { if (S.chat[where] === c) mountChat(where); }, Math.max(30, pendingAt - now));
+  }
+  box.appendChild(log);
+  if (inSheet) requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; });
   let opts = dropDeadAmount(dropAsked(c.opts, c.asked), S.amount);
   // 全部被收掉就退回預設 —— 對話永遠要留得下一步，這是最後一道保險
   if (!opts.length) opts = dropDeadAmount(dropAsked(defaultOpts(where), c.asked), S.amount);
+  // 快速回覆等 AI 講完才出現 —— 話還沒說完就先給選項，對話的順序就亂了
+  if (pendingAt) opts = [];
   if (opts.length) {
     const row = el('div', 'opts');
     for (const o of opts) {
