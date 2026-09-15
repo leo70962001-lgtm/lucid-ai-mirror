@@ -24,6 +24,7 @@ import { onSkin, onLook, onPicks, onShadeChange, onAmount, onFinish, lightNote,
          askAmount, askContext, onContext, newPref, notePref, noteDwell, prefTone, pickNext,
          prefNote, prefRecall, observe, sessionSummary, DWELL_MS } from './advisor.js';
 import { findHairline, faceFeatures, classifyFace, faceLookBonus, faceReasonFor } from './faceshape.js';
+import { lineEmoji, optEmoji } from './emoji.js';
 import { loadCalibration, correctHex } from './calib.js';
 import { LANGS, t, tf, getLang, setLang, initLang, applyStatic } from './i18n.js';
 
@@ -742,11 +743,12 @@ function chatSay(where, lines, opts) {
   if (opts) c.opts = opts;
   mountChat(where);
 }
-function chatYou(where, key) {
+function chatYou(where, key, emo = '') {
   const c = (S.chat[where] ||= { msgs: [], opts: [] });
+  const text = (emo ? emo + ' ' : '') + t(key);
   // 連按同一個選項時，不要把同一句「你：…」一直疊上去
   const last = c.msgs[c.msgs.length - 1];
-  if (!(last && last.who === 'you' && last.text === t(key))) c.msgs.push({ who: 'you', text: t(key) });
+  if (!(last && last.who === 'you' && last.text === text)) c.msgs.push({ who: 'you', text });
   c.opts = [];
   mountChat(where);
 }
@@ -774,9 +776,10 @@ function mountChat(where) {
     const row = el('div', 'msg ai ' + m.l.kind + (prevWho === 'ai' ? ' cont' : ''));   // 連續的 AI 訊息只在第一則放頭像
     if (prevWho !== 'ai') row.appendChild(el('i', 'avatar', 'AI'));
     const bubble = el('div', 'bubble');
-    // 「計測」不掛標籤：大部分句子都是量測，每句都標只是雜訊。
-    // 其他種類（提案、注意、質問、你說的、参考）照標 —— 它們跟量測的性質不同，客人要分得出來。
-    if (m.l.kind !== 'fact') bubble.appendChild(el('span', 'k', t('adv.kind.' + m.l.kind)));
+    // 句子開頭的表情符號已經看得出是哪一類（建議 💡、提問 💬、例子 🌟…），種類標籤不再每句都掛。
+    // 只留「你說的」：那句話的依據是客人自己的回答、不是量測 —— 這個差別要一直看得到。
+    bubble.appendChild(el('span', 'emo', lineEmoji(m.l)));
+    if (m.l.kind === 'told') bubble.appendChild(el('span', 'k', t('adv.kind.told')));
     bubble.appendChild(el('span', 'x', advLine(m.l)));
     row.appendChild(bubble);
     if (!m.shown) { row.classList.add('new'); m.shown = true; }
@@ -800,7 +803,8 @@ function mountChat(where) {
   if (opts.length) {
     const row = el('div', 'opts');
     for (const o of opts) {
-      const b = el('button', '', t(o.key));
+      const e = optEmoji(o);
+      const b = el('button', '', (e ? `<span class="emo">${e}</span>` : '') + t(o.key));
       b.onclick = () => chatAct(where, o);
       row.appendChild(b);
     }
@@ -862,7 +866,7 @@ function syncSheet() {
   sh.classList.toggle('unread', !!sig && sig !== S.sheet.seen);
   for (const b of sh.querySelectorAll('.sheet-tabs button')) b.classList.toggle('on', b.dataset.tab === S.sheet.tab && S.sheet.state === 'open');
   $('#sheet-toggle').textContent = S.sheet.state === 'min' ? '⌃' : '⌄';
-  $('#sheet-peek').textContent = lastAI ? advLine(lastAI.l) : '';
+  $('#sheet-peek').textContent = lastAI ? lineEmoji(lastAI.l) + ' ' + advLine(lastAI.l) : '';
   liftMirror();
   const p = S.picks?.lip;
   if (p) $('#sheet-shade').innerHTML = `<i style="background:${disp(p.color)}"></i><span>${tf(p, 'shade')}</span>`;
@@ -883,7 +887,7 @@ function chatAct(where, o) {
   const c = (S.chat[where] ||= { msgs: [], opts: [] });
   const prevOpts = c.opts;
   (c.asked ||= new Set()).add(o.act);      // 問過的「為什麼」不再出現在選項裡
-  chatYou(where, o.key);
+  chatYou(where, o.key, optEmoji(o));
   const r = runAct(o) || {};
   if (r.stay === false) return;                 // 換頁的動作，對話在新畫面重建
   // 動作沒帶新選項回來（例如沒東西可換）時，把原本那排放回去 ——
@@ -1355,7 +1359,8 @@ function advise2(fresh = false) {
   const lookLines = S.look ? [...plainLook(S.ranked, S.look, S.face, S.skin), ...plainCeleb(S.face)] : [];
   // 換妝容時接著講就好；整段重建會讓臉型、膚色那幾句一直重新出現，像在鬼打牆
   if (fresh || !S.chat.s2?.msgs?.length) {
-    chatReset('s2', [...plainFace(S.face), ...plainSkin(S.skin), ...plainBlush(S.face), ...lookLines], opts);
+    chatReset('s2', [{ kind: 'fact', key: 'adv.hi.s2', params: {} },
+                     ...plainFace(S.face), ...plainSkin(S.skin), ...plainBlush(S.face), ...lookLines], opts);
   } else {
     chatReplace('s2', ['adv.p.lookFace', 'adv.p.lookSkin', 'adv.p.lookAlt', 'adv.p.celeb'], lookLines, opts);
   }
@@ -2575,7 +2580,7 @@ function paintVerdict(meas) {
   noteDwell(S.pref, S.picks.lip, performance.now() - (S.shadeT0 || performance.now()));
   const sum = sessionSummary({ tried: S.tried.size, shade: tf(S.picks.lip, 'shade'),
                                amount0: S.amount0 ?? S.amount.lip, amount1: S.amount.lip, pref: S.pref });
-  chatReset('s5', [...onFinish(v, S.skin), ...sum], optsForFinish());
+  chatReset('s5', [{ kind: 'fact', key: 'adv.hi.s5', params: {} }, ...onFinish(v, S.skin), ...sum], optsForFinish());
   const bar = (label, n, extra) =>
     `<div class="bar"><span>${label}</span><i><b style="width:${n}%"></b></i><em>${extra ?? n}</em></div>`;
   box.innerHTML =

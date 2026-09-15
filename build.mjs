@@ -27,7 +27,7 @@ const B = (p) => readFileSync(join(ROOT, p));
 const KB = (n) => (n / 1024).toFixed(0) + ' KB';
 const MB = (n) => (n / 1048576).toFixed(2) + ' MB';
 
-const MODULES = ['js/i18n.js', 'js/products.js', 'js/context.js', 'js/analysis.js', 'js/advisor.js', 'js/faceshape.js', 'js/face-mesh.js', 'js/makeup.js',
+const MODULES = ['js/i18n.js', 'js/products.js', 'js/context.js', 'js/analysis.js', 'js/advisor.js', 'js/emoji.js', 'js/faceshape.js', 'js/face-mesh.js', 'js/makeup.js',
                  'js/makeup-gl.js', 'js/calib.js', 'js/selftest-face.js', 'js/face.js', 'js/app.js'];
 const CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 const MODEL_CDN = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';

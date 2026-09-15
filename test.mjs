@@ -9,6 +9,7 @@ import { PATCHES, fitDisplay, correctRgb, xyzToLab, simulateDisplay, SRGB_PANEL 
 import { pressureLevel, applyPressure } from './js/makeup-gl.js';
 import { FACE_SHAPES, PROTOTYPES, CELEBS, classifyFace, faceLookBonus, faceReasonFor } from './js/faceshape.js';
 import { readFileSync } from 'node:fs';
+import { lineEmoji, optEmoji } from './js/emoji.js';
 import { contextAdvice, adjustIntensity, rankWithContext, moodFromFace, externalWeather,
          MOODS, WEATHERS, PLANS } from './js/context.js';
 import { onSkin, onLook, onPicks, onShadeChange, onAmount, onFinish, lightNote, KINDS,
@@ -714,6 +715,31 @@ console.log('\n\x1b[1m21. 臉型：分類、推薦理由、白話說法\x1b[0m')
   const banned = ['修飾', '顯瘦', '小臉', '缺點', '顯臉小', 'slim', 'flaw', '欠点', '小顔'];
   const hits = dict.filter((l) => banned.some((w) => l.includes(w)));
   ok(dict.length > 60 && hits.length === 0, `臉型相關的 ${dict.length} 條文案沒有修飾／顯瘦／小臉這類說法`);
+}
+
+console.log('\n\x1b[1m22. 對話的表情符號\x1b[0m');
+{
+  const plainActs = ACTS.filter((a) => !/^ctx(Mood|Weather|Plan)$/.test(a));
+  ok(plainActs.every((act) => optEmoji({ act, key: 'opt.' + act })), `每個快速回覆都有表情符號（${plainActs.length} 種動作）`);
+  const ctxOpts = [...MOODS.map((v) => ({ act: 'ctxMood', val: v })), ...WEATHERS.map((v) => ({ act: 'ctxWeather', val: v })),
+                   ...PLANS.map((v) => ({ act: 'ctxPlan', val: v }))];
+  ok(ctxOpts.every((o) => optEmoji(o) && optEmoji(o) !== '💬'), '心情、天氣、行程的每個答案都有自己的符號');
+  ok(optEmoji({ key: 'opt.ctxYes', act: 'ctxMood', val: 'tired' }) === '👍', '「對，就是這個」用 👍，不是那個心情的符號');
+
+  const skinC = classifySkin(hexRgb('#f0d7c2'));
+  const cls = classifyFace(PROTOTYPES.oval);
+  const lines = [...plainFace(cls), ...plainSkin(skinC), ...plainBlush(cls), ...plainCeleb(cls),
+                 ...onPicks({ lip: { tone: 'cool', stock: 3 }, eye: { tone: 'cool', stock: 9 }, cheek: { tone: 'neutral', stock: 9 } }, skinC),
+                 ...askAmount(0.7).lines, ...lightNote(false, false, 0.1), ...onAR({ shade: '#307' }, 0.7)];
+  ok(lines.every((l) => lineEmoji(l)), `每一句都配得到符號（抽查 ${lines.length} 句）`);
+  ok(lineEmoji({ key: 'adv.p.face', kind: 'fact' }) === '✨' && lineEmoji({ key: 'adv.p.skin.cool', kind: 'fact' }) === '🌸',
+     '臉型 ✨、膚色 🌸');
+  ok(lineEmoji({ key: 'adv.p.faceEst', kind: 'caution' }) === '🙏', '「只能當大概參考」這類留意，用 🙏 而不是嚇人的 ⚠️');
+
+  // 不用「在說你很好看」的符號 —— 跟「不評價長相」同一個立場
+  const src = readFileSync(new URL('./js/emoji.js', import.meta.url), 'utf8').split('\n').filter((l) => !l.trim().startsWith('*') && !l.trim().startsWith('//')).join('\n');
+  const banned = ['😍', '🥰', '😘', '👑', '🔥', '💋', '⚠️'];
+  ok(!banned.some((e) => src.includes(e)), '對照表裡沒有 😍🥰😘👑🔥💋⚠️');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);
