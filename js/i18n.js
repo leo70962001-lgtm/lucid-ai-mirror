@@ -62,7 +62,7 @@ const DICT = {
   'hint.starting': ['正在啟動鏡頭…', 'Starting the camera…', 'カメラを起動中…'],
   'hint.ok':       ['位置良好，可以拍照', 'Good position — ready to shoot', '位置は良好です。撮影できます'],
   'hint.align':    ['請將臉部對準框內', 'Please align your face with the frame', '顔を枠内に合わせてください'],
-  'hint.noFace':   ['沒有偵測到臉，請再試一次', 'No face detected — please try again', '顔を検出できません。もう一度お試しください'],
+  'hint.noFace':   ['沒有拍到完整的臉 —— 請把整張臉放進框內，再按一次拍照', 'No full face in the shot — fit your whole face inside the frame and tap Take Photo again', '顔全体が写っていません。顔を枠内に収めて、もう一度撮影してください'],
   'hint.noSkin':   ['膚色取樣失敗，請調整光線', 'Skin sampling failed — please adjust the lighting', '肌色のサンプリングに失敗しました。照明を調整してください'],
 
   // ── 按鈕 ──
@@ -405,6 +405,8 @@ const DICT = {
   'sheet.ai':        ['AI 顧問', 'AI adviser', 'AI アドバイザー'],
   'sheet.tune':      ['妝容調整', 'Adjust', 'メイク調整'],
   'sheet.toggle':    ['收合／展開', 'Collapse / expand', '閉じる／開く'],
+
+  'hint.captureErr':  ['分析時發生錯誤，請再拍一次；如果一直失敗，可以改用「上傳照片」。', 'Something went wrong during analysis — please try again, or use "Upload photo" instead.', '解析中にエラーが起きました。もう一度撮影するか、「写真をアップロード」をお使いください。'],
 
   // 「為什麼」之後的追問
   'opt.whyDepth':    ['深淺是怎麼分的？', 'How is the depth decided?', '明るさの区分は？'],
