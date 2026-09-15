@@ -3,7 +3,7 @@
  * 只測純函式（色彩科學 + 推薦），不需要瀏覽器或相機。
  */
 
-import { classifySkin, rgbToLab, deltaE, wbGain, applyGain, estimateCCT } from './js/analysis.js';
+import { classifySkin, rgbToLab, deltaE, wbGain, applyGain, estimateCCT, rankLooks } from './js/analysis.js';
 import { LOOKS, PRODUCTS, resolveLook, toneLabel } from './js/products.js';
 import { PATCHES, fitDisplay, correctRgb, xyzToLab, simulateDisplay, SRGB_PANEL } from './js/calib.js';
 import { pressureLevel, applyPressure } from './js/makeup-gl.js';
@@ -17,7 +17,8 @@ import { onSkin, onLook, onPicks, onShadeChange, onAmount, onFinish, lightNote, 
          dropAsked, dropDeadAmount, askAmount, newPref, notePref, noteDwell, prefTone, prefBias,
          pickNext, prefNote, prefRecall, observe, sessionSummary, DWELL_MS,
          askContext, onContext, dropAnswers, optsAfterWhy, EXPLAIN_ACTS,
-         nearestRegion, onRegion, readGesture, plainSkin, plainFace, plainBlush, plainLook, plainCeleb } from './js/advisor.js';
+         nearestRegion, onRegion, readGesture, plainSkin, plainFace, plainBlush, plainLook, plainCeleb,
+         askAudience, audienceBonus, plainGroom } from './js/advisor.js';
 
 const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 
@@ -703,8 +704,8 @@ console.log('\n\x1b[1m21. 臉型：分類、推薦理由、白話說法\x1b[0m')
      '數字在追問裡：長寬比 1.58、額頭 96%；髮際線用估的要照實講');
 
   // 明星例子：多份清單一致才收，而且同一個人不能出現在兩種臉型
-  const all = Object.values(CELEBS).flat();
-  ok(FACE_SHAPES.every((s) => CELEBS[s]?.length >= 2), '每種臉型至少兩個例子');
+  const all = Object.values(CELEBS).flatMap((c) => [...c.f, ...c.m]);
+  ok(FACE_SHAPES.every((s) => CELEBS[s]?.f?.length >= 2), '每種臉型至少兩位女星例子');
   ok(all.every((c) => c.name && c.name_en && c.name_ja), '三種語言的名字都有');
   ok(new Set(all.map((c) => c.name_en)).size === all.length, '沒有人同時被列在兩種臉型（有爭議的就不收）');
   ok(plainCeleb({ unsure: true }).length === 0, '臉型量不準 → 不舉例');
@@ -740,6 +741,39 @@ console.log('\n\x1b[1m22. 對話的表情符號\x1b[0m');
   const src = readFileSync(new URL('./js/emoji.js', import.meta.url), 'utf8').split('\n').filter((l) => !l.trim().startsWith('*') && !l.trim().startsWith('//')).join('\n');
   const banned = ['😍', '🥰', '😘', '👑', '🔥', '💋', '⚠️'];
   ok(!banned.some((e) => src.includes(e)), '對照表裡沒有 😍🥰😘👑🔥💋⚠️');
+}
+
+console.log('\n\x1b[1m23. 不只推薦給女性：男士妝容\x1b[0m');
+{
+  const q = askAudience();
+  ok(q.lines[0].kind === 'ask' && q.opts.length === 3 && q.opts.every((o) => ACTS.includes(o.act) && optEmoji(o)),
+     '用問的：女性／男性／都可以，三個答案都是已知動作、都有符號');
+
+  const men = LOOKS.find((l) => l.id === 'men');
+  ok(men && men.audience === 'men' && Math.max(men.intensity.lip, men.intensity.eye, men.intensity.cheek) <= 0.25,
+     '有一款清爽男士妝，三個部位濃度都壓在 0.25 以下（看不出上妝）');
+  ok(['cool', 'warm', 'neutral'].every((u) => Object.values(resolveLook(men, u)).every((p) => p.tone === 'neutral')),
+     '不管哪種膚色，男士妝容三個部位都挑中性色（冷調膚色不會被配到正紅唇）');
+
+  const skinC = classifySkin(hexRgb('#f0d7c2'));
+  const order = (aud) => rankLooks(LOOKS, skinC)
+    .map((r) => ({ id: r.look.id, total: r.score + (audienceBonus(LOOKS, aud)[r.look.id] || 0) }))
+    .sort((x, y) => y.total - x.total).map((r) => r.id);
+  ok(order('men')[0] === 'men', '選「男性妝容」→ 第一名是清爽男士妝');
+  ok(order('women').at(-1) === 'men', '選「女性妝容」→ 男士妝容排到最後');
+  ok(Object.keys(audienceBonus(LOOKS, 'any')).length === 0, '選「都可以」或沒回答 → 排序完全不動');
+  ok(order('men').indexOf('natural') < order('men').indexOf('retro'), '男性妝容下，男女都適合的偽素顏排在正紅唇的復古妝前面');
+
+  const oval = classifyFace(PROTOTYPES.oval);
+  const names = (aud) => (plainCeleb(oval, aud)[0]?.params.names || []).map((n) => n.name_en);
+  ok(names('men').join() === 'George Clooney', '看男士妝容 → 舉男星（鵝蛋臉：喬治·克隆尼）');
+  ok(names('women').length === 2 && !names('women').includes('George Clooney'), '看女性妝容 → 舉女星');
+  ok(names('any').length === 2 && names('any').includes('George Clooney'), '都可以 → 女星、男星各一位');
+  ok(plainCeleb(classifyFace(PROTOTYPES.diamond), 'men').length === 0, '菱形臉沒有夠可靠的男星例子 → 不硬湊');
+
+  const ranked = rankLooks(LOOKS, skinC).map((r) => ({ look: r.look }));
+  ok(plainLook([{ look: men }, ...ranked], men, oval, skinC)[0].key === 'adv.p.lookMen', '推薦男士妝容時講的是男士妝容的理由');
+  ok(plainGroom()[0].key === 'adv.p.groom', '男士的小技巧講整理（眉毛、遮瑕），不講腮紅');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

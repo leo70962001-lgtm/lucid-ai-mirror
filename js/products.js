@@ -55,6 +55,7 @@ export const PRODUCTS = [
 export const LOOKS = [
   {
     id: 'natural',
+    audience: 'any',            // 偽素顏男女都適合
     name: '自然偽素顏',
     name_en: 'No-Makeup Look', name_ja: 'すっぴん風メイク',
     desc: '低彩度、薄透，看起來像天生氣色好。適合日常通勤與初次嘗試彩妝。',
@@ -65,6 +66,7 @@ export const LOOKS = [
   },
   {
     id: 'kbeauty',
+    audience: 'women',
     name: '韓系微光妝',
     name_en: 'K-Beauty Glow', name_ja: '韓国風ツヤメイク',
     desc: '水光唇 + 珠光眼影，強調光澤與立體感，上鏡效果佳。',
@@ -76,6 +78,7 @@ export const LOOKS = [
   },
   {
     id: 'retro',
+    audience: 'women',
     name: '復古氣質妝',
     name_en: 'Retro Statement', name_ja: 'レトロ クラシック',
     desc: '霧面濃唇搭配收斂的眼妝，重心放在唇部，正式場合適用。',
@@ -86,6 +89,7 @@ export const LOOKS = [
   },
   {
     id: 'clean',
+    audience: 'women',
     name: '清透通勤妝',
     name_en: 'Clean Office', name_ja: 'クリーン オフィス',
     desc: '均衡配置，三個部位強度接近，是最不容易出錯的組合。',
@@ -93,6 +97,20 @@ export const LOOKS = [
     desc_ja: 'バランス型。3 部位の強さが近く、最も失敗しにくい組み合わせです。',
     intensity: { lip: 0.65, eye: 0.40, cheek: 0.42 },
     prefer:    { lip: 'matte', eye: 'shimmer', cheek: 'matte' },
+  },
+  {
+    // 男士妝容：看不出上妝的清爽感。濃度壓得很低，三個部位一律先挑中性色 ——
+    // 冷調膚色照一般規則會挑到冷調正紅與玫瑰灰粉，對「看不出上妝」來說太明顯。
+    id: 'men',
+    audience: 'men',
+    neutralFirst: true,
+    name: '清爽男士妝',
+    name_en: "Men's Clean Grooming", name_ja: 'メンズ ナチュラル',
+    desc: '看不出上妝的清爽感：氣色與眼周輕輕整理，唇只帶一點潤色。',
+    desc_en: 'Clean and barely-there: a light touch on complexion and eyes, just a hint of colour on the lips.',
+    desc_ja: 'メイク感のない清潔感。血色と目もとを軽く整え、唇はほんのり色づく程度に。',
+    intensity: { lip: 0.22, eye: 0.12, cheek: 0.14 },
+    prefer:    { lip: 'matte', eye: 'matte', cheek: 'matte' },
   },
 ];
 
@@ -117,6 +135,7 @@ export function resolveLook(look, undertone) {
         else if (p.tone === 'neutral') { score += 30; reason.push(['reason.neutral']); }
         else                           { score += 5; }
         if (p.finish === look.prefer[cat]) { score += 30; reason.push(['reason.finish', { finish: p.finish }]); }
+        if (look.neutralFirst && p.tone === 'neutral') score += 60;     // 清爽系妝容：中性色優先於底調
         if (p.stock <= 0)  score -= 1000;
         if (p.stock <= 5)  { score -= 8; reason.push(['reason.lowStock']); }
         return { p, score, reason };
