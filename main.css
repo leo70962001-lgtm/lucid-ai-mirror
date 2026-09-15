@@ -1022,3 +1022,10 @@ body {
 /* 鏡頭影片只是畫布的來源：畫布縮小或上推後不能從四周露出來（會變成一層重影）。
    用 opacity 而不是 display:none —— 有些瀏覽器看不到的 <video> 會停止解碼 */
 #s4 > .frame > video { opacity:0; }
+
+/* 拍照失敗時的提醒：框線閃一下，提示停留幾秒，讓人知道「剛才那張沒拍成」 */
+#s1 .frame.miss { animation:miss .6s ease; }
+@keyframes miss {
+  0%, 100% { box-shadow:0 0 0 7px var(--neutral), 0 0 0 8px var(--line), 0 8px 22px rgba(var(--shadow-rgb),.16); }
+  30%, 70% { box-shadow:0 0 0 7px var(--neutral), 0 0 0 10px var(--rose), 0 8px 22px rgba(var(--rose-rgb),.35); }
+}

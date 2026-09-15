@@ -289,6 +289,19 @@ function enter1() {
 }
 
 let lastProbe = 0, faceOk = false;
+// 拍照失敗的訊息要停留幾秒：取景提示每 0.25 秒更新一次，
+// 不擋住的話「偵測不到臉」會立刻被蓋回「請對準框內」，看起來就像按了沒反應。
+let hintHoldUntil = 0, shooting = false;
+
+/** 在取景畫面顯示一則要讓人看到的訊息（失敗、錯誤），停留 ms 毫秒 */
+function holdHint(text, ms = 3500) {
+  hintHoldUntil = performance.now() + ms;
+  const h = $('#hint');
+  h.textContent = text;
+  h.classList.remove('ok');
+  const f = $('#s1 .frame');
+  f.classList.remove('miss'); void f.offsetWidth; f.classList.add('miss');   // 重播一次提醒動畫
+}
 function guideLoop() {
   const v = $('#cam'), c = $('#guide'), ctx = c.getContext('2d');
   const draw = async (ts) => {
@@ -305,8 +318,10 @@ function guideLoop() {
         const lm = await detectImage(v);
         faceOk = !!lm && Math.abs(lm[1].x - 0.5) < 0.13 && lm[1].y > 0.28 && lm[1].y < 0.72;
       } catch { faceOk = false; }
-      $('#hint').textContent = t(faceOk ? 'hint.ok' : 'hint.align');
-      $('#hint').classList.toggle('ok', faceOk);
+      if (performance.now() > hintHoldUntil) {
+        $('#hint').textContent = t(faceOk ? 'hint.ok' : 'hint.align');
+        $('#hint').classList.toggle('ok', faceOk);
+      }
     }
 
     const col = faceOk ? 'rgba(122,224,160,.9)' : 'rgba(214,124,148,.8)';
@@ -332,12 +347,20 @@ function guideLoop() {
 }
 
 function countdown() {
+  if (shooting) return;                  // 倒數中再按一次不能再開一個倒數（會連拍好幾張）
+  shooting = true;
+  setTakeEnabled(false);
   const box = $('#count'); let n = 3;
   box.hidden = false; box.textContent = n;
   const t = setInterval(() => {
     if (--n <= 0) { clearInterval(t); box.hidden = true; capture(); }
     else box.textContent = n;
   }, 800);
+}
+
+function setTakeEnabled(on) {
+  const b = $('#actions')?.lastChild;
+  if (b && S.step === 1) b.disabled = !on || !S.stream;
 }
 
 /** 拍照：存成鏡像影像（跟使用者在鏡子裡看到的一致） */
@@ -347,7 +370,16 @@ async function capture() {
   const c = el('canvas'); c.width = W; c.height = H;
   const ctx = c.getContext('2d', { willReadFrequently: true });
   ctx.save(); ctx.scale(-1, 1); ctx.drawImage(v, -W, 0, W, H); ctx.restore();
-  await analyse(c);
+  try {
+    await analyse(c);
+  } catch (e) {
+    // 分析出錯不能靜靜停住 —— 照實說，並指出另一條路
+    console.error(e);
+    holdHint(t('hint.captureErr'), 6000);
+  } finally {
+    shooting = false;
+    setTakeEnabled(true);
+  }
 }
 
 function pickFile() {
@@ -359,7 +391,8 @@ function pickFile() {
       const W = 720, H = Math.round((img.height / img.width) * 720);
       const c = el('canvas'); c.width = W; c.height = H;
       c.getContext('2d', { willReadFrequently: true }).drawImage(img, 0, 0, W, H);
-      await analyse(c);
+      try { await analyse(c); }
+      catch (e) { console.error(e); holdHint(t('hint.captureErr'), 6000); }
       URL.revokeObjectURL(img.src);
     };
     img.src = URL.createObjectURL(f);
@@ -370,10 +403,10 @@ function pickFile() {
 // ═══════════════ STEP 2 · AI 分析 ═══════════════
 async function analyse(photoCanvas) {
   const lm = await detectImage(photoCanvas);
-  if (!lm) { $('#hint').textContent = t('hint.noFace'); return; }
+  if (!lm) { holdHint(t('hint.noFace')); return; }
 
   const skinRaw = sampleSkin(photoCanvas, lm);
-  if (!skinRaw) { $('#hint').textContent = t('hint.noSkin'); return; }
+  if (!skinRaw) { holdHint(t('hint.noSkin')); return; }
 
   // 先估環境光再判膚色：櫃位燈光幾乎不會是 D65，
   // 不補償的話暖光會把每個人都推向暖色調。
