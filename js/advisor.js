@@ -47,6 +47,29 @@ export function plainFace(cls) {
   return out;
 }
 
+// ── 推薦給誰：用問的，不從臉去猜 ─────────────────────────
+// 從臉部判斷性別很容易錯，猜錯也很冒犯人；而且想試哪種妝本來就是個人選擇。
+// 所以直接問一句「想看哪一類的妝容？」，不回答就男女都推薦。
+export function askAudience() {
+  return { lines: [line('ask', 'adv.askAudience', {})],
+           opts: [opt('opt.audWomen', 'audWomen'), opt('opt.audMen', 'audMen'), opt('opt.audAny', 'audAny')] };
+}
+
+/** 依對象調整排序（加在膚色分數與臉型加分之上；「都可以」完全不動） */
+export function audienceBonus(looks, audience) {
+  const out = {};
+  if (audience !== 'men' && audience !== 'women') return out;
+  for (const l of looks || []) {
+    const a = l.audience || 'any';
+    if (audience === 'men') out[l.id] = a === 'men' ? 40 : a === 'any' ? 10 : -30;
+    else out[l.id] = a === 'men' ? -40 : 0;
+  }
+  return out;
+}
+
+/** 男士妝容的小技巧：不講腮紅，講整理 */
+export function plainGroom() { return [line('tip', 'adv.p.groom', {})]; }
+
 /** 腮紅怎麼刷 —— 這是臉型建議裡最實用、最好照做的一句 */
 export function plainBlush(cls) {
   if (!cls || cls.unsure) return [];
@@ -62,7 +85,8 @@ export function plainLook(ranked, look, cls, skin) {
   if (!ranked.some((r) => r.look.id === look.id)) return [];
   const why = faceReasonFor(cls, look.id);
   const top = ranked[0].look.id === look.id;
-  const out = [line(top ? 'praise' : 'fact', why ? 'adv.p.lookFace' : 'adv.p.lookSkin',
+  const key = look.audience === 'men' ? 'adv.p.lookMen' : why ? 'adv.p.lookFace' : 'adv.p.lookSkin';
+  const out = [line(top ? 'praise' : 'fact', key,
     { look: look.id, faceWhy: why?.key || '', skinWhy: 'adv.p.skinWhy.' + skin.undertone })];
   if (!top) out.push(line('tip', 'adv.p.lookAlt', { alt: ranked[0].look.id }));
   return out;
@@ -72,9 +96,13 @@ export function plainLook(ranked, look, cls, skin) {
  * 同樣臉型的明星例子。只當「這種臉型的例子」—— 不說使用者像誰。
  * 名單怎麼挑的見 js/faceshape.js（多份清單一致才收）。
  */
-export function plainCeleb(cls) {
+export function plainCeleb(cls, audience = 'any') {
   if (!SHOW_CELEBS || !cls || cls.unsure || !CELEBS[cls.shape]) return [];
-  return [line('ref', 'adv.p.celeb', { shape: 'face.' + cls.shape, names: CELEBS[cls.shape] })];
+  const c = CELEBS[cls.shape];
+  // 看男士妝容就舉男星、看女性妝容就舉女星；「都可以」各舉一位
+  const names = audience === 'men' ? c.m : audience === 'women' ? c.f : [c.f[0], c.m[0]].filter(Boolean);
+  if (!names.length) return [];            // 這種臉型沒有夠可靠的例子 —— 不硬湊
+  return [line('ref', audience === 'men' ? 'adv.p.celebMen' : 'adv.p.celeb', { shape: 'face.' + cls.shape, names })];
 }
 
 /** 膚色分析完：先講量到什麼，再講這代表什麼 */
@@ -247,6 +275,7 @@ export const EXPLAIN_ACTS = ['whyTone', 'whyMatch', 'whyFace', 'whyCeleb',
 
 // 回答 AI 問題用的選項 —— 一次性的，答完就收掉
 export const ANSWER_ACTS = ['prefSoft', 'prefBold', 'prefKeep', 'keepBest', 'noThanks', 'keepYes', 'keepNo',
+                            'audWomen', 'audMen', 'audAny',
                             'ctxMood', 'ctxWeather', 'ctxPlan', 'ctxSkip'];
 export const dropAnswers = (opts) => (opts || []).filter((o) => !ANSWER_ACTS.includes(o.act));
 
@@ -333,7 +362,7 @@ export const ACTS = ['whyTone', 'whyDepth', 'whyLight', 'whyPick', 'whyFace', 'w
                      'useTop', 'goProducts', 'toNeutral', 'softer', 'startAR',
                      'stronger', 'nextShade', 'compare', 'dual', 'zoom', 'whyMatch', 'retry',
                      'prefSoft', 'prefBold', 'prefKeep', 'keepBest', 'noThanks', 'revert', 'usePref',
-                     'keepYes', 'keepNo',
+                     'keepYes', 'keepNo', 'audWomen', 'audMen', 'audAny',
                      'ctxMood', 'ctxWeather', 'ctxPlan', 'ctxSkip'];
 
 // ── 反過來問：AI 也會提問 ───────────────────────────────

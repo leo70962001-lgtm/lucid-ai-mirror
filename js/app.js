@@ -20,6 +20,7 @@ import { lastBlendshapes, faceInfo } from './face.js';
 import { onSkin, onLook, onPicks, onShadeChange, onAmount, onFinish, lightNote,
          optsForSkin, optsForPicks, optsForAR, optsForFinish, explain, optsAfterWhy, onAR,
          nearestRegion, onRegion, readGesture, plainSkin, plainFace, plainBlush, plainLook, plainCeleb,
+         askAudience, audienceBonus, plainGroom,
          dropAsked, dropDeadAmount, dropAnswers, AMOUNT_MIN, AMOUNT_MAX,
          askAmount, askContext, onContext, newPref, notePref, noteDwell, prefTone, pickNext,
          prefNote, prefRecall, observe, sessionSummary, DWELL_MS } from './advisor.js';
@@ -69,6 +70,7 @@ const S = {
   said: new Set(),                  // AI 主動講過的事，一場只講一次
   mark: null,                       // 鏡面上要圈出來的部位（AI 講到哪就指到哪）
   sheet: { state: 'open', tab: 'ai', seen: '' },   // AR 的控制抽屜：open / min，ai / tune
+  audience: 'any', audAsked: false,  // 想看哪一類的妝容（女性／男性／都可以）—— 用問的，不從臉去猜
   gesture: [],                      // 鼻尖軌跡（只在有是非題等著回答時才餵）
   yesNo: null,                      // 現在等著回答的是非題 { yes, no }
   lastAct: 0,                       // 使用者最後一次動作 —— 判斷「閒著」用
@@ -452,9 +454,7 @@ async function analyse(photoCanvas) {
   S.faceBonus = faceLookBonus(S.face);
   S.faceLines = false;
   // 推薦順序 = 膚色契合 + 臉型加分。score 仍然只代表膚色契合，臉型另外記 —— 兩種依據不混在一個數字裡
-  S.ranked = rankLooks(LOOKS, S.skin)
-    .map((r) => ({ ...r, faceBonus: S.faceBonus[r.look.id] || 0, total: r.score + (S.faceBonus[r.look.id] || 0) }))
-    .sort((x, y) => y.total - x.total);
+  rankAll();
   // 心情先用表情猜一個預設值，使用者可以改；天氣如果機台有餵資料就直接帶入
   S.ctxAuto = moodFromFace(lastBlendshapes());
   const feed = externalWeather(location.search);
@@ -568,26 +568,9 @@ function showOnPhoto(look, animate = true) {
   })();
 }
 
-function enter2() {
-  showOnPhoto(S.look, false);
-  bindHold($('#s2 .frame'), () => paintPhoto(holdBare ? 0 : 100, -1));
-
+/** 妝容卡片。對象（女性／男性）改變時會重排，所以獨立出來 */
+function renderLooks() {
   const s = S.skin;
-  $('#tone-sw').style.background = s.hex;
-  $('#tone-name').textContent = t('tone.name', { depth: t('depth.' + s.depthKey), tone: toneLabel(s.undertone) });
-  const wb = S.illum && S.skinWB
-    ? t('wb.ok', { cct: S.illum.cct ? S.illum.cct + 'K' : '', n: S.illum.samples })
-    : t(S.illum ? 'wb.bad' : 'wb.none');
-  $('#tone-meta').textContent = t('tone.meta', { wb });
-  $('#tone-nums').innerHTML =
-    `${s.hex.toUpperCase()}<br>L* ${s.lab.L.toFixed(1)}　a* ${s.lab.a.toFixed(1)}　b* ${s.lab.b.toFixed(1)}<br>ITA ${s.itaDeg.toFixed(1)}°`;
-
-  const warns = [...s.warnings];
-  if (!S.skinWB) warns.push(t('warn.noWB'));
-  $('#tone-warn').hidden = !warns.length;
-  advise2(true);
-  $('#tone-warn').textContent = warns.length ? '⚠ ' + warns.join('　') : '';
-
   const box = $('#looks'); box.innerHTML = '';
   S.ranked.forEach(({ look, why }, rank) => {
     // 縮圖用「偵測到的膚色」+「這個妝容實際會用到的商品色」畫，
@@ -603,7 +586,7 @@ function enter2() {
       `--lipGloss:${pk.lip.finish === 'gloss' ? 0.9 : 0}`,
     ].join(';');
 
-    const b = el('button', 'look');
+    const b = el('button', 'look' + (S.look?.id === look.id ? ' on' : ''));
     // 先放 CSS 抽象小臉當底，等一下若能算出真實縮圖就換掉 ——
     // 沒有 WebGL 或還沒拍照時仍然有東西可看，不會開天窗。
     b.innerHTML =
@@ -636,6 +619,29 @@ function enter2() {
       b.replaceChild(thumb, b.firstElementChild);
     }
   });
+}
+
+function enter2() {
+  showOnPhoto(S.look, false);
+  bindHold($('#s2 .frame'), () => paintPhoto(holdBare ? 0 : 100, -1));
+
+  const s = S.skin;
+  $('#tone-sw').style.background = s.hex;
+  $('#tone-name').textContent = t('tone.name', { depth: t('depth.' + s.depthKey), tone: toneLabel(s.undertone) });
+  const wb = S.illum && S.skinWB
+    ? t('wb.ok', { cct: S.illum.cct ? S.illum.cct + 'K' : '', n: S.illum.samples })
+    : t(S.illum ? 'wb.bad' : 'wb.none');
+  $('#tone-meta').textContent = t('tone.meta', { wb });
+  $('#tone-nums').innerHTML =
+    `${s.hex.toUpperCase()}<br>L* ${s.lab.L.toFixed(1)}　a* ${s.lab.a.toFixed(1)}　b* ${s.lab.b.toFixed(1)}<br>ITA ${s.itaDeg.toFixed(1)}°`;
+
+  const warns = [...s.warnings];
+  if (!S.skinWB) warns.push(t('warn.noWB'));
+  $('#tone-warn').hidden = !warns.length;
+  advise2(true);
+  $('#tone-warn').textContent = warns.length ? '⚠ ' + warns.join('　') : '';
+
+  renderLooks();
 
   setActions([
     { label: t('btn.retake'), cls: 'ghost', on: () => go(1) },
@@ -644,6 +650,20 @@ function enter2() {
         go(3);
       } },
   ]);
+}
+
+/**
+ * 推薦順序 = 膚色契合 + 臉型加分 + 對象加分。
+ * score 仍然只代表膚色契合；另外兩項分開記，不混在一個數字裡。
+ */
+function rankAll() {
+  const ab = audienceBonus(LOOKS, S.audience);
+  S.ranked = rankLooks(LOOKS, S.skin)
+    .map((r) => {
+      const fb = S.faceBonus?.[r.look.id] || 0, aud = ab[r.look.id] || 0;
+      return { ...r, faceBonus: fb, audBonus: aud, total: r.score + fb + aud };
+    })
+    .sort((x, y) => y.total - x.total);
 }
 
 // ═══════════════ STEP 3 · 商品推薦 ═══════════════
@@ -1064,6 +1084,15 @@ function switchLip(next, reason) {
 function runAct(o) {
   switch (o.act) {
     // 解釋完接著給追問 —— 被問第二次還答得出來，才叫肯回答
+    // 想看哪一類的妝容：重排卡片，接著講對應的小技巧
+    case 'audWomen': case 'audMen': case 'audAny': {
+      S.audience = o.act === 'audMen' ? 'men' : o.act === 'audWomen' ? 'women' : 'any';
+      rankAll();
+      renderLooks();
+      const tip = S.audience === 'men' ? plainGroom() : plainBlush(S.face);
+      return { lines: [{ kind: 'fact', key: 'adv.audGot.' + S.audience, params: { look: S.ranked[0].look.id } }, ...tip],
+               opts: optsForSkin(S.ranked, S.look) };
+    }
     // 臉型是怎麼看的：數字在這裡講，同時把量的線畫在照片上
     case 'whyFace':
       S.faceLines = true;
@@ -1096,8 +1125,8 @@ function runAct(o) {
       applyContext();
       showOnPhoto(S.look, true);
       markLookCard();
-      return { lines: [...plainLook(S.ranked, S.look, S.face, S.skin), ...plainCeleb(S.face)],
-               replace: ['adv.p.lookFace', 'adv.p.lookSkin', 'adv.p.lookAlt', 'adv.p.celeb'],
+      return { lines: [...plainLook(S.ranked, S.look, S.face, S.skin), ...plainCeleb(S.face, S.audience)],
+               replace: ['adv.p.lookFace', 'adv.p.lookSkin', 'adv.p.lookMen', 'adv.p.lookAlt', 'adv.p.celeb', 'adv.p.celebMen'],
                opts: optsForSkin(S.ranked, S.look) };
     }
     // 從對話直接前進時，配方要先算 —— 平常是「選定妝容」那顆按鈕做的
@@ -1369,13 +1398,17 @@ function markLookCard() {
 /** 推薦畫面：膚色量到什麼，以及選定的妝容跟膚色合到什麼程度 */
 function advise2(fresh = false) {
   const opts = optsForSkin(S.ranked, S.look);
-  const lookLines = S.look ? [...plainLook(S.ranked, S.look, S.face, S.skin), ...plainCeleb(S.face)] : [];
+  const lookLines = S.look ? [...plainLook(S.ranked, S.look, S.face, S.skin), ...plainCeleb(S.face, S.audience)] : [];
   // 換妝容時接著講就好；整段重建會讓臉型、膚色那幾句一直重新出現，像在鬼打牆
   if (fresh || !S.chat.s2?.msgs?.length) {
+    const q = S.audAsked ? null : askAudience();
+    if (q) S.audAsked = true;
+    const tip = S.audience === 'men' ? plainGroom() : plainBlush(S.face);
     chatReset('s2', [{ kind: 'fact', key: 'adv.hi.s2', params: {} },
-                     ...plainFace(S.face), ...plainSkin(S.skin), ...plainBlush(S.face), ...lookLines], opts);
+                     ...plainFace(S.face), ...plainSkin(S.skin), ...(q ? q.lines : [...tip, ...lookLines])],
+              q ? [...q.opts, ...opts] : opts);
   } else {
-    chatReplace('s2', ['adv.p.lookFace', 'adv.p.lookSkin', 'adv.p.lookAlt', 'adv.p.celeb'], lookLines, opts);
+    chatReplace('s2', ['adv.p.lookFace', 'adv.p.lookSkin', 'adv.p.lookMen', 'adv.p.lookAlt', 'adv.p.celeb', 'adv.p.celebMen'], lookLines, opts);
   }
 }
 
@@ -2720,6 +2753,7 @@ function reset() {
   S.tried.clear(); S.arMs = 0; S.arT0 = 0;
   S.pref = newPref(); S.said.clear(); S.prevLip = null;
   S.amount0 = null; S.asked3.clear(); S.shadeT0 = 0; S.lastAct = 0;
+  S.audience = 'any'; S.audAsked = false;
   $('#rec-items').innerHTML = ''; $('#rep-grid').innerHTML = '';
   $('#rec-after').innerHTML = ''; $('#verdict').innerHTML = '';
   [...$('#stars').children].forEach((x) => x.classList.remove('lit'));

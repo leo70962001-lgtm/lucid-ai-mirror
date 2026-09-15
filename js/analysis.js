@@ -134,6 +134,7 @@ export function rankLooks(looks, skin) {
       if (skin.undertone === 'warm') { score += 20; why.push('why.warmShimmer'); }
       else { score += 10; why.push('why.shimmer'); }
     }
+    if (look.id === 'men') { score += 14; why.push('why.menClean'); }
     if (look.id === 'clean') {
       if (skin.undertone === 'neutral') { score += 20; why.push('why.neutralBal'); }
       else { score += 12; }

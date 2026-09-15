@@ -214,19 +214,23 @@ export function faceLookBonus(cls) {
  * 只放名字、不放照片；商業場合如有肖像或代言上的顧慮，把 SHOW_CELEBS 關掉即可。
  */
 export const SHOW_CELEBS = true;
+// 女星（f）與男星（m）分開放：推薦男士妝容時，舉女星當例子沒有幫助。
+// 男星用同一個標準交叉比對（faceshapedetector.app、myfaceshapetest.com、stylesatlife.com、thevou.com、oblongfaceshape.com）：
+// 至少兩份分到同一類、而且沒有被列在其他臉型。菱形臉沒有符合的男星（最常被舉的強尼·戴普，
+// 有一份清單列成方臉）—— 找不到就不放，不硬湊。
 export const CELEBS = {
-  oval:    [{ name: '碧昂絲', name_en: 'Beyoncé', name_ja: 'ビヨンセ' },
-            { name: '潔西卡·艾芭', name_en: 'Jessica Alba', name_ja: 'ジェシカ・アルバ' }],
-  round:   [{ name: '席琳娜·戈梅茲', name_en: 'Selena Gomez', name_ja: 'セレーナ・ゴメス' },
-            { name: '愛黛兒', name_en: 'Adele', name_ja: 'アデル' }],
-  square:  [{ name: '安潔莉娜·裘莉', name_en: 'Angelina Jolie', name_ja: 'アンジェリーナ・ジョリー' },
-            { name: '奧莉薇亞·魏爾德', name_en: 'Olivia Wilde', name_ja: 'オリヴィア・ワイルド' }],
-  heart:   [{ name: '瑞絲·薇斯朋', name_en: 'Reese Witherspoon', name_ja: 'リース・ウィザースプーン' },
-            { name: '史嘉蕾·喬韓森', name_en: 'Scarlett Johansson', name_ja: 'スカーレット・ヨハンソン' }],
-  oblong:  [{ name: '莎拉·潔西卡·派克', name_en: 'Sarah Jessica Parker', name_ja: 'サラ・ジェシカ・パーカー' },
-            { name: '麗芙·泰勒', name_en: 'Liv Tyler', name_ja: 'リヴ・タイラー' }],
-  diamond: [{ name: '珍妮佛·羅培茲', name_en: 'Jennifer Lopez', name_ja: 'ジェニファー・ロペス' },
-            { name: '荷莉·貝瑞', name_en: 'Halle Berry', name_ja: 'ハル・ベリー' }],
+  oval:    { f: [{ name: '碧昂絲', name_en: 'Beyoncé', name_ja: 'ビヨンセ' }, { name: '潔西卡·艾芭', name_en: 'Jessica Alba', name_ja: 'ジェシカ・アルバ' }],
+             m: [{ name: '喬治·克隆尼', name_en: 'George Clooney', name_ja: 'ジョージ・クルーニー' }] },
+  round:   { f: [{ name: '席琳娜·戈梅茲', name_en: 'Selena Gomez', name_ja: 'セレーナ・ゴメス' }, { name: '愛黛兒', name_en: 'Adele', name_ja: 'アデル' }],
+             m: [{ name: '傑克·布萊克', name_en: 'Jack Black', name_ja: 'ジャック・ブラック' }] },
+  square:  { f: [{ name: '安潔莉娜·裘莉', name_en: 'Angelina Jolie', name_ja: 'アンジェリーナ・ジョリー' }, { name: '奧莉薇亞·魏爾德', name_en: 'Olivia Wilde', name_ja: 'オリヴィア・ワイルド' }],
+             m: [{ name: '湯姆·克魯斯', name_en: 'Tom Cruise', name_ja: 'トム・クルーズ' }, { name: '亨利·卡維爾', name_en: 'Henry Cavill', name_ja: 'ヘンリー・カヴィル' }] },
+  heart:   { f: [{ name: '瑞絲·薇斯朋', name_en: 'Reese Witherspoon', name_ja: 'リース・ウィザースプーン' }, { name: '史嘉蕾·喬韓森', name_en: 'Scarlett Johansson', name_ja: 'スカーレット・ヨハンソン' }],
+             m: [{ name: '布萊德利·庫柏', name_en: 'Bradley Cooper', name_ja: 'ブラッドリー・クーパー' }] },
+  oblong:  { f: [{ name: '莎拉·潔西卡·派克', name_en: 'Sarah Jessica Parker', name_ja: 'サラ・ジェシカ・パーカー' }, { name: '麗芙·泰勒', name_en: 'Liv Tyler', name_ja: 'リヴ・タイラー' }],
+             m: [{ name: '班·艾佛列克', name_en: 'Ben Affleck', name_ja: 'ベン・アフレック' }, { name: '康納·歐布萊恩', name_en: 'Conan O\'Brien', name_ja: 'コナン・オブライエン' }] },
+  diamond: { f: [{ name: '珍妮佛·羅培茲', name_en: 'Jennifer Lopez', name_ja: 'ジェニファー・ロペス' }, { name: '荷莉·貝瑞', name_en: 'Halle Berry', name_ja: 'ハル・ベリー' }],
+             m: [] },
 };
 
 // ── 色彩換算（這個模組自己用，不依賴 analysis.js，避免循環匯入）──
