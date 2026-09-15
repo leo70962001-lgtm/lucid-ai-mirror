@@ -71,7 +71,8 @@ const S = {
   said: new Set(),                  // AI 主動講過的事，一場只講一次
   mark: null,                       // 鏡面上要圈出來的部位（AI 講到哪就指到哪）
   sheet: { state: 'open', tab: 'ai', seen: '' },   // AR 的控制抽屜：open / min，ai / tune
-  audience: 'any', audAsked: false,  // 想看哪一類的妝容（女性／男性／都可以）
+  audience: 'any',                   // 想看哪一類的妝容（女性／男性／都可以）
+  asked2: new Set(), q2: null,       // 推薦畫面問過的題目、目前等著回答的那一題
   audGuess: null, audChosen: false,  // AI 自動判斷的結果（只當預設值）／使用者是否親自選過
   gesture: [],                      // 鼻尖軌跡（只在有是非題等著回答時才餵）
   yesNo: null,                      // 現在等著回答的是非題 { yes, no }
@@ -459,7 +460,7 @@ async function analyse(photoCanvas) {
   if (!S.audChosen) {
     S.audGuess = await guessAudience(photoCanvas, lm).catch(() => null);
     S.audience = S.audGuess?.audience || 'any';
-    S.audAsked = false;
+    S.asked2.delete('audience');       // 新照片、使用者沒親自選過 → 用新的判斷再確認一次
   }
   S.faceLines = false;
   // 推薦順序 = 膚色契合 + 臉型加分。score 仍然只代表膚色契合，臉型另外記 —— 兩種依據不混在一個數字裡
@@ -667,10 +668,11 @@ function enter2() {
  */
 function rankAll() {
   const ab = audienceBonus(LOOKS, S.audience);
+  const cb = contextAdvice(S.ctx).look;          // 心情、天氣、行程說了什麼，對應的妝容加分
   S.ranked = rankLooks(LOOKS, S.skin)
     .map((r) => {
-      const fb = S.faceBonus?.[r.look.id] || 0, aud = ab[r.look.id] || 0;
-      return { ...r, faceBonus: fb, audBonus: aud, total: r.score + fb + aud };
+      const fb = S.faceBonus?.[r.look.id] || 0, aud = ab[r.look.id] || 0, ctx = cb[r.look.id] || 0;
+      return { ...r, faceBonus: fb, audBonus: aud, ctxBonus: ctx, total: r.score + fb + aud + ctx };
     })
     .sort((x, y) => y.total - x.total);
 }
@@ -916,7 +918,7 @@ function syncSheet() {
 
 /** 每個畫面的預設選項 —— 對話走到沒得點的時候，用它把路接回來 */
 function defaultOpts(where) {
-  if (where === 's2') return optsForSkin(S.ranked, S.look);
+  if (where === 's2') return s2Opts();
   if (where === 's3') return S.picks ? optsForPicks(S.picks, S.skin, S.pref) : [];
   if (where === 's4') return S.picks ? arOpts() : [];
   return optsForFinish();
@@ -981,7 +983,7 @@ function afterAnswer(lines) {
 function whyOpts(group) {
   const follow = optsAfterWhy(group === 'skin' ? 's2' : 's5');
   // AR 裡也問得到膚色那幾題 —— 底下接的是 AR 本來能做的事，不是推薦畫面的
-  const base = S.step === 4 ? arOpts() : S.step === 5 ? optsForFinish() : optsForSkin(S.ranked, S.look);
+  const base = S.step === 4 ? arOpts() : S.step === 5 ? optsForFinish() : s2Opts();
   return [...follow, ...base];
 }
 
@@ -1062,7 +1064,41 @@ function tapRegion(px, py, W, H) {
   return true;
 }
 
-/** AR 的選項：有上一支色號時才給「換回剛才那支」 */
+/**
+ * 推薦畫面的提問順序：想看哪一類妝容 → 心情 → 天氣 → 行程。
+ * 這四題都會改變推薦哪一款，所以在推薦畫面就問，而不是等到商品頁。
+ * 一次只問一題：答完才問下一題，每答一題卡片就重排。
+ * 問過的情境題也記進 asked3 —— 使用者如果沒答完就先去看商品，商品頁會接著問剩下的。
+ */
+const Q2_ORDER = ['audience', 'mood', 'weather', 'plan'];
+
+function nextQuestion2() {
+  for (const q of Q2_ORDER) {
+    if (S.asked2.has(q)) continue;
+    S.asked2.add(q);
+    if (q === 'audience') {
+      if (S.audChosen) continue;
+      return { id: q, ...(S.audGuess?.audience ? askAudienceGuess(S.audGuess.audience) : askAudience()) };
+    }
+    S.asked3.add(q);
+    const guess = q === 'mood' ? S.ctxAuto : q === 'weather' && S.ctxFeed ? S.ctx.weather : null;
+    return { id: q, ...askContext(q, CTX_ITEMS[q], guess) };
+  }
+  return null;
+}
+
+/** 推薦畫面的選項：還有題目等著回答時，答案排在前面，原本能做的事全部留著 */
+function s2Opts() {
+  return [...(S.q2?.opts || []), ...optsForSkin(S.ranked, S.look)];
+}
+
+/** 推薦畫面答完一題：接著問下一題；全部問完就給綜合推薦 */
+function afterAnswer2(lines) {
+  S.q2 = nextQuestion2();
+  const tail = S.q2 ? S.q2.lines
+    : [{ kind: 'praise', key: 'adv.ctxDone', params: { look: S.ranked[0].look.id } }];
+  return { lines: [...lines, ...tail], opts: s2Opts() };
+}
 
 /** AR 的選項：有上一支色號時才給「換回剛才那支」 */
 const arOpts = () => optsForAR(S.zoom, S.mode, !!S.prevLip);
@@ -1100,13 +1136,12 @@ function runAct(o) {
       rankAll();
       renderLooks();
       const tip = S.audience === 'men' ? plainGroom() : plainBlush(S.face);
-      return { lines: [{ kind: 'fact', key: 'adv.audGot.' + S.audience, params: { look: S.ranked[0].look.id } }, ...tip],
-               opts: optsForSkin(S.ranked, S.look) };
+      return afterAnswer2([{ kind: 'fact', key: 'adv.audGot.' + S.audience, params: { look: S.ranked[0].look.id } }, ...tip]);
     }
     // AI 怎麼判斷的：照實講模型、把握度、門檻，以及資料不離開機器
     case 'whyAud':
       return { lines: [{ kind: 'fact', key: 'adv.whyAud', params: { p: Math.round((S.audGuess?.prob || 0) * 100) } }],
-               opts: [...(S.audChosen ? [] : askAudienceGuess(S.audience).opts.filter((x) => x.act !== 'whyAud')), ...optsForSkin(S.ranked, S.look)] };
+               opts: s2Opts() };
     // 臉型是怎麼看的：數字在這裡講，同時把量的線畫在照片上
     case 'whyFace':
       S.faceLines = true;
@@ -1221,15 +1256,18 @@ function runAct(o) {
       S.ctx[kind] = o.val;
       if (kind === 'mood') S.ctxAuto = null;      // 已經問過本人了，不用再標「機器猜的」
       if (kind === 'weather') S.ctxFeed = false;
-      applyContext(); mountContext(); renderStep3();
       const why = contextAdvice(S.ctx).reasons.find((r) => r.kind === kind);
-      return afterAnswer(onContext(kind, 'ctx.' + kind + '.' + o.val, why?.key));
+      const got = onContext(kind, 'ctx.' + kind + '.' + o.val, why?.key);
+      if (S.step === 2) { rankAll(); renderLooks(); return afterAnswer2(got); }
+      applyContext(); renderStep3();
+      return afterAnswer(got);
     }
     case 'ctxSkip': {
       S.ctx[o.val] = null;
       if (o.val === 'mood') S.ctxAuto = null;
       if (o.val === 'weather') S.ctxFeed = false;
-      applyContext(); mountContext(); renderStep3();
+      if (S.step === 2) { rankAll(); renderLooks(); return afterAnswer2(onContext(o.val, null)); }
+      applyContext(); renderStep3();
       return afterAnswer(onContext(o.val, null));
     }
     // 回答「要不要換成對比最大的那一支」
@@ -1411,16 +1449,15 @@ function markLookCard() {
 
 /** 推薦畫面：膚色量到什麼，以及選定的妝容跟膚色合到什麼程度 */
 function advise2(fresh = false) {
-  const opts = optsForSkin(S.ranked, S.look);
+  const opts = s2Opts();
   const lookLines = S.look ? [...plainLook(S.ranked, S.look, S.face, S.skin), ...plainCeleb(S.face, S.audience)] : [];
   // 換妝容時接著講就好；整段重建會讓臉型、膚色那幾句一直重新出現，像在鬼打牆
   if (fresh || !S.chat.s2?.msgs?.length) {
-    const q = S.audAsked ? null : S.audGuess?.audience ? askAudienceGuess(S.audGuess.audience) : askAudience();
-    if (q) S.audAsked = true;
+    if (!S.q2) S.q2 = nextQuestion2();
     const tip = S.audience === 'men' ? plainGroom() : plainBlush(S.face);
     chatReset('s2', [{ kind: 'fact', key: 'adv.hi.s2', params: {} },
-                     ...plainFace(S.face), ...plainSkin(S.skin), ...(q ? q.lines : [...tip, ...lookLines])],
-              q ? [...q.opts, ...opts] : opts);
+                     ...plainFace(S.face), ...plainSkin(S.skin), ...(S.q2 ? S.q2.lines : [...tip, ...lookLines])],
+              s2Opts());
   } else {
     chatReplace('s2', ['adv.p.lookFace', 'adv.p.lookSkin', 'adv.p.lookMen', 'adv.p.lookAlt', 'adv.p.celeb', 'adv.p.celebMen'], lookLines, opts);
   }
@@ -1467,7 +1504,8 @@ function applyContext() {
 }
 
 function mountContext() {
-  const box = $('#ctx'); box.innerHTML = '';
+  const box = $('#ctx'); if (!box) return;     // 情境改由 AI 在對話裡問，畫面上不再放按鈕面板
+  box.innerHTML = '';
   for (const [kind, ids] of CTX_GROUPS) {
     const row = el('div', 'ctx-row');
     row.appendChild(el('span', 'lab', t('ctx.' + kind)));
@@ -2767,7 +2805,7 @@ function reset() {
   S.tried.clear(); S.arMs = 0; S.arT0 = 0;
   S.pref = newPref(); S.said.clear(); S.prevLip = null;
   S.amount0 = null; S.asked3.clear(); S.shadeT0 = 0; S.lastAct = 0;
-  S.audience = 'any'; S.audAsked = false; S.audGuess = null; S.audChosen = false;
+  S.audience = 'any'; S.asked2.clear(); S.q2 = null; S.audGuess = null; S.audChosen = false;
   $('#rec-items').innerHTML = ''; $('#rep-grid').innerHTML = '';
   $('#rec-after').innerHTML = ''; $('#verdict').innerHTML = '';
   [...$('#stars').children].forEach((x) => x.classList.remove('lit'));

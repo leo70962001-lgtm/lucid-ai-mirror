@@ -34,6 +34,7 @@ const LINE = [
   [/^adv\.ask/, '💬'],
   [/^adv\.ctxGot$/, '📝'],
   [/^adv\.ctxSkipped$/, '👌'],
+  [/^adv\.ctxDone$/, '💄'],
   [/^adv\.pref(Soft|Bold|Keep)$/, '👌'],
   [/^adv\.(prefTone|prefRecall)$/, '💡'],
   [/^adv\.(didPref|didBest|keptYes|shadeSame)$/, '💖'],
