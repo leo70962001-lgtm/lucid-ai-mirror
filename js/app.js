@@ -756,6 +756,10 @@ function chatYou(where, key, emo = '') {
 function mountChat(where) {
   const box = $(CHAT[where]); if (!box) return;
   const c = S.chat[where] || { msgs: [], opts: [] };
+  // 重畫之前記住捲動位置：使用者往上翻舊訊息時，不能因為重畫就被拉回底部
+  const oldLog = box.querySelector('.log');
+  const prevTop = oldLog ? oldLog.scrollTop : 0;
+  const atBottom = !oldLog || oldLog.scrollHeight - oldLog.scrollTop - oldLog.clientHeight < 40;
   box.innerHTML = '';
   box.hidden = !c.msgs.length;
   if (!c.msgs.length) return;
@@ -765,12 +769,14 @@ function mountChat(where) {
   const log = el('div', 'log');
   const now = performance.now();
   let pendingAt = 0, prevWho = null;
-  for (const m of c.msgs.slice(inSheet ? -12 : -8)) {
+  let fresh = false;
+  // 對話區固定高度、自己往上捲，所以可以多留一些歷史，往上滑就看得到
+  for (const m of c.msgs.slice(-24)) {
     // 還沒輪到的訊息先不畫，改畫一個「輸入中」氣泡；後面的也一起等
     if (m.who === 'ai' && m.revealAt > now) { pendingAt = m.revealAt; break; }
     if (m.who === 'you') {
       const row = el('div', 'msg you', m.text);
-      if (!m.shown) { row.classList.add('new'); m.shown = true; }
+      if (!m.shown) { row.classList.add('new'); m.shown = true; fresh = true; }
       log.appendChild(row); prevWho = 'you'; continue;
     }
     const row = el('div', 'msg ai ' + m.l.kind + (prevWho === 'ai' ? ' cont' : ''));   // 連續的 AI 訊息只在第一則放頭像
@@ -782,7 +788,7 @@ function mountChat(where) {
     if (m.l.kind === 'told') bubble.appendChild(el('span', 'k', t('adv.kind.told')));
     bubble.appendChild(el('span', 'x', advLine(m.l)));
     row.appendChild(bubble);
-    if (!m.shown) { row.classList.add('new'); m.shown = true; }
+    if (!m.shown) { row.classList.add('new'); m.shown = true; fresh = true; }
     log.appendChild(row); prevWho = 'ai';
   }
   if (pendingAt) {
@@ -794,7 +800,14 @@ function mountChat(where) {
     c.timer = setTimeout(() => { if (S.chat[where] === c) mountChat(where); }, Math.max(30, pendingAt - now));
   }
   box.appendChild(log);
-  if (inSheet) requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; });
+  // 新訊息或「輸入中」出現時捲到底；使用者正在往上看舊訊息、又沒有新訊息時，留在原位
+  log.onscroll = () => log.classList.toggle('more', log.scrollTop > 4);
+  const toBottom = fresh || pendingAt || atBottom;
+  log.scrollTop = toBottom ? log.scrollHeight : prevTop;
+  requestAnimationFrame(() => {
+    if (toBottom) log.scrollTop = log.scrollHeight;      // 字型與動畫排版完才是真正的高度
+    log.classList.toggle('more', log.scrollTop > 4);
+  });
   let opts = dropDeadAmount(dropAsked(c.opts, c.asked), S.amount);
   // 全部被收掉就退回預設 —— 對話永遠要留得下一步，這是最後一道保險
   if (!opts.length) opts = dropDeadAmount(dropAsked(defaultOpts(where), c.asked), S.amount);

@@ -1106,3 +1106,22 @@ body {
 .advisor .opts button .emo { margin-right:3px; }
 .advisor.big .msg { font-size:12px; }
 #adv4 .msg.ai.cont { padding-left:25px; }
+
+/* ══ 對話區固定高度、往上捲 ══════════════════════════════
+   對話越講越長會把推薦卡片、商品清單往下擠。訊息區改成固定高度、自己捲動：
+   新訊息出現在底部，舊的往上捲出去；往上滑就看得到歷史。
+   捲離頂端時上緣淡出，提示上面還有訊息。 */
+.advisor .log {
+  max-height:176px; overflow-y:auto; overscroll-behavior:contain;
+  scrollbar-width:thin; scrollbar-color:rgba(var(--line-rgb),.6) transparent; padding-right:2px;
+}
+.advisor .log::-webkit-scrollbar { width:4px; }
+.advisor .log::-webkit-scrollbar-thumb { background:rgba(var(--line-rgb),.6); border-radius:3px; }
+.advisor .log.more {
+  -webkit-mask-image:linear-gradient(to bottom, transparent 0, #000 22px);
+          mask-image:linear-gradient(to bottom, transparent 0, #000 22px);
+}
+.advisor.big .log { max-height:210px; }
+@media (max-width:560px) { .advisor .log { max-height:148px; } }
+/* AR 抽屜的高度由抽屜決定，訊息區填滿抽屜即可 */
+#adv4 .log { max-height:none; }
