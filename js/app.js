@@ -11,7 +11,7 @@ import { setMakeup, setMakeupB, setSplit, setIntensity, setSweep, renderGL,
          screenToUV, brushDab, clearBrush, hasBrush, useBrush,
          beginStroke, undoStroke, redoStroke, strokeCount, redoCount,
          pressureLevel, applyPressure, COVERAGE, setLighting, resetRefs, setColorMatrix } from './makeup-gl.js';
-import { loadChartQuad, fitFromCanvas, applyCCM } from './chart.js';
+import { loadChartQuad, fitFromCanvas, applyCCM, clearChartQuad } from './chart.js';
 import { sampleSkin, classifySkin, rankLooks, estimateIlluminant, estimateHighlight, applyGain,
          rgbToLab, hexToLab, deltaE, ITA_CLASSES } from './analysis.js';
 import { PRODUCTS, LOOKS, resolveLook, toneLabel, finishLabel, catLabel } from './products.js';
@@ -25,7 +25,8 @@ import { onSkin, onLook, onPicks, onShadeChange, onAmount, onFinish, lightNote,
          adjustHint, shadeHint, buyAdvice, DIR_KEYS,
          dropAsked, dropDeadAmount, dropAnswers, AMOUNT_MIN, AMOUNT_MAX,
          askAmount, askContext, onContext, newPref, notePref, noteDwell, prefTone, pickNext,
-         prefNote, prefRecall, observe, sessionSummary, DWELL_MS } from './advisor.js';
+         prefNote, prefRecall, observe, sessionSummary, DWELL_MS,
+         colorStatus, colorLines, colorGuide, optsForColor, colorGuideOpts } from './advisor.js';
 import { findHairline, faceFeatures, classifyFace, faceLookBonus, faceReasonFor } from './faceshape.js';
 import { lineEmoji, optEmoji } from './emoji.js';
 import { initGender, guessAudience } from './gender.js';
@@ -159,8 +160,72 @@ function mountSettings() {
   }
   box.appendChild(shapes);
   box.appendChild(el('p', 'note', t('set.note')));
+  mountCalSettings(box);
   btn.onclick = () => { box.hidden = !box.hidden; btn.classList.toggle('on', !box.hidden); };
+  // 這次可能量不準：齒輪上亮一個小點，提醒設定裡有東西可以處理
+  btn.classList.toggle('alert', S.color?.level === 'needed' || S.color?.level === 'suggest');
 }
+
+/**
+ * 設定面板的「顏色校正」：這次量得準不準、色卡設定了沒、螢幕校色了沒，以及去設定的按鈕。
+ * 設定頁開在新分頁 —— 直接換頁的話，照片、對話、購物袋都會不見。
+ */
+function mountCalSettings(box) {
+  const sec = el('div', 'cal'); sec.id = 'set-cal';
+  sec.appendChild(el('h4', '', t('set.cal')));
+  const st = S.color;
+  const msg = !st ? t('set.cal.none')
+    : st.reason === 'chart' ? t('set.cal.chart', { de: st.de.toFixed(1) })
+    : t('set.cal.' + st.reason, { cct: st.cct ?? '—' });
+  sec.appendChild(el('p', 'cal-st ' + (st?.level || 'none'), msg));
+  const chartSet = !!loadChartQuad();
+  sec.appendChild(el('p', 'cal-line', t(chartSet ? 'set.cal.chartSet' : 'set.cal.chartUnset') + '　·　' + (CALIB ? t('calib.on', { g: CALIB.gamma.map((g) => g.toFixed(2)).join('/') }) : t('calib.off'))));
+  const row = el('div', 'row');
+  // 假鏡頭測試頁（?chart=warm）就開模擬色卡的設定頁，流程才接得起來
+  const sim = /[?&]chart=(\w+)/.exec(location.search)?.[1];
+  const open = (url) => { if (!window.open(url, '_blank')) location.href = url; };
+  const setBtn = el('button', 'cal-btn' + (st && st.level !== 'ok' ? ' hot' : ''), t('set.cal.setChart'));
+  setBtn.onclick = () => open(sim ? '_chart.html?sim=' + sim : '_chart.html');
+  row.appendChild(setBtn);
+  if (chartSet) {
+    const c = el('button', 'cal-btn', t('set.cal.clearChart'));
+    c.onclick = () => { clearChartQuad(); chartSig = ''; paintCalibTag(); mountSettings(); };
+    row.appendChild(c);
+  }
+  const d = el('button', 'cal-btn', t('set.cal.display'));
+  d.onclick = () => open('_calib.html');
+  row.appendChild(d);
+  sec.appendChild(row);
+  sec.appendChild(el('p', 'note', t('set.cal.help')));
+  box.appendChild(sec);
+}
+
+/** 從對話打開設定並捲到指定區塊 */
+function openSettings(section) {
+  const box = $('#settings'), btn = $('#set-btn');
+  mountSettings();
+  box.hidden = false; btn.classList.add('on');
+  const sec = section === 'cal' && $('#set-cal');
+  if (sec) {
+    sec.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    sec.classList.remove('flash'); void sec.offsetWidth; sec.classList.add('flash');
+  }
+}
+
+// 在另一個分頁設定好色卡、回到這裡：更新設定面板，推薦畫面上請 AI 提醒重拍
+let chartSig = (() => { try { return localStorage.getItem('lucid.chart') || ''; } catch { return ''; } })();
+function onChartMaybeChanged() {
+  let now = '';
+  try { now = localStorage.getItem('lucid.chart') || ''; } catch { return; }
+  if (now === chartSig) return;
+  const added = !!now && !chartSig;
+  chartSig = now;
+  paintCalibTag(); mountSettings();
+  if (added && S.step === 2 && S.photo) chatSay('s2', [{ kind: 'praise', key: 'adv.color.ready', params: {} }], [{ key: 'opt.retake', act: 'retake' }, ...s2Opts()]);
+}
+window.addEventListener('storage', (e) => { if (e.key === 'lucid.chart' || e.key === null) onChartMaybeChanged(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) onChartMaybeChanged(); });
+window.addEventListener('focus', onChartMaybeChanged);
 // 點面板以外的地方就收起來（按齒輪本身交給它自己的 onclick 切換）
 document.addEventListener('pointerdown', (e) => {
   const box = $('#settings');
@@ -462,6 +527,9 @@ async function analyse(photoCanvas, { chart = true } = {}) {
   resetRefs();
   S.skinRaw = skinRaw.rgb;
   S.skinWB = useWB || !!S.chartFit;
+  // 這次量得準不準：沒用上眼白（不可信或補償過頭）就當作沒有參考
+  S.color = colorStatus({ chartSet: !!quad, chart: S.chartFit, illum: useWB ? illum : null });
+  mountSettings();
   S.skin = classifySkin(skinRgb);
   if (DEBUG) globalThis.__LUCID_S2__ = { raw: skinRaw.rgb, rgb: skinRgb, skin: S.skin, chart: S.chartFit, wb: useWB, illum };
   // 臉型：先在照片上找髮際線（找不到才用比例估），再量長寬與下顎線條
@@ -1109,14 +1177,14 @@ function nextQuestion2() {
 /** 推薦畫面的選項：還在問問題時只給答案＋「直接看建議」；建議給完才出現其他選項 */
 function s2Opts() {
   if (S.q2) return [...S.q2.opts, { key: 'opt.skipQs', act: 'skipQs' }];
-  return optsForSkin(S.ranked, S.look);
+  return [...optsForSkin(S.ranked, S.look), ...optsForColor(S.color)];
 }
 
 /** 問完之後的建議：臉型、膚色、小技巧，最後是「我會先從哪一款開始」 */
 function suggest2() {
   $('#s2').dataset.phase = 'suggest';
   const tip = S.audience === 'men' ? plainGroom() : plainBlush(S.face);
-  return [...plainFace(S.face), ...plainSkin(S.skin), ...tip, ...levelTip(S.level, 's2'),
+  return [...plainFace(S.face), ...plainSkin(S.skin), ...colorLines(S.color), ...tip, ...levelTip(S.level, 's2'),
           { kind: 'praise', key: 'adv.ctxDone', params: { look: S.ranked[0].look.id } }];
 }
 
@@ -1228,6 +1296,13 @@ function runAct(o) {
       go(4); return { stay: false };
     case 'whyMatch': return { lines: explain('match', S.lastV), opts: whyOpts('score') };
     case 'retry': go(2); return { stay: false };
+    // 顏色校正的引導：先講為什麼可能偏，再給「換光線重拍」與「設定色卡」兩條路
+    case 'colorHow': return { lines: colorGuide(S.color), opts: colorGuideOpts() };
+    case 'colorOpen':
+      openSettings('cal');
+      return { lines: [{ kind: 'tip', key: 'adv.color.opened', params: {} }], opts: [{ key: 'opt.retake', act: 'retake' }, ...s2Opts()] };
+    case 'colorLater': return { lines: [{ kind: 'fact', key: 'adv.color.later', params: {} }], opts: s2Opts() };
+    case 'retake': go(1); return { stay: false };
     case 'toNeutral': {
       // 把跟底調相反的那幾件換成中性色 —— 中性色不會跟膚色打架
       let n = 0;
