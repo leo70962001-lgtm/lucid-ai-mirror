@@ -19,7 +19,7 @@ import { onSkin, onLook, onPicks, onShadeChange, onAmount, onFinish, lightNote, 
          pickNext, prefNote, prefRecall, observe, sessionSummary, DWELL_MS,
          askContext, onContext, dropAnswers, optsAfterWhy, EXPLAIN_ACTS,
          nearestRegion, onRegion, readGesture, plainSkin, plainFace, plainBlush, plainLook, plainCeleb,
-         askAudience, askAudienceGuess, audienceBonus, plainGroom } from './js/advisor.js';
+         askAudience, askAudienceGuess, audienceBonus, plainGroom, askLevel, levelBonus, levelTip } from './js/advisor.js';
 
 const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 
@@ -802,6 +802,33 @@ console.log('\n\x1b[1m24. AI 自動判斷先排哪一類妝容\x1b[0m');
 
   const zh = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8').split('\n').filter((l) => /'adv\.askAudGuess\./.test(l)).join('\n');
   ok(/不一定準/.test(zh) && !/你是男|你是女/.test(zh), '文案講「先排哪一類妝容、不一定準」，不說「你是男性／女性」');
+}
+
+console.log('\n\x1b[1m25. 新手引導與「建議而不是斷言」的說法\x1b[0m');
+{
+  const q = askLevel();
+  ok(q.lines[0].kind === 'ask' && q.opts.length === 3 && q.opts.every((o) => ACTS.includes(o.act) && optEmoji(o)),
+     '問「平常有在化妝嗎」：三個答案都是已知動作、都有符號');
+
+  const b = levelBonus(LOOKS, 'new');
+  const light = LOOKS.filter((l) => Math.max(l.intensity.lip, l.intensity.eye, l.intensity.cheek) <= 0.55);
+  const heavy = LOOKS.filter((l) => Math.max(l.intensity.lip, l.intensity.eye, l.intensity.cheek) >= 0.85);
+  ok(light.every((l) => b[l.id] > 0) && heavy.every((l) => b[l.id] < 0),
+     '第一次化妝 → 清淡好上手的加分、最濃的扣分（但仍在清單裡，不是不給）');
+  ok(Object.keys(levelBonus(LOOKS, 'often')).length === 0, '常化妝 → 排序不動');
+  const some = levelBonus(LOOKS, 'some');
+  ok(light.every((l) => some[l.id] > 0 && some[l.id] < b[l.id]), '偶爾化妝 → 同方向但幅度只有一半');
+
+  ok(['s2', 's3', 's4', 's5'].every((w) => levelTip('new', w)[0]?.kind === 'tip'), '第一次的人，四個步驟各有一句可以照做的提醒');
+  ok(levelTip('often', 's3').length === 0 && levelTip(null, 's3').length === 0, '常化妝或還沒回答 → 不囉嗦');
+
+  // 說法是建議，不是斷言：掃推薦畫面會講出來的中文文案
+  const lines = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8').split('\n')
+    .filter((l) => /^\s*'(adv\.p\.|adv\.ctxDone|adv\.lvl|look\.best|look\.cardFace|why\.)/.test(l));
+  const absolute = ['最適合', '一定', '必須', '絕對', '保證', '最好看', '就是要'];
+  const hits = lines.filter((l) => absolute.some((w) => l.includes(w)));
+  ok(lines.length > 25 && hits.length === 0, `推薦說法的 ${lines.length} 條文案沒有「最適合／一定／必須／絕對／保證」這類斷言`);
+  ok(/可以從/.test(lines.find((l) => /adv\.p\.lookFace/.test(l)) || ''), '推薦妝容用「可以從…開始看看」，不是「推薦你用這款」');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

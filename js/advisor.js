@@ -47,6 +47,36 @@ export function plainFace(cls) {
   return out;
 }
 
+// ── 化妝經驗：第一次來的人，路要鋪得比較慢 ─────────────────
+// 「平常有在化妝嗎」比「你是新手嗎」好問 —— 前者是事實，後者像在評價人。
+// 回答「第一次試試看」時：推薦偏清淡好上手的、濃度調低一點，每一步各給一句可以照做的小提醒。
+export const LEVELS = ['often', 'some', 'new'];
+
+export function askLevel() {
+  return { lines: [line('ask', 'adv.askLevel', {})],
+           opts: [opt('opt.lvlOften', 'lvlOften'), opt('opt.lvlSome', 'lvlSome'), opt('opt.lvlNew', 'lvlNew')] };
+}
+
+/** 第一次的人，清淡好上手的妝容往前排；濃妝往後 —— 但不是不給，只是不放在第一個 */
+export function levelBonus(looks, level) {
+  const out = {};
+  if (level !== 'new' && level !== 'some') return out;
+  const k = level === 'new' ? 1 : 0.5;
+  for (const l of looks || []) {
+    const heavy = Math.max(l.intensity.lip, l.intensity.eye, l.intensity.cheek);
+    // 0.55 以下算清淡：偽素顏 0.55、男士 0.22；復古 0.92 最濃
+    out[l.id] = Math.round((heavy <= 0.55 ? 14 : heavy >= 0.85 ? -16 : -4) * k);
+  }
+  return out;
+}
+
+/** 每一步給第一次的人一句提醒；已經常化妝的人不囉嗦 */
+export function levelTip(level, where) {
+  if (level !== 'new') return [];
+  const key = { s2: 'adv.lvl.s2', s3: 'adv.lvl.s3', s4: 'adv.lvl.s4', s5: 'adv.lvl.s5' }[where];
+  return key ? [line('tip', key, {})] : [];
+}
+
 // ── 推薦給誰：用問的，不從臉去猜 ─────────────────────────
 // 從臉部判斷性別很容易錯，猜錯也很冒犯人；而且想試哪種妝本來就是個人選擇。
 // 所以直接問一句「想看哪一類的妝容？」，不回答就男女都推薦。
@@ -286,7 +316,7 @@ export const EXPLAIN_ACTS = ['whyTone', 'whyMatch', 'whyFace', 'whyCeleb', 'whyA
 
 // 回答 AI 問題用的選項 —— 一次性的，答完就收掉
 export const ANSWER_ACTS = ['prefSoft', 'prefBold', 'prefKeep', 'keepBest', 'noThanks', 'keepYes', 'keepNo',
-                            'audWomen', 'audMen', 'audAny', 'audKeep',
+                            'audWomen', 'audMen', 'audAny', 'audKeep', 'lvlOften', 'lvlSome', 'lvlNew',
                             'ctxMood', 'ctxWeather', 'ctxPlan', 'ctxSkip'];
 export const dropAnswers = (opts) => (opts || []).filter((o) => !ANSWER_ACTS.includes(o.act));
 
@@ -374,6 +404,7 @@ export const ACTS = ['whyTone', 'whyDepth', 'whyLight', 'whyPick', 'whyFace', 'w
                      'stronger', 'nextShade', 'compare', 'dual', 'zoom', 'whyMatch', 'retry',
                      'prefSoft', 'prefBold', 'prefKeep', 'keepBest', 'noThanks', 'revert', 'usePref',
                      'keepYes', 'keepNo', 'audWomen', 'audMen', 'audAny', 'audKeep', 'whyAud',
+                     'lvlOften', 'lvlSome', 'lvlNew',
                      'ctxMood', 'ctxWeather', 'ctxPlan', 'ctxSkip'];
 
 // ── 反過來問：AI 也會提問 ───────────────────────────────

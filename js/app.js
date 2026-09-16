@@ -20,7 +20,7 @@ import { lastBlendshapes, faceInfo } from './face.js';
 import { onSkin, onLook, onPicks, onShadeChange, onAmount, onFinish, lightNote,
          optsForSkin, optsForPicks, optsForAR, optsForFinish, explain, optsAfterWhy, onAR,
          nearestRegion, onRegion, readGesture, plainSkin, plainFace, plainBlush, plainLook, plainCeleb,
-         askAudience, askAudienceGuess, audienceBonus, plainGroom,
+         askAudience, askAudienceGuess, audienceBonus, plainGroom, askLevel, levelBonus, levelTip,
          dropAsked, dropDeadAmount, dropAnswers, AMOUNT_MIN, AMOUNT_MAX,
          askAmount, askContext, onContext, newPref, notePref, noteDwell, prefTone, pickNext,
          prefNote, prefRecall, observe, sessionSummary, DWELL_MS } from './advisor.js';
@@ -73,6 +73,7 @@ const S = {
   sheet: { state: 'open', tab: 'ai', seen: '' },   // AR 的控制抽屜：open / min，ai / tune
   audience: 'any',                   // 想看哪一類的妝容（女性／男性／都可以）
   asked2: new Set(), q2: null,       // 推薦畫面問過的題目、目前等著回答的那一題
+  level: null,                       // 化妝經驗：often / some / new（第一次）
   audGuess: null, audChosen: false,  // AI 自動判斷的結果（只當預設值）／使用者是否親自選過
   gesture: [],                      // 鼻尖軌跡（只在有是非題等著回答時才餵）
   yesNo: null,                      // 現在等著回答的是非題 { yes, no }
@@ -669,10 +670,11 @@ function enter2() {
 function rankAll() {
   const ab = audienceBonus(LOOKS, S.audience);
   const cb = contextAdvice(S.ctx).look;          // 心情、天氣、行程說了什麼，對應的妝容加分
+  const lb = levelBonus(LOOKS, S.level);         // 第一次化妝 → 清淡好上手的往前排
   S.ranked = rankLooks(LOOKS, S.skin)
     .map((r) => {
-      const fb = S.faceBonus?.[r.look.id] || 0, aud = ab[r.look.id] || 0, ctx = cb[r.look.id] || 0;
-      return { ...r, faceBonus: fb, audBonus: aud, ctxBonus: ctx, total: r.score + fb + aud + ctx };
+      const fb = S.faceBonus?.[r.look.id] || 0, aud = ab[r.look.id] || 0, ctx = cb[r.look.id] || 0, lv = lb[r.look.id] || 0;
+      return { ...r, faceBonus: fb, audBonus: aud, ctxBonus: ctx, lvlBonus: lv, total: r.score + fb + aud + ctx + lv };
     })
     .sort((x, y) => y.total - x.total);
 }
@@ -1070,7 +1072,7 @@ function tapRegion(px, py, W, H) {
  * 一次只問一題：答完才問下一題，每答一題卡片就重排。
  * 問過的情境題也記進 asked3 —— 使用者如果沒答完就先去看商品，商品頁會接著問剩下的。
  */
-const Q2_ORDER = ['audience', 'mood', 'weather', 'plan'];
+const Q2_ORDER = ['audience', 'level', 'mood', 'weather', 'plan'];
 
 function nextQuestion2() {
   for (const q of Q2_ORDER) {
@@ -1080,6 +1082,7 @@ function nextQuestion2() {
       if (S.audChosen) continue;
       return { id: q, ...(S.audGuess?.audience ? askAudienceGuess(S.audGuess.audience) : askAudience()) };
     }
+    if (q === 'level') return { id: q, ...askLevel() };
     S.asked3.add(q);
     const guess = q === 'mood' ? S.ctxAuto : q === 'weather' && S.ctxFeed ? S.ctx.weather : null;
     return { id: q, ...askContext(q, CTX_ITEMS[q], guess) };
@@ -1137,6 +1140,14 @@ function runAct(o) {
       renderLooks();
       const tip = S.audience === 'men' ? plainGroom() : plainBlush(S.face);
       return afterAnswer2([{ kind: 'fact', key: 'adv.audGot.' + S.audience, params: { look: S.ranked[0].look.id } }, ...tip]);
+    }
+    // 平常有在化妝嗎：第一次的人，推薦偏清淡、濃度調低，每一步各給一句提醒
+    case 'lvlOften': case 'lvlSome': case 'lvlNew': {
+      S.level = o.act === 'lvlNew' ? 'new' : o.act === 'lvlSome' ? 'some' : 'often';
+      rankAll();
+      renderLooks();
+      return afterAnswer2([{ kind: 'fact', key: 'adv.lvlGot.' + S.level, params: { look: S.ranked[0].look.id } },
+                           ...levelTip(S.level, 's2')]);
     }
     // AI 怎麼判斷的：照實講模型、把握度、門檻，以及資料不離開機器
     case 'whyAud':
@@ -1500,6 +1511,8 @@ function applyContext() {
     : S.look;
   S.picks = resolveLook(look, S.skin.undertone);
   S.amount = adjustIntensity(S.look.intensity, adv.amount);
+  // 第一次化妝的人整體再輕一點：太濃第一眼就會嚇到，想要更明顯隨時可以往上調
+  if (S.level === 'new') for (const k of ['lip', 'eye', 'cheek']) S.amount[k] = +(S.amount[k] * 0.85).toFixed(3);
   return adv;
 }
 
@@ -1549,7 +1562,7 @@ function enter3() {
   // 第一次進來時 AI 反問一題：答案會真的改變濃度，所以值得問。
   const q = nextQuestion();
   const base = optsForPicks(S.picks, S.skin, S.pref);
-  chatReset('s3', [...onPicks(S.picks, S.skin), ...S.advShade, ...prefRecall(S.pref, S.picks), ...(q ? q.lines : [])],
+  chatReset('s3', [...onPicks(S.picks, S.skin), ...levelTip(S.level, 's3'), ...S.advShade, ...prefRecall(S.pref, S.picks), ...(q ? q.lines : [])],
             q ? [...q.opts, ...base] : base);
   setActions([
     { label: t('btn.changeLook'), cls: 'ghost', on: () => go(2) },
@@ -1824,7 +1837,7 @@ function enter4() {
 
   $('#zoom-btn').onclick = () => { S.zoom = !S.zoom; mountZoomBtn(); syncAROpts(); };
   mountZoomBtn();
-  advise4(onAR({ ...S.picks.lip, shade: tf(S.picks.lip, 'shade') }, S.amount.lip), true);
+  advise4([...onAR({ ...S.picks.lip, shade: tf(S.picks.lip, 'shade') }, S.amount.lip), ...levelTip(S.level, 's4')], true);
   bindMirror($('#s4 .frame'));
   // ?debug 時把筆刷內部狀態掛出來 —— 現場要判斷「畫不上去」是筆觸沒進去，
   // 還是畫進去了但沒重繪，只靠看畫面分不出來。
@@ -2678,7 +2691,7 @@ function paintVerdict(meas) {
   noteDwell(S.pref, S.picks.lip, performance.now() - (S.shadeT0 || performance.now()));
   const sum = sessionSummary({ tried: S.tried.size, shade: tf(S.picks.lip, 'shade'),
                                amount0: S.amount0 ?? S.amount.lip, amount1: S.amount.lip, pref: S.pref });
-  chatReset('s5', [{ kind: 'fact', key: 'adv.hi.s5', params: {} }, ...onFinish(v, S.skin), ...sum], optsForFinish());
+  chatReset('s5', [{ kind: 'fact', key: 'adv.hi.s5', params: {} }, ...onFinish(v, S.skin), ...sum, ...levelTip(S.level, 's5')], optsForFinish());
   const bar = (label, n, extra) =>
     `<div class="bar"><span>${label}</span><i><b style="width:${n}%"></b></i><em>${extra ?? n}</em></div>`;
   box.innerHTML =
@@ -2805,7 +2818,7 @@ function reset() {
   S.tried.clear(); S.arMs = 0; S.arT0 = 0;
   S.pref = newPref(); S.said.clear(); S.prevLip = null;
   S.amount0 = null; S.asked3.clear(); S.shadeT0 = 0; S.lastAct = 0;
-  S.audience = 'any'; S.asked2.clear(); S.q2 = null; S.audGuess = null; S.audChosen = false;
+  S.audience = 'any'; S.asked2.clear(); S.q2 = null; S.audGuess = null; S.audChosen = false; S.level = null;
   $('#rec-items').innerHTML = ''; $('#rep-grid').innerHTML = '';
   $('#rec-after').innerHTML = ''; $('#verdict').innerHTML = '';
   [...$('#stars').children].forEach((x) => x.classList.remove('lit'));

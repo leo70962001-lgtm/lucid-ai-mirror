@@ -35,6 +35,8 @@ const LINE = [
   [/^adv\.ctxGot$/, '📝'],
   [/^adv\.ctxSkipped$/, '👌'],
   [/^adv\.ctxDone$/, '💄'],
+  [/^adv\.lvl\./, '🌱'],
+  [/^adv\.lvlGot\./, '👌'],
   [/^adv\.pref(Soft|Bold|Keep)$/, '👌'],
   [/^adv\.(prefTone|prefRecall)$/, '💡'],
   [/^adv\.(didPref|didBest|keptYes|shadeSame)$/, '💖'],
@@ -81,6 +83,7 @@ const ACT = {
   prefSoft: '🌙', prefBold: '✨', prefKeep: '👌', keepBest: '💖', noThanks: '👌',
   keepYes: '💖', keepNo: '👉', usePref: '💡', ctxSkip: '🤐',
   audWomen: '💄', audMen: '🧴', audAny: '🙌', audKeep: '👍', whyAud: '🤖',
+  lvlOften: '💁', lvlSome: '🙂', lvlNew: '🌱',
 };
 const CTX = {
   bright: '😊', calm: '😌', tired: '😪', nervous: '😣',
