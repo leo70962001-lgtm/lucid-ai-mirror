@@ -10,7 +10,8 @@ import { renderMakeup, debugOverlay, LIPS_OUTER, EYE_R_ALL, EYE_L_ALL, SKIN_PATC
 import { setMakeup, setMakeupB, setSplit, setIntensity, setSweep, renderGL,
          screenToUV, brushDab, clearBrush, hasBrush, useBrush,
          beginStroke, undoStroke, redoStroke, strokeCount, redoCount,
-         pressureLevel, applyPressure, COVERAGE, setLighting, resetRefs } from './makeup-gl.js';
+         pressureLevel, applyPressure, COVERAGE, setLighting, resetRefs, setColorMatrix } from './makeup-gl.js';
+import { loadChartQuad, fitFromCanvas, applyCCM } from './chart.js';
 import { sampleSkin, classifySkin, rankLooks, estimateIlluminant, estimateHighlight, applyGain,
          rgbToLab, hexToLab, deltaE, ITA_CLASSES } from './analysis.js';
 import { PRODUCTS, LOOKS, resolveLook, toneLabel, finishLabel, catLabel } from './products.js';
@@ -113,6 +114,8 @@ function paintCalibTag() {
   $('#calib-tag').textContent = CALIB
     ? t('calib.on', { g: CALIB.gamma.map((g) => g.toFixed(2)).join('/') })
     : t('calib.off');
+  // 色卡（_chart.html 設定過位置）也標出來：現場要知道膚色判定有沒有經過色卡校正
+  if (loadChartQuad()) $('#calib-tag').textContent += ' · ' + t('chart.set');
 }
 
 // ── 介面設定：配色與圓角 ─────────────────────────────────
@@ -402,7 +405,7 @@ function pickFile() {
       const W = 720, H = Math.round((img.height / img.width) * 720);
       const c = el('canvas'); c.width = W; c.height = H;
       c.getContext('2d', { willReadFrequently: true }).drawImage(img, 0, 0, W, H);
-      try { await analyse(c); }
+      try { await analyse(c, { chart: false }); }
       catch (e) { console.error(e); holdHint(t('hint.captureErr'), 6000); }
       URL.revokeObjectURL(img.src);
     };
@@ -412,7 +415,7 @@ function pickFile() {
 }
 
 // ═══════════════ STEP 2 · AI 分析 ═══════════════
-async function analyse(photoCanvas) {
+async function analyse(photoCanvas, { chart = true } = {}) {
   const lm = await detectImage(photoCanvas);
   if (!lm) {
     // 連續失敗兩次：臉很可能其實在框裡，是這台裝置的偵測有問題 —— 把診斷資訊一起顯示，截圖就能遠端判斷
@@ -432,8 +435,12 @@ async function analyse(photoCanvas) {
   // 先估環境光再判膚色：櫃位燈光幾乎不會是 D65，
   // 不補償的話暖光會把每個人都推向暖色調。
   const illum = estimateIlluminant(photoCanvas, lm);
-  let useWB = illum?.reliable;
-  let skinRgb = skinRaw.rgb;
+  // 色卡校正（參考 ZOZOGLASS）：鏡框邊裝了標準色卡、而且這張照片讀得到 → 優先用它
+  // 上傳的照片沒有拍到機台的色卡，不讀（避免照片內容剛好被當成色卡）
+  const quad = chart ? loadChartQuad() : null;
+  S.chartFit = quad ? fitFromCanvas(photoCanvas, quad) : null;
+  let useWB = !S.chartFit && illum?.reliable;
+  let skinRgb = S.chartFit ? applyCCM(skinRaw.rgb, S.chartFit.M) : skinRaw.rgb;
   if (useWB) {
     const fixed = applyGain(skinRaw.rgb, illum.gain);
     // 校正後若有通道被夾到頂，代表這次的眼白取樣不可信 ——
@@ -450,11 +457,13 @@ async function analyse(photoCanvas) {
   // 光線來源的優先序：眼白 → 臉上的高光 → 不補償。
   // 不補償時渲染器會把妝畫成完全受光的亮度，暗場景下妝會比臉亮，所以要有中間這一層。
   const hl = useWB ? null : estimateHighlight(photoCanvas, lm);
-  setLighting(useWB ? illum.gainWide : (hl?.reliable ? hl.gain : [1, 1, 1]));
+  if (S.chartFit) { setLighting([1, 1, 1]); setColorMatrix(S.chartFit.M); }
+  else { setColorMatrix(null); setLighting(useWB ? illum.gainWide : (hl?.reliable ? hl.gain : [1, 1, 1])); }
   resetRefs();
   S.skinRaw = skinRaw.rgb;
-  S.skinWB = useWB;
+  S.skinWB = useWB || !!S.chartFit;
   S.skin = classifySkin(skinRgb);
+  if (DEBUG) globalThis.__LUCID_S2__ = { raw: skinRaw.rgb, rgb: skinRgb, skin: S.skin, chart: S.chartFit, wb: useWB, illum };
   // 臉型：先在照片上找髮際線（找不到才用比例估），再量長寬與下顎線條
   S.hair = findHairline(photoCanvas, lm);
   S.faceF = faceFeatures(lm, photoCanvas.width, photoCanvas.height, S.hair);
@@ -1189,7 +1198,9 @@ function runAct(o) {
     case 'whyLight':
       markFace('sclera');       // 講「取到幾點眼白」的時候，就把眼白圈出來
       // 白平衡的來源與樣本數 —— 量不到就照實說判定會比較不穩
-      return { lines: explain('light', S.illum || { reliable: false, samples: 0 }), opts: whyOpts('skin') };
+      return { lines: S.chartFit
+                 ? [{ kind: 'fact', key: 'adv.whyLightChart', params: { n: S.chartFit.used, raw: S.chartFit.raw.toFixed(1), de: S.chartFit.de.toFixed(1) } }]
+                 : explain('light', S.illum || { reliable: false, samples: 0 }), opts: whyOpts('skin') };
     case 'whyPick': {
       const lips = PRODUCTS.filter((p) => p.cat === 'lip' && p.stock > 0);
       const fit = lips.filter((p) => p.tone === S.skin.undertone || p.tone === 'neutral');
@@ -1895,7 +1906,7 @@ function enter4() {
   if (DEBUG) globalThis.__LUCID_AR__ = { hasBrush, screenToUV, clearBrush, renderGL, toPixels, syncMakeup, lm: () => smooth,
                                          pressureLevel, applyPressure, press: () => ({ seen: pressSeen, sens: S.brush.press }),
                                          markFace, drawMark, tapRegion, feedGesture,
-                                         watchAR, faceInfo, face: () => ({ hair: S.hair, f: S.faceF, cls: S.face }),
+                                         watchAR, faceInfo, skin: () => S.skin, chart: () => S.chartFit, face: () => ({ hair: S.hair, f: S.faceF, cls: S.face }),
                                          yesNo: () => S.yesNo, gest: () => S.gesture };
   resetRefs();                     // 回到即時畫面：亮度基準改從鏡頭重新量
   startApply();
@@ -2445,9 +2456,13 @@ function arLoop() {
             : lm.map((p) => ({ x: p.x, y: p.y }));
           // 環境光每秒用眼白重估一次：櫃位燈光、使用者轉身，照在唇上的光都會變。
           // 小步混合進去，不讓整片妝跟著一次跳色。
-          if (ts - lastIllum > 1000) { lastIllum = ts; const il = estimateIlluminant(base4, smooth);
+          if (ts - lastIllum > 1000) { lastIllum = ts;
+            const cq = loadChartQuad(), cf = cq ? fitFromCanvas(base4, cq) : null;
+            if (cf) { setColorMatrix(cf.M, 0.3); setLighting([1, 1, 1], 0.3); S.chartFit = cf; }
+            else setColorMatrix(null, 0.3);
+            const il = cf ? { reliable: true } : estimateIlluminant(base4, smooth);
             const h = il?.reliable ? null : estimateHighlight(base4, smooth);
-            if (il?.reliable) setLighting(il.gainWide, 0.3);
+            if (!cf && il?.reliable) setLighting(il.gainWide, 0.3);
             else if (h?.reliable) setLighting(h.gain, 0.3);
             // 現場光線有多可信，照實說 —— 還原度取決於它
             const was = JSON.stringify(S.lightNote);
