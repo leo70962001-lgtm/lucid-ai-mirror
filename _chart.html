@@ -52,7 +52,7 @@ ZOZOGLASS 的鏡框上有特殊圖樣，戴著自拍時跟臉一起入鏡當參�
   <button class="btn" id="redo">重新點四個角</button>
   <button class="btn ghost" id="clear">清除已儲存的設定</button>
   <button class="btn" id="simQuad" hidden>用模擬色卡的位置</button>
-  <a class="btn ghost" id="back" href="index.html">回到主程式</a>
+  <button class="btn ghost" id="toApp">回到主程式</button>
 </div>
 
 <h3>校正效果</h3>
@@ -74,6 +74,7 @@ import { CHART24, patchCenters, samplePatches, fitGainOnly, applyCCM, chartError
 
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.search);
+let backUrl = 'index.html';
 // ?sim=warm｜cool｜green：沒有實體色卡時用假鏡頭（臉旁邊畫一張色卡、套上燈光色偏）
 const sim = params.get('sim');
 if (sim) {
@@ -84,20 +85,34 @@ if (sim) {
     history.replaceState(null, '', u);      // shim 讀 ?chart=
     document.head.append(s);
   });
-  $('#back').href = '_camtest.html?chart=' + sim;
+  backUrl = '_camtest.html?chart=' + sim;
 }
 $('#maxDe').textContent = 'ΔE ' + CHART_MAX_DE;
 
 const view = $('#view'), vctx = view.getContext('2d');
 const frame = document.createElement('canvas');           // 鏡像後的素顏幀（跟主程式一樣）
+// video 一定要掛在頁面上：iOS Safari 不會替沒有放進頁面的 video 解碼畫面（play() 可能永遠不回來）
 const video = document.createElement('video');
-video.muted = true; video.playsInline = true;
+video.muted = true; video.playsInline = true; video.autoplay = true;
+video.setAttribute('playsinline', ''); video.setAttribute('muted', '');
+video.style.cssText = 'position:absolute;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
+$('#stage').append(video);
+
+/** 畫面來源：模擬模式直接用假鏡頭畫好的圖；否則用相機 */
+function source() {
+  const still = sim && window.__CAMTEST_CHART__?.still;
+  if (still) return { el: still, w: still.width, h: still.height };
+  if (video.readyState >= 2 && video.videoWidth) return { el: video, w: video.videoWidth, h: video.videoHeight };
+  return null;
+}
 
 let points = loadChartQuad() || [];                         // 正規化座標
-let fit = null, drag = -1;
+let fit = null, drag = -1, hasFrame = false, camErr = '';
 
 function setStep() {
   const n = points.length;
+  if (camErr) { $('#step').innerHTML = `<span class="bad">無法開啟相機：${camErr}</span>　沒有實體色卡時可以用 <a href="?sim=warm">?sim=warm</a> 模擬`; $('#save').disabled = true; return; }
+  if (n === 4 && !hasFrame) { $('#step').innerHTML = '畫面還沒出來，出來之後會自動讀色卡…'; $('#save').disabled = true; return; }
   $('#step').innerHTML = n < 4
     ? `請點色卡色塊區的第 <b>${n + 1}</b> 個角（共 4 個，順序不拘）`
     : fit
@@ -109,7 +124,7 @@ function setStep() {
 }
 
 function analyse() {
-  if (points.length !== 4 || !frame.width) { fit = null; return; }
+  if (points.length !== 4 || !hasFrame) { fit = null; return; }
   fit = orientQuad(frame, points);
   if (!fit) return;
   const gain = fitGainOnly(fit.obs);
@@ -130,12 +145,14 @@ function analyse() {
 }
 
 function draw() {
-  if (video.readyState >= 2) {
-    const W = 960, H = Math.round((video.videoHeight / video.videoWidth) * W) || 720;
+  const src = source();
+  if (src) {
+    const W = 960, H = Math.round((src.h / src.w) * W) || 720;
     for (const c of [view, frame]) if (c.width !== W) { c.width = W; c.height = H; }
     const f = frame.getContext('2d', { willReadFrequently: true });
-    f.save(); f.scale(-1, 1); f.drawImage(video, -W, 0, W, H); f.restore();
+    f.save(); f.scale(-1, 1); f.drawImage(src.el, -W, 0, W, H); f.restore();
     vctx.drawImage(frame, 0, 0);
+    hasFrame = true;
     const P = (p) => [p.x * W, p.y * H];
     const quad = fit?.quad || (points.length === 4 ? points : null);
     if (quad) {
@@ -193,15 +210,30 @@ if (sim && window.__CAMTEST_CHART__) {
   };
 }
 if (loadChartQuad()) $('#saved').textContent = '這台裝置已經有儲存的色卡位置（畫面上的角點）。';
+$('#toApp').onclick = () => { location.href = backUrl; };
 
-try {
-  video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false });
-  await video.play();
-} catch (e) {
-  $('#step').innerHTML = `<span class="bad">無法開啟相機：${e.message}</span>　沒有實體色卡時可以用 <a href="?sim=warm">?sim=warm</a> 模擬`;
-}
+// 先開始畫，再開相機 —— 不能等 play()：有些瀏覽器它永遠不回來，整頁就停在黑畫面
 setStep();
 draw();
+if (!sim) {
+  (async () => {
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error('這個瀏覽器不支援相機（App 內建瀏覽器常見，請改用 Safari 或 Chrome 開啟）');
+      video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false });
+      video.play().catch(() => {});
+    } catch (e) {
+      camErr = e.message || String(e);
+      setStep();
+    }
+  })();
+}
+// 幾秒後還沒有畫面：講清楚是「畫面沒出來」，不是「讀不到色塊」
+setTimeout(() => {
+  if (hasFrame || camErr) return;
+  $('#step').innerHTML = sim
+    ? '<span class="bad">模擬畫面沒有載入</span>　請重新整理頁面'
+    : '<span class="bad">相機畫面沒有出來</span>　請確認已允許相機權限；在 App 內建瀏覽器請改用 Safari 或 Chrome 開啟';
+}, 5000);
 setInterval(() => { if (drag < 0 && points.length === 4) { analyse(); setStep(); } }, 1000);
 </script>
 </div></body></html>
