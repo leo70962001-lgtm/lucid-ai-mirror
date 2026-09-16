@@ -19,6 +19,8 @@
     var sw=176, sh=211, k=960/sh, dw=sw*k, dx=(1280-dw)/2;
     var still=document.createElement('canvas'); still.width=1280; still.height=960;
     var s=still.getContext('2d');
+    // 直接把畫好的靜態畫面交出去：iOS 上 canvas → 串流 → video 這條路可能完全沒有畫面
+    if(window.__CAMTEST_CHART__) window.__CAMTEST_CHART__.still=still;
     s.fillStyle='#20303f'; s.fillRect(0,0,1280,960);
     s.drawImage(img,780,232,sw,sh,dx,0,dw,960);
     if(cast){
@@ -40,7 +42,7 @@
       s.putImageData(id,0,0);
     }
     (function draw(){ x.drawImage(still,0,0); requestAnimationFrame(draw); })();
-    stream=c.captureStream(30); ready=true;
+    try{ stream=c.captureStream(30); ready=true; }catch(e){ /* 不支援串流的瀏覽器：_chart.html 仍可用上面的 still */ }
   };
   // 相對路徑：GitHub Pages 的網站放在 /倉庫名/ 底下，寫成 /images/… 會找不到
   img.src='images/_source/face_e1tw71e1tw71e1tw.jpg';
