@@ -80,7 +80,7 @@ const sim = params.get('sim');
 if (sim) {
   await new Promise((res, rej) => {
     const s = document.createElement('script');
-    s.src = 'tools/camtest-shim.js'; s.onload = res; s.onerror = rej;
+    s.src = 'tools/camtest-shim.js?v=' + Date.now(); s.onload = res; s.onerror = rej;   // 測試工具，不吃快取
     const u = new URL(location.href); u.searchParams.set('chart', sim);
     history.replaceState(null, '', u);      // shim 讀 ?chart=
     document.head.append(s);
