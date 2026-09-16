@@ -21,7 +21,8 @@ import { onSkin, onLook, onPicks, onShadeChange, onAmount, onFinish, lightNote, 
          askContext, onContext, dropAnswers, optsAfterWhy, EXPLAIN_ACTS,
          nearestRegion, onRegion, readGesture, plainSkin, plainFace, plainBlush, plainLook, plainCeleb,
          askAudience, askAudienceGuess, audienceBonus, plainGroom, askLevel, levelBonus, levelTip,
-         adjustHint, shadeHint, buyAdvice, DIR_KEYS } from './js/advisor.js';
+         adjustHint, shadeHint, buyAdvice, DIR_KEYS,
+         colorStatus, colorLines, colorGuide, optsForColor, colorGuideOpts, ANSWER_ACTS } from './js/advisor.js';
 
 const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 
@@ -950,6 +951,36 @@ console.log('\n\x1b[1m27. 色卡校正（ZOZOGLASS 的做法）\x1b[0m');
   const wrong = [N(100, 100), N(400, 100), N(400, 300), N(100, 300)];     // 照螢幕左上開始＝鏡像下是錯的
   const fw = fitFromCanvas(fakeCanvas, wrong), fr = fitFromCanvas(fakeCanvas, o.quad);
   ok(fr && fr.de < 3 && (!fw || fw.de > fr.de * 3), '擺法錯（照螢幕左上當第一塊）色差明顯較大或直接不採用；正確擺法可用');
+}
+
+console.log('\n\x1b[1m28. 顏色校正的引導：需要的時候才提\x1b[0m');
+{
+  const chart = { de: 0.4, used: 24 };
+  const good = { reliable: true, cct: 5600, samples: 120 };
+  ok(colorStatus({ chart, chartSet: true }).level === 'ok' && colorLines(colorStatus({ chart, chartSet: true })).length === 0,
+     '讀到色卡 → 量得準，不打擾');
+  ok(colorStatus({ illum: good }).reason === 'sclera' && optsForColor(colorStatus({ illum: good })).length === 0,
+     '沒有色卡、眼白正常、一般白光 → 不提校正');
+  const lost = colorStatus({ chartSet: true, illum: good });
+  ok(lost.level === 'needed' && lost.reason === 'chartLost', '設定過色卡卻讀不到 → 需要處理（就算眼白讀得到，也要讓人知道色卡出問題）');
+  const none = colorStatus({ illum: null }), bad = colorStatus({ illum: { reliable: false } });
+  ok(none.reason === 'noRef' && bad.reason === 'noRef' && none.level === 'needed', '眼白沒讀到或不可信 → 需要校正');
+  const warm = colorStatus({ illum: { reliable: true, cct: 2900.4 } }), cool = colorStatus({ illum: { reliable: true, cct: 8200 } });
+  ok(warm.level === 'suggest' && warm.reason === 'warm' && warm.cct === 2900 && cool.reason === 'cool',
+     '明顯暖光（< 4000K）／冷光（> 7500K）→ 建議用色卡，但不是「需要」');
+  ok(colorLines(warm)[0].key === 'adv.color.castWarm' && colorLines(warm)[0].params.cct === 2900, '　講出估到的色溫');
+  ok(colorLines(none)[0].kind === 'caution' && colorLines(lost)[0].key === 'adv.color.chartLost', '可能量偏時用「提醒」的語氣');
+  const opts = [...optsForColor(none), ...colorGuideOpts()];
+  ok(opts.every((o) => ACTS.includes(o.act) && optEmoji(o)), '引導的選項都是已知動作、都有符號');
+  ok(EXPLAIN_ACTS.includes('colorHow') && ANSWER_ACTS.includes('colorOpen') && ANSWER_ACTS.includes('colorLater'),
+     '「怎麼讓顏色更準」問過就收掉；「打開設定」「先這樣」答過就收掉');
+  ok(colorGuide(none).some((l) => l.key === 'adv.color.howLight') && colorGuide(none).some((l) => l.key === 'adv.color.howChart'),
+     '沒有參考白色：給兩條路 —— 換光線重拍（誰都做得到）、設定色卡');
+  ok(colorGuide(lost).every((l) => l.key !== 'adv.color.howLight'), '色卡讀不到：講色卡的事，不叫人換光線');
+  const keys = [...colorLines(none), ...colorLines(lost), ...colorLines(warm), ...colorLines(cool),
+                ...colorGuide(none), ...colorGuide(lost), ...colorGuide(warm)].map((l) => l.key);
+  const allLines = keys.map((key) => ({ key, kind: 'fact' }));
+  ok(allLines.every((l) => lineEmoji(l) === '🎨'), '引導的句子都有符號');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

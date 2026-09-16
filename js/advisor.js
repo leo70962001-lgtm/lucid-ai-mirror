@@ -370,12 +370,13 @@ export function optsForFinish() {
 // 對話不該繞回原點：點了等於沒往前走的選項要收掉。
 export const EXPLAIN_ACTS = ['whyTone', 'whyMatch', 'whyFace', 'whyCeleb', 'whyAud',
                              'whyDepth', 'whyLight', 'whyPick',      // 膚色那一題的追問
-                             'whyHue', 'whyLevel', 'whyStandout'];   // 分數那一題的追問
+                             'whyHue', 'whyLevel', 'whyStandout',    // 分數那一題的追問
+                             'colorHow'];                            // 顏色校正：問過就收掉
 
 // 回答 AI 問題用的選項 —— 一次性的，答完就收掉
 export const ANSWER_ACTS = ['prefSoft', 'prefBold', 'prefKeep', 'keepBest', 'noThanks', 'keepYes', 'keepNo', 'skipQs', 'buyLip', 'buyAll',
                             'audWomen', 'audMen', 'audAny', 'audKeep', 'lvlOften', 'lvlSome', 'lvlNew',
-                            'ctxMood', 'ctxWeather', 'ctxPlan', 'ctxSkip'];
+                            'ctxMood', 'ctxWeather', 'ctxPlan', 'ctxSkip', 'colorOpen', 'colorLater'];
 export const dropAnswers = (opts) => (opts || []).filter((o) => !ANSWER_ACTS.includes(o.act));
 
 /** 問過的「為什麼」就不再出現 —— 同一題問第二次不會有新資訊 */
@@ -456,6 +457,45 @@ export function explain(topic, d) {
   return [];
 }
 
+// ── 顏色校正：這次量得準不準、需不需要引導去校正 ─────────────
+// 只在「真的可能量偏」的時候才講。量得準還一直提醒校正，只會讓人不信任結果。
+// 語氣是建議：「參考看看就好」「想更準可以…」，不說「結果是錯的」。
+
+/**
+ * @param chartSet 機台有沒有設定過色卡位置
+ * @param chart    這次讀到的色卡校正（讀不到是 null）
+ * @param illum    這次「實際有用上」的眼白估光（沒用上傳 null）
+ * @returns level: ok｜suggest（量得到但偏色明顯，用色卡會更準）｜needed（沒有可靠參考，可能量偏）
+ */
+export function colorStatus({ chartSet = false, chart = null, illum = null } = {}) {
+  if (chart) return { level: 'ok', reason: 'chart', de: chart.de, n: chart.used };
+  if (chartSet) return { level: 'needed', reason: 'chartLost' };
+  if (!illum?.reliable) return { level: 'needed', reason: 'noRef' };
+  const cct = illum.cct ? Math.round(illum.cct) : null;
+  // 4000K 以下是明顯的暖光（鹵素、燈泡色），7500K 以上是明顯的冷光；中間是一般白光
+  if (cct && cct < 4000) return { level: 'suggest', reason: 'warm', cct };
+  if (cct && cct > 7500) return { level: 'suggest', reason: 'cool', cct };
+  return { level: 'ok', reason: 'sclera', cct };
+}
+
+/** 推薦畫面講完膚色之後的那一句；量得準就不講 */
+export function colorLines(st) {
+  if (!st || st.level === 'ok') return [];
+  if (st.reason === 'chartLost') return [line('caution', 'adv.color.chartLost', {})];
+  if (st.reason === 'noRef') return [line('caution', 'adv.color.noRef', {})];
+  return [line('tip', st.reason === 'warm' ? 'adv.color.castWarm' : 'adv.color.castCool', { cct: st.cct })];
+}
+
+/** 「怎麼讓顏色更準？」：先說為什麼會偏，再給兩條路 —— 換光線重拍（誰都做得到）、用色卡（要有色卡） */
+export function colorGuide(st) {
+  if (st?.reason === 'chartLost') return [line('fact', 'adv.color.howLost', {}), line('tip', 'adv.color.howChartAgain', {})];
+  const why = st?.reason === 'noRef' ? 'adv.color.howNoRef' : 'adv.color.howCast';
+  return [line('fact', why, {}), line('tip', 'adv.color.howLight', {}), line('tip', 'adv.color.howChart', {})];
+}
+
+export const optsForColor = (st) => (st && st.level !== 'ok' ? [opt('opt.colorHow', 'colorHow')] : []);
+export const colorGuideOpts = () => [opt('opt.colorOpen', 'colorOpen'), opt('opt.retake', 'retake'), opt('opt.colorLater', 'colorLater')];
+
 export const ACTS = ['whyTone', 'whyDepth', 'whyLight', 'whyPick', 'whyFace', 'whyCeleb',
                      'whyHue', 'whyLevel', 'whyStandout',
                      'useTop', 'goProducts', 'toNeutral', 'softer', 'startAR',
@@ -463,7 +503,8 @@ export const ACTS = ['whyTone', 'whyDepth', 'whyLight', 'whyPick', 'whyFace', 'w
                      'prefSoft', 'prefBold', 'prefKeep', 'keepBest', 'noThanks', 'revert', 'usePref',
                      'keepYes', 'keepNo', 'audWomen', 'audMen', 'audAny', 'audKeep', 'whyAud',
                      'lvlOften', 'lvlSome', 'lvlNew', 'skipQs', 'buyLip', 'buyAll',
-                     'ctxMood', 'ctxWeather', 'ctxPlan', 'ctxSkip'];
+                     'ctxMood', 'ctxWeather', 'ctxPlan', 'ctxSkip',
+                     'colorHow', 'colorOpen', 'retake', 'colorLater'];
 
 // ── 反過來問：AI 也會提問 ───────────────────────────────
 // 只問「答案會真的改變接下來做什麼」的問題。問完沒有後續的問題不要問 ——

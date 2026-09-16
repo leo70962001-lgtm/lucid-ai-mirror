@@ -59,6 +59,9 @@ const LINE = [
   [/^adv\.(tooFar)$/, '📱'],
   [/^adv\.(idleTry|amountHigh|amountLow|fix\w+)$/, '💡'],
   [/^adv\.light/, '💡'],
+  [/^adv\.color\.(ready|opened)$/, '⚙️'],
+  [/^adv\.color\.later$/, '👌'],
+  [/^adv\.color\./, '🎨'],
   [/^adv\.reg/, '👆'],
   [/^adv\.sum/, '🎉'],
   [/^adv\.(standout|fitAll|harmony|matchHigh)$/, '🎉'],
@@ -88,6 +91,7 @@ const ACT = {
   audWomen: '💄', audMen: '🧴', audAny: '🙌', audKeep: '👍', whyAud: '🤖',
   lvlOften: '💁', lvlSome: '🙂', lvlNew: '🌱',
   skipQs: '⏭️', buyLip: '🛍️', buyAll: '🛍️',
+  colorHow: '🎨', colorOpen: '⚙️', retake: '📷', colorLater: '👌',
 };
 const CTX = {
   bright: '😊', calm: '😌', tired: '😪', nervous: '😣',
