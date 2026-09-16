@@ -1125,3 +1125,23 @@ body {
 @media (max-width:560px) { .advisor .log { max-height:148px; } }
 /* AR 抽屜的高度由抽屜決定，訊息區填滿抽屜即可 */
 #adv4 .log { max-height:none; }
+
+/* ══ 畫面的重點：AI 對話與 AR 體驗 ══════════════════════════
+   第 2 步（AI 諮詢）：對話是主角 —— 照片縮小、膚色資訊卡收起來（內容已經在對話裡講），
+   對話區填滿剩下的高度；妝容卡片等建議給完才出現，改成對話下方一排左右滑的小卡。 */
+#s2 { overflow:hidden; }
+#s2 .tone-strip, #s2 #tone-warn { display:none !important; }
+#s2 > .frame { height:30%; min-height:150px; }
+#adv2 { flex:1 1 auto; min-height:0; }
+#adv2 .log { flex:1; min-height:0; max-height:none; }
+#s2[data-phase="ask"] > .sect-title, #s2[data-phase="ask"] #looks { display:none; }
+#s2 #looks { display:flex; gap:8px; overflow-x:auto; padding:2px 2px 4px; scrollbar-width:none; flex:none; }
+#s2 #looks::-webkit-scrollbar { display:none; }
+#s2 #looks .look { flex:none; width:min(250px, 72%); }
+#s2[data-phase="suggest"] #looks { animation:msgIn .35s ease-out both; }
+@media (max-width:560px) { #s2 > .frame { height:26%; min-height:130px; } }
+
+/* 第 4 步（商品推薦）：對話在最上面，推薦商品緊接在後，評分放到最後 */
+#adv5 .log { max-height:240px; }
+#s2 > .sect-title { display:none !important; }     /* 卡片列不需要標題，把高度留給對話 */
+.look .best { white-space:nowrap; font-size:9px; padding:2px 6px; }

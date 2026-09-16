@@ -19,7 +19,8 @@ import { onSkin, onLook, onPicks, onShadeChange, onAmount, onFinish, lightNote, 
          pickNext, prefNote, prefRecall, observe, sessionSummary, DWELL_MS,
          askContext, onContext, dropAnswers, optsAfterWhy, EXPLAIN_ACTS,
          nearestRegion, onRegion, readGesture, plainSkin, plainFace, plainBlush, plainLook, plainCeleb,
-         askAudience, askAudienceGuess, audienceBonus, plainGroom, askLevel, levelBonus, levelTip } from './js/advisor.js';
+         askAudience, askAudienceGuess, audienceBonus, plainGroom, askLevel, levelBonus, levelTip,
+         adjustHint, shadeHint, buyAdvice, DIR_KEYS } from './js/advisor.js';
 
 const hexRgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 
@@ -829,6 +830,34 @@ console.log('\n\x1b[1m25. 新手引導與「建議而不是斷言」的說法\x1
   const hits = lines.filter((l) => absolute.some((w) => l.includes(w)));
   ok(lines.length > 25 && hits.length === 0, `推薦說法的 ${lines.length} 條文案沒有「最適合／一定／必須／絕對／保證」這類斷言`);
   ok(/可以從/.test(lines.find((l) => /adv\.p\.lookFace/.test(l)) || ''), '推薦妝容用「可以從…開始看看」，不是「推薦你用這款」');
+}
+
+console.log('\n\x1b[1m26. AI 引導流程：調整時給方向、體驗完推薦商品\x1b[0m');
+{
+  const key = (l) => l[0]?.key;
+  ok(key(adjustHint('lip', 0.8, { plan: 'work' })) === 'adv.dir.workHigh', '行程是上班、濃度 80 → 建議稍微往左');
+  ok(key(adjustHint('lip', 0.3, { plan: 'party' })) === 'adv.dir.partyLow', '晚上聚會、濃度 30 → 建議往右一點');
+  ok(key(adjustHint('lip', 0.8, {}, 'new')) === 'adv.dir.newHigh', '第一次化妝、濃度 80 → 提醒可能有點明顯');
+  ok(['adv.dir.low', 'adv.dir.mid', 'adv.dir.clear', 'adv.dir.high'].every((k, i) =>
+       key(adjustHint('lip', [0.2, 0.5, 0.75, 0.95][i], {})) === k), '沒有行程時依濃度分四段給方向');
+  ok([0.2, 0.5, 0.8, 0.95].every((v) => DIR_KEYS.includes(key(adjustHint('lip', v, { plan: 'work' }))) && adjustHint('lip', v)[0].kind === 'tip'),
+     '方向提示都是「建議」，而且都在同一組可被取代的文案裡（不會越疊越多）');
+
+  const lips = PRODUCTS.filter((p) => p.cat === 'lip');
+  const red = lips.find((p) => p.id === 'L307'), nude = lips.find((p) => p.id === 'L455');
+  const w = shadeHint(red, lips, { plan: 'work' });
+  ok(w[0]?.key === 'adv.dir.shadeWork' && lips.find((p) => p.id === w[0].params.shade).stock > 0,
+     `上班換到正紅 → 提一支柔和、有貨的（${w[0]?.params.shade}）`);
+  ok(shadeHint(nude, lips, { plan: 'party' })[0]?.key === 'adv.dir.shadeParty', '聚會換到裸色 → 提一支比較有存在感的');
+  ok(shadeHint(nude, lips, { plan: 'work' }).length === 0 && shadeHint(red, lips, { plan: 'party' }).length === 0,
+     '跟行程方向一致時不多嘴');
+
+  const picks = resolveLook(LOOKS.find((l) => l.id === 'natural'), 'cool');
+  const nb = buyAdvice(picks, 'new'), ab = buyAdvice(picks, 'often');
+  ok(nb.lines.some((l) => l.key === 'adv.buy.new') && ab.lines.some((l) => l.key === 'adv.buy.all'),
+     '第一次化妝建議先帶唇彩一件；其他人可以整組');
+  ok(nb.lines[0].params.lip === picks.lip.id, '推的是今天試過的那組，不是另外挑別的');
+  ok(nb.opts.every((o) => ACTS.includes(o.act) && optEmoji(o)), '購買選項都是已知動作、都有符號');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

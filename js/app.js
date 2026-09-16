@@ -21,6 +21,7 @@ import { onSkin, onLook, onPicks, onShadeChange, onAmount, onFinish, lightNote,
          optsForSkin, optsForPicks, optsForAR, optsForFinish, explain, optsAfterWhy, onAR,
          nearestRegion, onRegion, readGesture, plainSkin, plainFace, plainBlush, plainLook, plainCeleb,
          askAudience, askAudienceGuess, audienceBonus, plainGroom, askLevel, levelBonus, levelTip,
+         adjustHint, shadeHint, buyAdvice, DIR_KEYS,
          dropAsked, dropDeadAmount, dropAnswers, AMOUNT_MIN, AMOUNT_MAX,
          askAmount, askContext, onContext, newPref, notePref, noteDwell, prefTone, pickNext,
          prefNote, prefRecall, observe, sessionSummary, DWELL_MS } from './advisor.js';
@@ -189,7 +190,8 @@ function mountLang() {
   mountLang();
   mountSettings();
   tickClock(); setInterval(tickClock, 10_000);
-  $('#back').onclick = () => go(S.step - 1);
+  // AR 的上一步是 AI 諮詢（中間不再經過商品頁）；商品推薦的上一步是剛才的試妝
+  $('#back').onclick = () => go(S.step === 4 ? 2 : S.step === 5 ? (S.stream ? 4 : 3) : S.step - 1);
 
   try {
     setBoot(t('boot.camera'));
@@ -245,7 +247,8 @@ function showCamError(e) {
 //   3 產品   第 2 步：推薦美妝產品
 //   4 AR     第 3 步：推薦產品 AR 上妝體驗
 //   5 評價   第 4 步：給正面評價（含體驗報告與購物）
-const SHOWN = [0, 1, 1, 2, 3, 4];
+// 內部畫面 → 顯示的步驟：拍照(1) → AI 諮詢(2) → AR 試妝(3，沒有鏡頭時用照片試妝) → 商品推薦(4)
+const SHOWN = [0, 1, 2, 3, 3, 4];
 
 function go(n) {
   n = Math.max(1, Math.min(5, n));
@@ -658,7 +661,7 @@ function enter2() {
     { label: t('btn.retake'), cls: 'ghost', on: () => go(1) },
     { label: t('btn.pickLook'), cls: 'primary', disabled: !S.look, on: () => {
         applyContext();
-        go(3);
+        go(S.stream ? 4 : 3);          // 建議之後直接進 AR；商品留到體驗完再推薦
       } },
   ]);
 }
@@ -708,6 +711,10 @@ function advLine(l) {
   if (p.look) { const lk = LOOKS.find((x) => x.id === p.look); if (lk) p.look = tf(lk, 'name'); }
   if (Array.isArray(p.names)) p.names = p.names.map((n) => tf(n, 'name')).join(t('list.sep'));
   if (p.depth) p.depth = t(p.depth);        // 追問用到的分帶名稱同樣是文案鍵
+  for (const k of ['shade', 'lip', 'eye', 'cheek']) {
+    const prod = typeof p[k] === 'string' && PRODUCTS.find((x) => x.id === p[k]);
+    if (prod) p[k] = tf(prod, 'shade');
+  }
   if (p.band) p.band = t(p.band);
   if (p.alt) { const lk = LOOKS.find((x) => x.id === p.alt); if (lk) p.alt = tf(lk, 'name'); }
   return t(l.key, p);
@@ -1072,7 +1079,7 @@ function tapRegion(px, py, W, H) {
  * 一次只問一題：答完才問下一題，每答一題卡片就重排。
  * 問過的情境題也記進 asked3 —— 使用者如果沒答完就先去看商品，商品頁會接著問剩下的。
  */
-const Q2_ORDER = ['audience', 'level', 'mood', 'weather', 'plan'];
+const Q2_ORDER = ['weather', 'mood', 'plan', 'audience', 'level'];
 
 function nextQuestion2() {
   for (const q of Q2_ORDER) {
@@ -1090,16 +1097,24 @@ function nextQuestion2() {
   return null;
 }
 
-/** 推薦畫面的選項：還有題目等著回答時，答案排在前面，原本能做的事全部留著 */
+/** 推薦畫面的選項：還在問問題時只給答案＋「直接看建議」；建議給完才出現其他選項 */
 function s2Opts() {
-  return [...(S.q2?.opts || []), ...optsForSkin(S.ranked, S.look)];
+  if (S.q2) return [...S.q2.opts, { key: 'opt.skipQs', act: 'skipQs' }];
+  return optsForSkin(S.ranked, S.look);
+}
+
+/** 問完之後的建議：臉型、膚色、小技巧，最後是「我會先從哪一款開始」 */
+function suggest2() {
+  $('#s2').dataset.phase = 'suggest';
+  const tip = S.audience === 'men' ? plainGroom() : plainBlush(S.face);
+  return [...plainFace(S.face), ...plainSkin(S.skin), ...tip, ...levelTip(S.level, 's2'),
+          { kind: 'praise', key: 'adv.ctxDone', params: { look: S.ranked[0].look.id } }];
 }
 
 /** 推薦畫面答完一題：接著問下一題；全部問完就給綜合推薦 */
 function afterAnswer2(lines) {
   S.q2 = nextQuestion2();
-  const tail = S.q2 ? S.q2.lines
-    : [{ kind: 'praise', key: 'adv.ctxDone', params: { look: S.ranked[0].look.id } }];
+  const tail = S.q2 ? S.q2.lines : suggest2();
   return { lines: [...lines, ...tail], opts: s2Opts() };
 }
 
@@ -1132,22 +1147,26 @@ function switchLip(next, reason) {
 function runAct(o) {
   switch (o.act) {
     // 解釋完接著給追問 —— 被問第二次還答得出來，才叫肯回答
+    // 不想一題一題回答：剩下的題目跳過，直接給建議
+    case 'skipQs': {
+      for (const q of Q2_ORDER) S.asked2.add(q);
+      S.q2 = null;
+      return { lines: [{ kind: 'fact', key: 'adv.skipQs', params: {} }, ...suggest2()], opts: s2Opts() };
+    }
     // 想看哪一類的妝容：重排卡片，接著講對應的小技巧
     case 'audWomen': case 'audMen': case 'audAny': case 'audKeep': {
       if (o.act !== 'audKeep') S.audience = o.act === 'audMen' ? 'men' : o.act === 'audWomen' ? 'women' : 'any';
       S.audChosen = true;                  // 使用者親自選過：之後重拍也不再用 AI 猜的蓋掉
       rankAll();
       renderLooks();
-      const tip = S.audience === 'men' ? plainGroom() : plainBlush(S.face);
-      return afterAnswer2([{ kind: 'fact', key: 'adv.audGot.' + S.audience, params: { look: S.ranked[0].look.id } }, ...tip]);
+      return afterAnswer2([{ kind: 'fact', key: 'adv.audGot2.' + S.audience, params: {} }]);
     }
     // 平常有在化妝嗎：第一次的人，推薦偏清淡、濃度調低，每一步各給一句提醒
     case 'lvlOften': case 'lvlSome': case 'lvlNew': {
       S.level = o.act === 'lvlNew' ? 'new' : o.act === 'lvlSome' ? 'some' : 'often';
       rankAll();
       renderLooks();
-      return afterAnswer2([{ kind: 'fact', key: 'adv.lvlGot.' + S.level, params: { look: S.ranked[0].look.id } },
-                           ...levelTip(S.level, 's2')]);
+      return afterAnswer2([{ kind: 'fact', key: 'adv.lvlGot.' + S.level, params: {} }]);
     }
     // AI 怎麼判斷的：照實講模型、把握度、門檻，以及資料不離開機器
     case 'whyAud':
@@ -1190,7 +1209,7 @@ function runAct(o) {
                opts: optsForSkin(S.ranked, S.look) };
     }
     // 從對話直接前進時，配方要先算 —— 平常是「選定妝容」那顆按鈕做的
-    case 'goProducts': if (S.look) applyContext(); go(3); return { stay: false };
+    case 'goProducts': if (S.look) applyContext(); go(S.stream ? 4 : 3); return { stay: false };
     // 沒有相機（上傳照片的流程）時，點了不能就這樣沉默 —— 沉默看起來就是壞掉
     case 'startAR':
       if (!S.stream) return { lines: [{ kind: 'caution', key: 'adv.noCam', params: {} }],
@@ -1224,8 +1243,8 @@ function runAct(o) {
       if (S.step === 3) renderStep3(); else { mountPanel(); paintPanel(); }
       const lip = Math.round(S.amount.lip * 100);
       return { lines: [{ kind: 'fact', key: o.act === 'softer' ? 'adv.didSofter' : 'adv.didStronger', params: { n: lip } },
-                       ...onAmount('lip', S.amount.lip)],
-               replace: ['adv.didSofter', 'adv.didStronger', 'adv.amountLow', 'adv.amountHigh'],
+                       ...(S.step === 4 ? adjustHint('lip', S.amount.lip, S.ctx, S.level) : onAmount('lip', S.amount.lip))],
+               replace: ['adv.didSofter', 'adv.didStronger', 'adv.amountLow', 'adv.amountHigh', ...DIR_KEYS],
                opts: S.step === 3 ? optsForPicks(S.picks, S.skin, S.pref) : arOpts() };
     }
     case 'nextShade': {
@@ -1234,8 +1253,10 @@ function runAct(o) {
       const next = pickNext(list, S.picks.lip.id, S.pref);   // 再依「停留過的底調」優先挑
       if (!next) return {};
       const prev = switchLip(next);
-      return { lines: [...onShadeChange(next, prev, S.skin), ...prefNote(S.pref, next)],
-               replace: ['adv.shadeGap', 'adv.shadeSame', 'adv.shadeNeutral', 'adv.shadeOff', 'adv.prefTone'],
+      return { lines: [...onShadeChange(next, prev, S.skin), ...prefNote(S.pref, next),
+                       ...shadeHint(next, PRODUCTS.filter((p) => p.cat === 'lip'), S.ctx, S.level)],
+               replace: ['adv.shadeGap', 'adv.shadeSame', 'adv.shadeNeutral', 'adv.shadeOff', 'adv.prefTone',
+                         'adv.dir.shadeWork', 'adv.dir.shadeNew', 'adv.dir.shadeParty'],
                opts: arOpts() };
     }
     // 換回剛才那支 —— 對話裡的「上一步」，不用回頭找哪一顆是它
@@ -1314,6 +1335,19 @@ function runAct(o) {
                opts: arOpts() };
     }
     case 'keepNo': return runAct({ act: 'nextShade' });
+    // 把今天試過的放進購物袋：唇彩一件，或三件（缺貨的跳過）
+    case 'buyLip': case 'buyAll': {
+      const cats = o.act === 'buyLip' ? ['lip'] : ['lip', 'eye', 'cheek'];
+      let n = 0;
+      for (const c of cats) {
+        const p = S.picks?.[c];
+        if (p && p.stock > 0 && !S.bag.includes(p.id)) { S.bag.push(p.id); n++; }
+      }
+      paintRecItems(); paintTotal();
+      const items = S.bag.map((id) => PRODUCTS.find((p) => p.id === id)).filter(Boolean);
+      return { lines: [{ kind: 'fact', key: 'adv.buy.added', params: { n: items.length, sum: items.reduce((s, p) => s + p.price, 0) } }],
+               opts: [...buyAdvice(S.picks, S.level).opts.filter((x) => !bagHas(x.act)), ...optsForFinish()] };
+    }
     case 'noThanks':
       return { lines: [{ kind: 'fact', key: 'adv.keepCur', params: { shade: tf(S.picks.lip, 'shade') } }],
                opts: arOpts() };
@@ -1339,6 +1373,20 @@ function runAct(o) {
     }
     default: return {};
   }
+}
+
+/**
+ * 拉濃度時給方向。拖曳中每一格都講會變成洗版，所以停手 0.35 秒才講一次，
+ * 而且同類的舊提示換成新的，不疊上去。
+ */
+let hintTimer = 0;
+function hintSoon(cat) {
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => {
+    if (S.step !== 4) return;
+    S.lastAct = performance.now();
+    chatReplace('s4', DIR_KEYS, adjustHint(cat, S.amount[cat], S.ctx, S.level), arOpts());
+  }, 350);
 }
 
 /** AR 畫面：現場光線的提示 + 使用者剛做的那件事的回應 */
@@ -1464,10 +1512,11 @@ function advise2(fresh = false) {
   const lookLines = S.look ? [...plainLook(S.ranked, S.look, S.face, S.skin), ...plainCeleb(S.face, S.audience)] : [];
   // 換妝容時接著講就好；整段重建會讓臉型、膚色那幾句一直重新出現，像在鬼打牆
   if (fresh || !S.chat.s2?.msgs?.length) {
-    if (!S.q2) S.q2 = nextQuestion2();
-    const tip = S.audience === 'men' ? plainGroom() : plainBlush(S.face);
+    if (!S.q2 && S.asked2.size === 0) S.q2 = nextQuestion2();
+    $('#s2').dataset.phase = S.q2 ? 'ask' : 'suggest';
+    // 拍完照先問，不先講分析 —— 知道今天的狀況，建議才給得準
     chatReset('s2', [{ kind: 'fact', key: 'adv.hi.s2', params: {} },
-                     ...plainFace(S.face), ...plainSkin(S.skin), ...(S.q2 ? S.q2.lines : [...tip, ...lookLines])],
+                     ...(S.q2 ? S.q2.lines : [...suggest2(), ...lookLines])],
               s2Opts());
   } else {
     chatReplace('s2', ['adv.p.lookFace', 'adv.p.lookSkin', 'adv.p.lookMen', 'adv.p.lookAlt', 'adv.p.celeb', 'adv.p.celebMen'], lookLines, opts);
@@ -1566,7 +1615,9 @@ function enter3() {
             q ? [...q.opts, ...base] : base);
   setActions([
     { label: t('btn.changeLook'), cls: 'ghost', on: () => go(2) },
-    { label: t('btn.startAR'), cls: 'primary', on: () => go(4), disabled: !S.stream },
+    // 照片試妝只在沒有鏡頭時出現：看完就去商品推薦
+    S.stream ? { label: t('btn.startAR'), cls: 'primary', on: () => go(4) }
+             : { label: t('btn.finish'), cls: 'primary', on: () => go(5) },
   ]);
 }
 
@@ -1850,9 +1901,10 @@ function enter4() {
   startApply();
   S.arT0 = performance.now();
   S.lastAct = S.shadeT0 = S.arT0;
+  if (S.amount0 == null) S.amount0 = S.amount.lip;
 
   setActions([
-    { label: t('btn.changeLook'), cls: 'ghost', on: () => go(3) },
+    { label: t('btn.changeLook'), cls: 'ghost', on: () => go(2) },
     { label: t('btn.finish'), cls: 'primary', on: () => go(5) },
   ]);
 
@@ -2077,7 +2129,8 @@ function mountPanel() {
       step(() => {
         if (dualB) S.pickB = q;
         else {
-          advise4(onShadeChange(q, S.picks[cat], S.skin));   // 換色號 → 當場回應
+          advise4([...onShadeChange(q, S.picks[cat], S.skin),  // 換色號 → 當場回應，跟行程差很多再提一個方向
+                   ...(cat === 'lip' ? shadeHint(q, PRODUCTS.filter((p) => p.cat === 'lip'), S.ctx, S.level) : [])]);
         S.picks[cat] = { ...q, _reason: [['reason.manual']], _alts: [] };
           if (cat === 'lip') { S.tried.add(q.id); paintPanel(); updateCallout(); }
         }
@@ -2093,7 +2146,7 @@ function mountPanel() {
   box.appendChild(el('div', 'shade-name', active ? `${tf(active, 'shade')}　·　${finishLabel(active.finish)}` : '—'));
   box.appendChild(slider('sl.amount',
     () => Math.round(S.amount[cat] * 100),
-    (v) => { S.amount[cat] = v / 100; advise4(onAmount(cat, S.amount[cat])); }));
+    (v) => { S.amount[cat] = v / 100; hintSoon(cat); }));
 }
 
 /**
@@ -2650,6 +2703,19 @@ function paintReport() {
     ? '⚠ ' + sk.warnings.map((w) => t(w)).join('　')
     : t('rep.note');
 
+  paintRecItems();
+  paintAfterRecs(meas);
+  paintTotal();
+  paintPanel();
+}
+
+/** 已經在購物袋裡的，就不再給「加入」的選項 */
+function bagHas(act) {
+  const cats = act === 'buyLip' ? ['lip'] : ['lip', 'eye', 'cheek'];
+  return cats.every((c) => !S.picks?.[c] || S.picks[c].stock <= 0 || S.bag.includes(S.picks[c].id));
+}
+
+function paintRecItems() {
   // ── 推薦商品（含替代色號） ──
   const box = $('#rec-items'); box.innerHTML = '';
   for (const cat of ['lip', 'eye', 'cheek']) {
@@ -2674,9 +2740,6 @@ function paintReport() {
     row.appendChild(add);
     box.appendChild(row);
   }
-  paintAfterRecs(meas);
-  paintTotal();
-  paintPanel();
 }
 
 /** 上妝結果的契合度：三條量出來的分項 + 一段照實說的評語 */
@@ -2691,7 +2754,10 @@ function paintVerdict(meas) {
   noteDwell(S.pref, S.picks.lip, performance.now() - (S.shadeT0 || performance.now()));
   const sum = sessionSummary({ tried: S.tried.size, shade: tf(S.picks.lip, 'shade'),
                                amount0: S.amount0 ?? S.amount.lip, amount1: S.amount.lip, pref: S.pref });
-  chatReset('s5', [{ kind: 'fact', key: 'adv.hi.s5', params: {} }, ...onFinish(v, S.skin), ...sum, ...levelTip(S.level, 's5')], optsForFinish());
+  const buy = buyAdvice(S.picks, S.level);
+  chatReset('s5', [{ kind: 'fact', key: 'adv.hi.s5', params: {} }, ...onFinish(v, S.skin), ...sum,
+                   ...levelTip(S.level, 's5'), ...buy.lines],
+            [...buy.opts.filter((o) => !bagHas(o.act)), ...optsForFinish()]);
   const bar = (label, n, extra) =>
     `<div class="bar"><span>${label}</span><i><b style="width:${n}%"></b></i><em>${extra ?? n}</em></div>`;
   box.innerHTML =

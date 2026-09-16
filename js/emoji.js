@@ -36,6 +36,9 @@ const LINE = [
   [/^adv\.ctxSkipped$/, '👌'],
   [/^adv\.ctxDone$/, '💄'],
   [/^adv\.lvl\./, '🌱'],
+  [/^adv\.dir\./, '🧭'],
+  [/^adv\.buy\./, '🛍️'],
+  [/^adv\.ask2Intro$/, '👋'],
   [/^adv\.lvlGot\./, '👌'],
   [/^adv\.pref(Soft|Bold|Keep)$/, '👌'],
   [/^adv\.(prefTone|prefRecall)$/, '💡'],
@@ -78,12 +81,13 @@ export function lineEmoji(l) {
 const ACT = {
   whyFace: '📏', whyTone: '🎨', whyDepth: '🎨', whyLight: '💡', whyPick: '🛍️', whyCeleb: '🌟',
   whyMatch: '🧮', whyHue: '🎨', whyLevel: '📐', whyStandout: '👀',
-  useTop: '⭐', goProducts: '🛍️', toNeutral: '🤍', softer: '🌿', stronger: '💥', startAR: '💄',
+  useTop: '⭐', goProducts: '💄', toNeutral: '🤍', softer: '🌿', stronger: '💥', startAR: '💄',
   nextShade: '🎨', revert: '↩️', compare: '👀', dual: '⚖️', zoom: '🔍', retry: '🔄',
   prefSoft: '🌙', prefBold: '✨', prefKeep: '👌', keepBest: '💖', noThanks: '👌',
   keepYes: '💖', keepNo: '👉', usePref: '💡', ctxSkip: '🤐',
   audWomen: '💄', audMen: '🧴', audAny: '🙌', audKeep: '👍', whyAud: '🤖',
   lvlOften: '💁', lvlSome: '🙂', lvlNew: '🌱',
+  skipQs: '⏭️', buyLip: '🛍️', buyAll: '🛍️',
 };
 const CTX = {
   bright: '😊', calm: '😌', tired: '😪', nervous: '😣',

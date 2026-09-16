@@ -47,6 +47,64 @@ export function plainFace(cls) {
   return out;
 }
 
+// ── AR 調整時給方向 ─────────────────────────────────────
+// 使用者拉濃度、換色號時，AI 依「前面回答過的行程、經驗」給一個方向 —— 用建議句，不下結論：
+// 「上班的話，可以稍微往左一點」，而不是「這樣太濃了」。
+export const DIR_KEYS = ['adv.dir.workHigh', 'adv.dir.partyLow', 'adv.dir.newHigh',
+                         'adv.dir.low', 'adv.dir.mid', 'adv.dir.clear', 'adv.dir.high'];
+
+export function adjustHint(cat, value, ctx = {}, level = null) {
+  const v = Math.round((value ?? 0) * 100);
+  const plan = ctx?.plan;
+  if ((plan === 'work' || plan === 'meeting') && v > 70) return [line('tip', 'adv.dir.workHigh', { n: v })];
+  if ((plan === 'party' || plan === 'date') && v < 40) return [line('tip', 'adv.dir.partyLow', { n: v })];
+  if (level === 'new' && v > 75) return [line('tip', 'adv.dir.newHigh', { n: v })];
+  if (v < 30) return [line('tip', 'adv.dir.low', { n: v })];
+  if (v <= 60) return [line('tip', 'adv.dir.mid', { n: v })];
+  if (v <= 85) return [line('tip', 'adv.dir.clear', { n: v })];
+  return [line('tip', 'adv.dir.high', { n: v })];
+}
+
+/**
+ * 換色號時的方向：跟行程差很多時，提一個「也可以試試」的色號。
+ * 濃烈 = 彩度高而且偏深；裸色 = 彩度低。只提建議、不替使用者換掉。
+ */
+export function shadeHint(product, lips, ctx = {}, level = null) {
+  if (!product || !lips?.length) return [];
+  const lab = hexToLab(product.color);
+  const chroma = (c) => { const q = hexToLab(c.color); return Math.hypot(q.a, q.b); };
+  const bold = Math.hypot(lab.a, lab.b) > 45 && lab.L < 50;
+  const nude = Math.hypot(lab.a, lab.b) < 30;
+  const pool = lips.filter((p) => p.stock > 0 && p.id !== product.id);
+  if (bold && (ctx?.plan === 'work' || ctx?.plan === 'meeting' || level === 'new')) {
+    const alt = [...pool].sort((x, y) => chroma(x) - chroma(y))[0];
+    return alt ? [line('tip', level === 'new' && ctx?.plan !== 'work' && ctx?.plan !== 'meeting' ? 'adv.dir.shadeNew' : 'adv.dir.shadeWork',
+                       { shade: alt.id })] : [];
+  }
+  if (nude && (ctx?.plan === 'party' || ctx?.plan === 'date')) {
+    const alt = [...pool].sort((x, y) => chroma(y) - chroma(x))[0];
+    return alt ? [line('tip', 'adv.dir.shadeParty', { shade: alt.id })] : [];
+  }
+  return [];
+}
+
+// ── 體驗完：商品推薦 ─────────────────────────────────────
+// 推的是「今天在鏡子裡試過的那組」，不是另外挑別的來賣。
+// 第一次化妝的人先建議只帶一件（唇彩）；其他人可以整組。不催、不打折扣話術。
+export function buyAdvice(picks, level) {
+  if (!picks?.lip) return { lines: [], opts: [] };
+  const inStock = ['lip', 'eye', 'cheek'].filter((c) => picks[c] && picks[c].stock > 0);
+  const sum = inStock.reduce((n, c) => n + (picks[c].price || 0), 0);
+  const lines = [line('fact', 'adv.buy.intro', { lip: picks.lip.id, eye: picks.eye?.id, cheek: picks.cheek?.id })];
+  lines.push(level === 'new'
+    ? line('tip', 'adv.buy.new', { lip: picks.lip.id, price: picks.lip.price })
+    : line('tip', 'adv.buy.all', { sum, n: inStock.length }));
+  const opts = [];
+  if (picks.lip.stock > 0) opts.push(opt('opt.buyLip', 'buyLip'));
+  if (inStock.length > 1) opts.push(opt('opt.buyAll', 'buyAll'));
+  return { lines, opts };
+}
+
 // ── 化妝經驗：第一次來的人，路要鋪得比較慢 ─────────────────
 // 「平常有在化妝嗎」比「你是新手嗎」好問 —— 前者是事實，後者像在評價人。
 // 回答「第一次試試看」時：推薦偏清淡好上手的、濃度調低一點，每一步各給一句可以照做的小提醒。
@@ -315,7 +373,7 @@ export const EXPLAIN_ACTS = ['whyTone', 'whyMatch', 'whyFace', 'whyCeleb', 'whyA
                              'whyHue', 'whyLevel', 'whyStandout'];   // 分數那一題的追問
 
 // 回答 AI 問題用的選項 —— 一次性的，答完就收掉
-export const ANSWER_ACTS = ['prefSoft', 'prefBold', 'prefKeep', 'keepBest', 'noThanks', 'keepYes', 'keepNo',
+export const ANSWER_ACTS = ['prefSoft', 'prefBold', 'prefKeep', 'keepBest', 'noThanks', 'keepYes', 'keepNo', 'skipQs', 'buyLip', 'buyAll',
                             'audWomen', 'audMen', 'audAny', 'audKeep', 'lvlOften', 'lvlSome', 'lvlNew',
                             'ctxMood', 'ctxWeather', 'ctxPlan', 'ctxSkip'];
 export const dropAnswers = (opts) => (opts || []).filter((o) => !ANSWER_ACTS.includes(o.act));
@@ -404,7 +462,7 @@ export const ACTS = ['whyTone', 'whyDepth', 'whyLight', 'whyPick', 'whyFace', 'w
                      'stronger', 'nextShade', 'compare', 'dual', 'zoom', 'whyMatch', 'retry',
                      'prefSoft', 'prefBold', 'prefKeep', 'keepBest', 'noThanks', 'revert', 'usePref',
                      'keepYes', 'keepNo', 'audWomen', 'audMen', 'audAny', 'audKeep', 'whyAud',
-                     'lvlOften', 'lvlSome', 'lvlNew',
+                     'lvlOften', 'lvlSome', 'lvlNew', 'skipQs', 'buyLip', 'buyAll',
                      'ctxMood', 'ctxWeather', 'ctxPlan', 'ctxSkip'];
 
 // ── 反過來問：AI 也會提問 ───────────────────────────────
