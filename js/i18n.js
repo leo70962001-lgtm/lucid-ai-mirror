@@ -45,6 +45,7 @@ const DICT = {
                      '下の「写真をアップロード」から Step 2〜5 の全工程（静止画のメイクプレビュー含む）を試せます。'],
   'calib.on':       ['螢幕已校色 γ {g}', 'Display calibrated · γ {g}', 'ディスプレイ校正済み γ {g}'],
   'calib.off':      ['螢幕未校色', 'Display not calibrated', 'ディスプレイ未校正'],
+  'chart.set':      ['色卡校正', 'Colour chart', 'カラーチャート補正'],
 
   // ── 步驟標題 ──
   'step1.en': ['STEP 1: PHOTO', 'STEP 1: PHOTO', 'STEP 1: PHOTO'],
@@ -305,6 +306,7 @@ const DICT = {
                       'Fine — leaving that one out. What you do not say has no effect on the suggestions.',
                       '了解しました。この項目は考慮しません。申告のない項目は提案に影響しません。'],
 
+  'adv.whyLightChart': ['判定之前先用鏡框邊的標準色卡校正：讀到 {n} 塊色塊，校正前色卡平均偏了 ΔE {raw}，校正後剩 ΔE {de} —— 不論櫃位燈光偏暖偏冷，膚色都先換算回標準光再判定。', 'Before judging, the standard colour chart by the mirror is used: {n} patches read, off by ΔE {raw} before correction and ΔE {de} after — so warm or cool store lighting is corrected before your skin is judged.', '判定の前に、鏡の横の標準カラーチャートで補正しています。{n} 色を読み取り、補正前は平均 ΔE {raw}、補正後は ΔE {de}。売場の照明が暖色でも寒色でも、標準光に換算してから判定します。'],
   // AI 諮詢：先問後建議
   'opt.skipQs':      ['直接看建議', 'Just show me suggestions', 'すぐ提案を見る'],
   'adv.skipQs':      ['好，那我直接依照片給建議，之後想補充隨時跟我說', 'Sure — suggestions straight from the photo; tell me more any time', 'では写真から直接ご提案しますね。あとから補足もどうぞ'],

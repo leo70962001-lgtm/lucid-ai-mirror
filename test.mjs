@@ -11,6 +11,7 @@ import { FACE_SHAPES, PROTOTYPES, CELEBS, classifyFace, faceLookBonus, faceReaso
 import { readFileSync } from 'node:fs';
 import { lineEmoji, optEmoji } from './js/emoji.js';
 import { audienceFromPrediction, faceCropBox, GENDER_MIN_PROB } from './js/gender.js';
+import { CHART24, fitCCM, applyCCM, fitGainOnly, patchCenters, orientQuad, fitFromCanvas } from './js/chart.js';
 import { contextAdvice, adjustIntensity, rankWithContext, moodFromFace, externalWeather,
          MOODS, WEATHERS, PLANS } from './js/context.js';
 import { onSkin, onLook, onPicks, onShadeChange, onAmount, onFinish, lightNote, KINDS,
@@ -858,6 +859,97 @@ console.log('\n\x1b[1m26. AI 引導流程：調整時給方向、體驗完推薦
      '第一次化妝建議先帶唇彩一件；其他人可以整組');
   ok(nb.lines[0].params.lip === picks.lip.id, '推的是今天試過的那組，不是另外挑別的');
   ok(nb.opts.every((o) => ACTS.includes(o.act) && optEmoji(o)), '購買選項都是已知動作、都有符號');
+}
+
+console.log('\n\x1b[1m27. 色卡校正（ZOZOGLASS 的做法）\x1b[0m');
+{
+  const lin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  const enc = (v) => { v = Math.min(1, Math.max(0, v)); return Math.round(255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055)); };
+  // 模擬「櫃位燈光 × 鏡頭色偏 × 曝光」：暖光、通道之間串色、稍暗，再加 ±1% 雜訊
+  // 雜訊按比例（±1%）再加一點底噪：固定 ±1% 對暗色塊來說遠比真實鏡頭誇張
+  let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5);
+  const camera = (rgb, light, cross, expo) => {
+    const l = rgb.map(lin).map((v, i) => v * light[i] * expo);
+    return cross.map((row) => { const v = row[0] * l[0] + row[1] * l[1] + row[2] * l[2]; return enc(v * (1 + rnd() * 0.02) + rnd() * 0.002); });
+  };
+  const CROSS = [[0.86, 0.12, 0.02], [0.06, 0.88, 0.06], [0.02, 0.12, 0.86]];
+  const LIGHTS = { '鹵素 2700K': [1.25, 0.95, 0.52], '暖白 LED 3500K': [1.12, 0.98, 0.72], '冷白 6500K': [0.95, 1.0, 1.08], '日光燈偏綠': [0.92, 1.1, 0.9] };
+  const labOf = (rgb) => rgbToLab(...rgb);
+  const ref = CHART24.map((c) => c.slice(1));
+  const meanDE = (obs, M) => ref.reduce((s, r, i) => s + deltaE(labOf(M ? applyCCM(obs[i], M) : obs[i]), labOf(r)), 0) / ref.length;
+
+  const rows = [];
+  let allBetter = true, ccmOk = true;
+  for (const [name, light] of Object.entries(LIGHTS)) {
+    const obs = ref.map((r) => camera(r, light, CROSS, 0.85));
+    const ccm = fitCCM(obs), gain = fitGainOnly(obs);
+    const raw = meanDE(obs), g = meanDE(obs, gain.M), c = meanDE(obs, ccm.M);
+    rows.push(`  ${name.padEnd(14)} 未校正 ΔE ${raw.toFixed(1).padStart(5)}　只用白色（像眼白）${g.toFixed(1).padStart(5)}　色卡矩陣 ${c.toFixed(1).padStart(5)}`);
+    if (!(c < g && g < raw)) allBetter = false;
+    if (!(c < 4)) ccmOk = false;
+  }
+  console.log(rows.join('\n'));
+  ok(allBetter, '四種燈光下都是：色卡矩陣 < 只用白色 < 不校正（色差由小到大）');
+  ok(ccmOk, '色卡矩陣校正後，24 塊平均色差都在 ΔE 4 以內');
+
+  // 真正要的是膚色：比「膚色色差」與「色相誤差」—— 不比「底調判對幾個」。
+  // 判對幾個在門檻（±5°）附近只是雜訊：偏差 ΔE 5 的方法可能剛好落在門檻內「猜對」，
+  // 偏差 ΔE 0.5 的方法反而因為樣本正好卡在 −5.0° 而翻到另一邊。
+  const SKINS = [[232, 200, 174], [224, 184, 160], [198, 150, 120], [176, 128, 102], [150, 104, 82], [120, 84, 66]];
+  let dC = 0, dG = 0, hC = 0, hG = 0, n = 0;
+  for (const light of Object.values(LIGHTS)) {
+    const obs = ref.map((r) => camera(r, light, CROSS, 0.85));
+    const ccm = fitCCM(obs), gain = fitGainOnly(obs);
+    for (const sk of SKINS) {
+      const truth = classifySkin(sk), seen = camera(sk, light, CROSS, 0.85);
+      const c = applyCCM(seen, ccm.M), g = applyCCM(seen, gain.M);
+      dC += deltaE(labOf(c), labOf(sk)); dG += deltaE(labOf(g), labOf(sk));
+      hC += Math.abs(classifySkin(c).residual - truth.residual); hG += Math.abs(classifySkin(g).residual - truth.residual);
+      n++;
+    }
+  }
+  console.log(`  膚色（6 種 × 4 種燈光）：色卡矩陣 平均 ΔE ${(dC / n).toFixed(1)}、色相誤差 ${(hC / n).toFixed(1)}°　只用白色 ΔE ${(dG / n).toFixed(1)}、${(hG / n).toFixed(1)}°`);
+  ok(dC / n < dG / n / 2, '膚色色差：色卡矩陣不到只用白色的一半');
+  ok(hC / n < hG / n, '膚色的色相誤差（底調判定依據）：色卡矩陣比只用白色小');
+
+  // 過曝的色塊不採用；可用的太少就不硬擬合
+  const obs = ref.map((r) => camera(r, [1, 1, 1], CROSS, 1));
+  const blown = obs.map((o) => o.map((v) => Math.min(255, v + 60)));
+  const fitBlown = fitCCM(blown);
+  ok(!fitBlown || fitBlown.used < 24, '過曝（≥250）的色塊不採用');
+  ok(fitCCM(obs.map((o, i) => (i < 5 ? o : null))) === null, '可用色塊少於 8 塊 → 不擬合，交給眼白／高光');
+
+  // 色卡四角 → 24 個中心點
+  const c = patchCenters([{ x: 0.1, y: 0.1 }, { x: 0.7, y: 0.1 }, { x: 0.7, y: 0.5 }, { x: 0.1, y: 0.5 }]);
+  ok(c.length === 24 && Math.abs(c[0].x - 0.15) < 1e-9 && Math.abs(c[0].y - 0.15) < 1e-9 && Math.abs(c[23].x - 0.65) < 1e-9,
+     '四個角 → 6×4 個色塊中心（左上第一塊在 0.15,0.15）');
+
+  // 從「畫面」讀色卡：鏡像後的暖光畫面，店員亂序點四個角
+  const W = 600, H = 400, X0 = 100, Y0 = 100, CELL = 50;
+  const warmObs = ref.map((r) => camera(r, LIGHTS['鹵素 2700K'], CROSS, 0.85));
+  const pixel = (x, y) => {
+    const col = Math.floor((x - X0) / CELL), row = Math.floor((y - Y0) / CELL);
+    if (col < 0 || col > 5 || row < 0 || row > 3) return [40, 48, 60];
+    return warmObs[row * 6 + (5 - col)];            // 左右翻轉：深膚色那塊出現在右上
+  };
+  const fakeCanvas = { width: W, height: H, getContext: () => ({
+    getImageData: (x, y, w, h) => {
+      const data = new Uint8ClampedArray(w * h * 4);
+      for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+        const p = pixel(x + i, y + j), k = (j * w + i) * 4;
+        data[k] = p[0]; data[k + 1] = p[1]; data[k + 2] = p[2]; data[k + 3] = 255;
+      }
+      return { data };
+    } }) };
+  const N = (x, y) => ({ x: x / W, y: y / H });
+  const tapped = [N(100, 300), N(400, 100), N(100, 100), N(400, 300)];   // 亂序
+  const o = orientQuad(fakeCanvas, tapped);
+  console.log(`  鏡像＋亂序點角：自動找到的擺法 ΔE ${o.de.toFixed(1)}（校正前 ${o.raw.toFixed(1)}），深膚色角在 (${o.quad[0].x.toFixed(2)}, ${o.quad[0].y.toFixed(2)})`);
+  ok(o.de < 3 && Math.abs(o.quad[0].x - 400 / W) < 1e-9 && Math.abs(o.quad[0].y - 100 / H) < 1e-9,
+     '四個角亂序點、畫面又是鏡像 → 自動試 8 種擺法，找到深膚色那一角，校正後 ΔE < 3');
+  const wrong = [N(100, 100), N(400, 100), N(400, 300), N(100, 300)];     // 照螢幕左上開始＝鏡像下是錯的
+  const fw = fitFromCanvas(fakeCanvas, wrong), fr = fitFromCanvas(fakeCanvas, o.quad);
+  ok(fr && fr.de < 3 && (!fw || fw.de > fr.de * 3), '擺法錯（照螢幕左上當第一塊）色差明顯較大或直接不採用；正確擺法可用');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

@@ -27,7 +27,7 @@ const B = (p) => readFileSync(join(ROOT, p));
 const KB = (n) => (n / 1024).toFixed(0) + ' KB';
 const MB = (n) => (n / 1048576).toFixed(2) + ' MB';
 
-const MODULES = ['js/i18n.js', 'js/products.js', 'js/context.js', 'js/analysis.js', 'js/advisor.js', 'js/emoji.js', 'js/gender.js', 'js/faceshape.js', 'js/face-mesh.js', 'js/makeup.js',
+const MODULES = ['js/i18n.js', 'js/products.js', 'js/context.js', 'js/analysis.js', 'js/advisor.js', 'js/emoji.js', 'js/gender.js', 'js/chart.js', 'js/faceshape.js', 'js/face-mesh.js', 'js/makeup.js',
                  'js/makeup-gl.js', 'js/calib.js', 'js/selftest-face.js', 'js/face.js', 'js/app.js'];
 const CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 const FA_CDN = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15';
@@ -231,7 +231,9 @@ const siteFiles = ['index.html', 'main.css', 'models/face_landmarker.task',
   ...(existsSync(join(ROOT, 'vendor')) ? readdirSync(join(ROOT, 'vendor')).map((f) => join('vendor', f)) : []),
   ...(existsSync(imgDir) ? readdirSync(imgDir).map((f) => join('images', 'products', f)) : []),
   // 假鏡頭測試頁要用的那張臉 —— 沒複製進來的話，線上版的 _camtest.html 會直接相機錯誤
-  'images/_source/face_e1tw71e1tw71e1tw.jpg'];
+  'images/_source/face_e1tw71e1tw71e1tw.jpg',
+  // _chart.html?sim= 與 _camtest.html?chart= 的假鏡頭（有色卡的畫面）
+  'tools/camtest-shim.js'];
 for (const f of siteFiles) if (copy(f)) n++;
 writeFileSync(join(SITE, 'images', 'products', 'index.json'),
               JSON.stringify(Object.keys(images).map((id) => id + '.png')));

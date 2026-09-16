@@ -88,6 +88,28 @@ export function setLighting(g, blend = 1) {
   gain = gain.map((v, i) => v + (g[i] - v) * blend);
   return true;
 }
+// 色卡校正矩陣（相機線性 → 標準線性）。沒有色卡時是單位矩陣，行為跟原本完全一樣。
+let ccm = [[1, 0, 0], [0, 1, 0], [0, 0, 1]], ccmInv = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+const inv3 = (M) => {
+  const [a, b, c] = M[0], [d, e, f] = M[1], [g, h, i] = M[2];
+  const A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g, det = a * A + b * B + c * C;
+  if (!isFinite(det) || Math.abs(det) < 1e-9) return null;
+  return [[A / det, -(b * i - c * h) / det, (b * f - c * e) / det],
+          [B / det, (a * i - c * g) / det, -(a * f - c * d) / det],
+          [C / det, -(a * h - b * g) / det, (a * e - b * d) / det]];
+};
+/** @param M 3×3（列優先）；null = 不用色卡；@param blend 即時更新時用小一點，避免整片跳色 */
+export function setColorMatrix(M, blend = 1) {
+  const I = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  const target = M || I;
+  const next = ccm.map((row, r) => row.map((v, c) => v + (target[r][c] - v) * blend));
+  const inv = inv3(next);
+  if (!inv) return false;
+  ccm = next; ccmInv = inv;
+  return true;
+}
+const mat3col = (M) => [M[0][0], M[1][0], M[2][0], M[0][1], M[1][1], M[2][1], M[0][2], M[1][2], M[2][2]];
+
 // 唇與皮膚的平均反射率亮度（明暗 s 的基準）。每隔幾幀從畫面重新量一次
 let yLip = 0.12, ySkin = 0.30, refFrame = 0, refReady = false;
 
@@ -419,6 +441,7 @@ const FS = `#ifdef GL_FRAGMENT_PRECISION_HIGH
   uniform sampler2D uBlend, uBias, uFrame;
   uniform float uAlpha, uLo, uHi, uSweep;
   uniform vec3 uGain;            // 相機線性值 → 反射率（眼白白平衡）
+  uniform mat3 uCCM, uCCMInv;    // 色卡校正矩陣與反矩陣（沒有色卡時是單位矩陣）
   uniform float uYLip, uYSkin;   // 唇與皮膚的平均反射率亮度：明暗 s 的基準
   vec3 toLin(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
   vec3 toSrgb(vec3 v) { v = clamp(v, 0.0, 1.0); return mix(v * 12.92, 1.055 * pow(v, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, v)); }
@@ -441,7 +464,7 @@ const FS = `#ifdef GL_FRAGMENT_PRECISION_HIGH
     if (a < 0.002) discard;                   // 沒上妝的地方一個位元都不改
 
     vec3 cam  = toLin(texture2D(uFrame, vScr).rgb);
-    vec3 refl = cam * uGain;
+    vec3 refl = uCCM * (cam * uGain);
     float Y   = dot(refl, vec3(0.2126, 0.7152, 0.0722));
     float s   = Y / max(mix(uYSkin, uYLip, f.b), 1e-4);
     vec3 P    = toLin(m.rgb);
@@ -452,7 +475,7 @@ const FS = `#ifdef GL_FRAGMENT_PRECISION_HIGH
     float n = fract(sin(dot(floor(vUV * 640.0), vec2(12.9898, 78.233))) * 43758.5453);
     made += f.g * (P * 0.22 * smoothstep(0.85, 1.5, s) + vec3(0.35 * step(0.985, n) * s));
 
-    vec3 outC = toSrgb(mix(cam, made / uGain, a));
+    vec3 outC = toSrgb(mix(cam, (uCCMInv * made) / uGain, a));
     outC += vec3(0.28 * glow) * a;
     gl_FragColor = vec4(outC, 1.0);
   }`;
@@ -528,7 +551,10 @@ function midY(ctx, w, h, x0, y0, x1, y1, keep) {
   for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
     if (!keep(x + 0.5, y + 0.5)) continue;
     const i = ((y - y0) * (x1 - x0) + (x - x0)) * 4;
-    ys.push(0.2126 * lin1(d[i]) * gain[0] + 0.7152 * lin1(d[i + 1]) * gain[1] + 0.0722 * lin1(d[i + 2]) * gain[2]);
+    const v0 = lin1(d[i]) * gain[0], v1 = lin1(d[i + 1]) * gain[1], v2 = lin1(d[i + 2]) * gain[2];
+    ys.push(0.2126 * (ccm[0][0] * v0 + ccm[0][1] * v1 + ccm[0][2] * v2)
+          + 0.7152 * (ccm[1][0] * v0 + ccm[1][1] * v1 + ccm[1][2] * v2)
+          + 0.0722 * (ccm[2][0] * v0 + ccm[2][1] * v1 + ccm[2][2] * v2));
   }
   if (ys.length < 12) return null;
   ys.sort((a, b) => a - b);
@@ -599,6 +625,8 @@ export function renderGL(ctx, P, w, h) {
   gl.uniform1f(gl.getUniformLocation(prog, 'uSweep'), sweep);
   measureRefs(ctx, P, w, h);
   gl.uniform3f(gl.getUniformLocation(prog, 'uGain'), gain[0], gain[1], gain[2]);
+  gl.uniformMatrix3fv(gl.getUniformLocation(prog, 'uCCM'), false, mat3col(ccm));
+  gl.uniformMatrix3fv(gl.getUniformLocation(prog, 'uCCMInv'), false, mat3col(ccmInv));
   gl.uniform1f(gl.getUniformLocation(prog, 'uYLip'), yLip);
   gl.uniform1f(gl.getUniformLocation(prog, 'uYSkin'), ySkin);
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buf.idx);
