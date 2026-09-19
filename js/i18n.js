@@ -307,6 +307,16 @@ const DICT = {
                       '了解しました。この項目は考慮しません。申告のない項目は提案に影響しません。'],
 
   'adv.whyLightChart': ['判定之前先用鏡框邊的標準色卡校正：讀到 {n} 塊色塊，校正前色卡平均偏了 ΔE {raw}，校正後剩 ΔE {de} —— 不論櫃位燈光偏暖偏冷，膚色都先換算回標準光再判定。', 'Before judging, the standard colour chart by the mirror is used: {n} patches read, off by ΔE {raw} before correction and ΔE {de} after — so warm or cool store lighting is corrected before your skin is judged.', '判定の前に、鏡の横の標準カラーチャートで補正しています。{n} 色を読み取り、補正前は平均 ΔE {raw}、補正後は ΔE {de}。売場の照明が暖色でも寒色でも、標準光に換算してから判定します。'],
+  // 自己上妝
+  'paint.btn': ['✍️ 自己畫', '✍️ Paint', '✍️ 自分で塗る'],
+  'paint.done': ['完成', 'Done', '完了'],
+  'paint.tip.lip': ['用手指在鏡子裡的嘴唇上輕輕拖曳，就會上色；轉頭也會跟著走', 'Drag a finger over your lips in the mirror to paint — it follows your face as you move', '鏡の中の唇を指でなぞると色がつきます。顔を動かしてもついてきます'],
+  'paint.tip.eye': ['沿著眼皮、從眼頭往眼尾輕輕拖曳；多畫幾次會更深', 'Drag along the eyelid from inner to outer corner; go over it again to deepen', '目頭から目尻へまぶたをなぞります。重ねると濃くなります'],
+  'paint.tip.cheek': ['在蘋果肌往太陽穴的方向畫幾下；少量多次最自然', 'Sweep a few strokes from the apple of the cheek toward the temple — build it up lightly', '頬の高い所からこめかみへ数回。少しずつ重ねると自然です'],
+  'opt.paintSelf': ['我想自己畫畫看', 'I want to paint it myself', '自分で塗ってみたい'],
+  'adv.paint.start': ['好呀！鏡子整面都可以畫了：先在下面選要畫唇、眼還是頰，再用手指在臉上拖曳。畫錯按左上的撤銷就好', 'Sure! The whole mirror is yours: pick lips, eyes or cheeks below, then drag on your face. Undo is at the top left', 'どうぞ！鏡全体に塗れます。下で唇・目・頬を選んで、顔を指でなぞってください。やり直しは左上から'],
+  'adv.paint.done': ['畫得不錯！自己畫的筆觸會一直貼在臉上；想重來可以撤銷或擦掉', 'Nice work! Your strokes stay on your face — undo or wipe any time to redo', 'いい感じです！塗った部分は顔についてきます。やり直しは取り消しか消去で'],
+  'adv.paint.none': ['這次還沒有畫，想試的時候按鏡子上的「✍️ 自己畫」就可以', 'Nothing painted yet — tap “✍️ Paint” on the mirror whenever you want to try', 'まだ塗っていません。試したいときは鏡の「✍️ 自分で塗る」をどうぞ'],
   // 季節（春夏秋冬）、美妝小教室、小測驗
   'season.spring': ['春季型', 'Spring', 'イエベ春'],
   'season.summer': ['夏季型', 'Summer', 'ブルベ夏'],

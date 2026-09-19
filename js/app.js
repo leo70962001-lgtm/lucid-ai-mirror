@@ -333,6 +333,7 @@ function go(n) {
   // 離開 AR 就把第二層關掉 —— 否則評價頁的 AFTER 對照圖、推薦頁的縮圖
   // 會跟著變成半邊一個色號，報告與縮圖就不是「他實際看到的那張臉」了。
   if (n !== 4 && lastSigB !== 'null') { setMakeupB(null); lastSigB = 'null'; }
+  if (n !== 4 && S.tab === 'paint') { S.tab = 'lip'; $('#s4')?.classList.remove('painting-mode'); const pb = $('#paintbar'); if (pb) pb.hidden = true; }
   S.step = n;
   cancelAnimationFrame(S.raf);
 
@@ -981,7 +982,9 @@ function liftMirror() {
   requestAnimationFrame(() => {
     const h = sh.getBoundingClientRect().height, H = s4.clientHeight;
     // 調整分頁比較高：往上推會把眼睛推出畫面，所以改成整面縮小、放進抽屜上方（修圖 App 的做法）
-    const fit = S.sheet.state === 'open' && S.sheet.tab === 'tune';
+    const painting = s4.classList.contains('painting-mode');
+    const fit = !painting && S.sheet.state === 'open' && S.sheet.tab === 'tune';
+    if (painting) { s4.style.setProperty('--mirror-scale', '1'); s4.style.setProperty('--lift', '0px'); return; }
     const scale = fit ? Math.max(0.5, Math.min(1, (H - h - 14) / H)) : 1;
     s4.style.setProperty('--mirror-scale', scale.toFixed(3));
     s4.style.setProperty('--lift', (fit ? -6 : Math.round(Math.min(h * 0.5, H * 0.22))) + 'px');
@@ -1222,7 +1225,7 @@ function afterAnswer2(lines) {
 }
 
 /** AR 的選項：有上一支色號時才給「換回剛才那支」 */
-const arOpts = () => [...optsForAR(S.zoom, S.mode, !!S.prevLip), optLearn()];
+const arOpts = () => [...optsForAR(S.zoom, S.mode, !!S.prevLip), { key: 'opt.paintSelf', act: 'paintSelf' }, optLearn()];
 
 /**
  * 把「在現在這支上停了多久」記進偏好。
@@ -1337,6 +1340,10 @@ function runAct(o) {
       return afterAnswer2(lines);
     }
     // ── 美妝小教室：配合當下（AR 裡正在調的品項、季節、經驗、對象）挑一課 ──
+    case 'paintSelf': {
+      enterPaint();
+      return { lines: [{ kind: 'tip', key: 'adv.paint.start', params: {} }] };
+    }
     case 'learn': {
       const lesson = pickLesson({ cat: S.step === 4 && S.tab !== 'paint' ? S.tab : null, season: S.season?.season,
                                   level: S.level, audience: S.audience, learned: S.learned });
@@ -2032,6 +2039,9 @@ function enter4() {
   mountSheet();
 
   $('#zoom-btn').onclick = () => { S.zoom = !S.zoom; mountZoomBtn(); syncAROpts(); };
+  $('#paint-btn').onclick = () => enterPaint();
+  $('#paint-btn').textContent = t('paint.btn');
+  $('#s4').classList.remove('painting-mode'); $('#paintbar').hidden = true;
   mountZoomBtn();
   advise4([...onAR({ ...S.picks.lip, shade: tf(S.picks.lip, 'shade') }, S.amount.lip), ...levelTip(S.level, 's4')], true);
   bindMirror($('#s4 .frame'));
@@ -2134,7 +2144,10 @@ function step(fn) {
   mountHistory();
 }
 
-function pushStroke() { S.hist.push({ type: 'stroke' }); S.redo.length = 0; mountHistory(); }
+function pushStroke() {
+  S.hist.push({ type: 'stroke' }); S.redo.length = 0; mountHistory();
+  if (S.paintTip) { S.paintTip = false; mountPaintbar(); }
+}
 
 function undo() {
   const h = S.hist.pop();
@@ -2200,9 +2213,83 @@ function mountTabs() {
     const b = el('button', S.tab === id ? 'on' : '');
     if (id !== 'paint') b.innerHTML = `<i style="--c:${disp(S.picks[id].color)}"></i>`;
     b.appendChild(el('span', '', t(key)));
-    b.onclick = () => { S.tab = id; mountModes(); mountPanel(); };
+    b.onclick = () => { if (id === 'paint') return enterPaint(); if (S.tab === 'paint') exitPaint(true); S.tab = id; mountModes(); mountPanel(); };
     box.appendChild(b);
   }
+}
+
+/* ══ 自己上妝 ═══════════════════════════════════════════
+   以前「手動上妝」藏在抽屜的「妝容調整」第四個分頁，而且抽屜打開時會蓋住大半個鏡子 ——
+   選了也沒有臉可以畫，等於功能不見了。
+   現在：鏡面上一顆「✍️ 自己畫」、AI 也會提議；進入後抽屜收起來、整面鏡子都能畫，
+   工具縮成底部一條（塗在哪裡、顏色、粗細、擦掉、完成）。撤銷／重做沿用鏡面左上那一組。 */
+function enterPaint() {
+  if (S.step !== 4) return;
+  S.tab = 'paint';
+  $('#s4').classList.add('painting-mode');
+  S.paintTip = true;                       // 進來時工具列上帶一句怎麼畫，畫了第一筆就收起來
+  mountTabs(); mountModes(); mountPanel(); mountPaintbar(); liftMirror();
+}
+function exitPaint(quiet = false) {
+  if (S.tab !== 'paint' && !$('#s4').classList.contains('painting-mode')) return;
+  $('#s4').classList.remove('painting-mode');
+  $('#paintbar').hidden = true;
+  if (!quiet) {
+    S.tab = 'lip';
+    mountTabs(); mountModes(); mountPanel();
+    // 畫完回到對話：有畫東西就肯定一下，並提醒可以撤銷；順便給一個跟剛才畫的部位有關的小技巧
+    const drew = hasBrush();
+    chatSay('s4', [{ kind: drew ? 'praise' : 'fact', key: drew ? 'adv.paint.done' : 'adv.paint.none', params: {} }], arOpts());
+    S.sheet.state = 'open'; S.sheet.tab = 'ai';
+  }
+  liftMirror(); syncSheet();
+}
+
+function mountPaintbar() {
+  const bar = $('#paintbar'); if (!bar) return;
+  bar.hidden = false; bar.innerHTML = '';
+  const row = el('div', 'pb-row');
+  for (const [id, key] of BRUSH_TOOLS) {
+    const b = el('button', 'pb-part' + (S.brush.tool === id ? ' on' : ''));
+    b.innerHTML = `<i style="--c:${disp(S.picks[id].color)}"></i><span>${t(key)}</span>`;
+    b.onclick = () => { S.brush.tool = id; mountPaintbar(); mountPanel(); };
+    row.appendChild(b);
+  }
+  const wipe = el('button', 'pb-wipe', t('brush.clear'));
+  wipe.onclick = () => {
+    clearBrush(); lastSig = '';
+    S.hist = S.hist.filter((h) => h.type !== 'stroke'); S.redo.length = 0;
+    mountHistory();
+  };
+  const done = el('button', 'pb-done', t('paint.done'));
+  done.onclick = () => exitPaint();
+  row.append(wipe, done);
+  bar.appendChild(row);
+
+  const row2 = el('div', 'pb-row');
+  const chips = el('div', 'pb-chips');
+  for (const q of PRODUCTS.filter((x) => x.cat === S.brush.tool)) {
+    const b = el('button', 'chip' + (q.id === S.picks[S.brush.tool].id ? ' on' : '') + (q.stock <= 0 ? ' oos' : ''));
+    b.innerHTML = `<i style="--c:${disp(q.color)}"></i>`;
+    b.title = tf(q, 'shade');
+    b.onclick = () => {
+      if (q.stock <= 0) return flash(t('bag.oosTry'), true);
+      step(() => {
+        S.picks[S.brush.tool] = { ...q, _reason: [['reason.manual']], _alts: [] };
+        if (S.brush.tool === 'lip') { S.tried.add(q.id); paintPanel(); updateCallout(); }
+        mountPaintbar(); syncSheet();
+      });
+    };
+    chips.appendChild(b);
+  }
+  row2.appendChild(chips);
+  // 粗細：一般手指塗唇用細一點、腮紅用粗一點 —— 工具列上只留這一條，其他參數在「妝容調整」裡
+  const size = el('label', 'pb-size');
+  size.innerHTML = `<span>${t('brush.size')}</span><input type="range" min="10" max="80" value="${S.brush.size}">`;
+  size.querySelector('input').oninput = (e) => { S.brush.size = +e.target.value; };
+  row2.appendChild(size);
+  bar.appendChild(row2);
+  if (S.paintTip) bar.appendChild(el('div', 'pb-tip', t('paint.tip.' + S.brush.tool)));
 }
 
 /** 一條滑桿。數值跟著滑桿走，不必去對照最右邊的數字。 */
