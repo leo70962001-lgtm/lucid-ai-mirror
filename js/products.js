@@ -122,7 +122,11 @@ export const byId = (id) => PRODUCTS.find((p) => p.id === id);
  * 依「膚色調性 + 妝容偏好質地」挑出實際商品。
  * 評分完全透明，會回傳 reason 供 UI 顯示 —— 不做黑箱推薦。
  */
-export function resolveLook(look, undertone) {
+/**
+ * @param seasonFit 選填：(商品) => 0–1，這個顏色有多像使用者的季節。
+ *   有季節時，季節的契合度為主、底調為輔 —— 季節已經包含冷暖，另外還分了明度與清濁。
+ */
+export function resolveLook(look, undertone, seasonFit = null) {
   const picks = {};
   for (const cat of ['lip', 'eye', 'cheek']) {
     const scored = PRODUCTS
@@ -131,9 +135,13 @@ export function resolveLook(look, undertone) {
         let score = 0;
         const reason = [];
         // 理由存成 key + 參數，畫面層才決定要用哪種語言講
-        if (p.tone === undertone)      { score += 50; reason.push(['reason.tone', { tone: undertone }]); }
-        else if (p.tone === 'neutral') { score += 30; reason.push(['reason.neutral']); }
-        else                           { score += 5; }
+        const k = seasonFit ? 0.3 : 1;
+        if (p.tone === undertone)      { score += 50 * k; reason.push(['reason.tone', { tone: undertone }]); }
+        else if (p.tone === 'neutral') { score += 30 * k; reason.push(['reason.neutral']); }
+        else                           { score += 5 * k; }
+        const fit = seasonFit ? seasonFit(p) : null;
+        // 以 0.5 為中點放大：契合度差 0.2 就值 40 分，蓋得過「質地偏好」（30 分）—— 顏色合不合比亮面霧面重要
+        if (fit != null) { score += Math.round((fit - 0.5) * 200); if (fit >= 0.7) reason.unshift(['reason.season']); }
         if (p.finish === look.prefer[cat]) { score += 30; reason.push(['reason.finish', { finish: p.finish }]); }
         if (look.neutralFirst && p.tone === 'neutral') score += 60;     // 清爽系妝容：中性色優先於底調
         if (p.stock <= 0)  score -= 1000;

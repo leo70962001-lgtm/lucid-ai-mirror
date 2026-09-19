@@ -26,7 +26,11 @@ import { onSkin, onLook, onPicks, onShadeChange, onAmount, onFinish, lightNote,
          dropAsked, dropDeadAmount, dropAnswers, AMOUNT_MIN, AMOUNT_MAX,
          askAmount, askContext, onContext, newPref, notePref, noteDwell, prefTone, pickNext,
          prefNote, prefRecall, observe, sessionSummary, DWELL_MS,
-         colorStatus, colorLines, colorGuide, optsForColor, colorGuideOpts } from './advisor.js';
+         colorStatus, colorLines, colorGuide, optsForColor, colorGuideOpts,
+         plainSeason, askSeasonBase, askSeasonSplit, SEASON_ANSWER, explainSeason, seasonColors,
+         seasonShadeLine, optsForSeason, optLearn, optQuiz } from './advisor.js';
+import { seasonFeatures, classifySeason, personFit } from './season.js';
+import { pickLesson, lessonLines, nextQuiz, onQuizAnswer, learnRecap } from './learn.js';
 import { findHairline, faceFeatures, classifyFace, faceLookBonus, faceReasonFor } from './faceshape.js';
 import { lineEmoji, optEmoji } from './emoji.js';
 import { initGender, guessAudience } from './gender.js';
@@ -59,6 +63,10 @@ const S = {
   photo: null,      // 素顏照（已鏡像）
   photoLm: null,
   skin: null, illum: null, skinRaw: null, skinWB: false,
+  // 季節（春夏秋冬）：照片量到的特徵、使用者的自我檢查回答、判斷結果
+  seasonF: null, seasonAns: {}, season: null,
+  // 美妝小教室：這一位客人學過的課、出過的題、答對幾題（下一位客人重來）
+  learned: new Set(), quizDone: new Set(), quiz: { n: 0, ok: 0 }, curQuiz: null,
   // 情境：使用者告訴我們的，不是量出來的（見 js/context.js 開頭）
   ctx: { mood: null, weather: null, plan: null },
   ctxAuto: null, ctxFeed: false,
@@ -536,6 +544,10 @@ async function analyse(photoCanvas, { chart = true } = {}) {
   S.hair = findHairline(photoCanvas, lm);
   S.faceF = faceFeatures(lm, photoCanvas.width, photoCanvas.height, S.hair);
   S.face = classifyFace(S.faceF);
+  // 季節：膚色＋瞳孔＋頭髮（量得到才算）。眼白只有真的用上時才拿來算黑白分明
+  S.seasonF = seasonFeatures(photoCanvas, lm, S.skin, S.hair, useWB ? illum : null);
+  S.seasonAns = {};
+  S.season = classifySeason(S.seasonF);
   S.faceBonus = faceLookBonus(S.face);
   // AI 自動判斷先排哪一類妝容：使用者親自選過就不再猜；沒把握（< 85%）或模型沒載好就不猜
   if (!S.audChosen) {
@@ -646,7 +658,7 @@ function showOnPhoto(look, animate = true) {
   $('#shot-hint').hidden = !look;
   if (!look) { paintPhoto(0); return; }
 
-  setMakeup(glCfgFor(resolveLook(look, S.skin.undertone), look.intensity, look));
+  setMakeup(glCfgFor(resolveLook(look, S.skin.undertone, seasonFit()), look.intensity, look));
   setSplit(-1);
   lastSig = '';          // 動過貼圖，主流程下次一定要重建
   if (!animate) { paintPhoto(100); return; }
@@ -659,6 +671,9 @@ function showOnPhoto(look, animate = true) {
   })();
 }
 
+/** 有季節結果時，挑色號用「這個顏色有多像你的季節」；介於兩季之間時兩邊都算 */
+const seasonFit = () => (S.season ? (p) => personFit(p, S.season) : null);
+
 /** 妝容卡片。對象（女性／男性）改變時會重排，所以獨立出來 */
 function renderLooks() {
   const s = S.skin;
@@ -666,7 +681,7 @@ function renderLooks() {
   S.ranked.forEach(({ look, why }, rank) => {
     // 縮圖用「偵測到的膚色」+「這個妝容實際會用到的商品色」畫，
     // 所以它不是示意圖，是這組推薦的真實預覽。
-    const pk = resolveLook(look, s.undertone);
+    const pk = resolveLook(look, s.undertone, seasonFit());
     const vars = [
       `--skin:${s.hex}`, `--lip:${disp(pk.lip.color)}`, `--eye:${disp(pk.eye.color)}`, `--cheek:${disp(pk.cheek.color)}`,
       // 46px 的縮圖上，眼影與腮紅照原強度會看不見，這裡放大到可辨識。
@@ -793,6 +808,8 @@ function advLine(l) {
     if (prod) p[k] = tf(prod, 'shade');
   }
   if (p.band) p.band = t(p.band);
+  for (const k of ['season', 'colors', 'avoid', 'its', 'answer', 'warm']) if (typeof p[k] === 'string') p[k] = t(p[k]);
+  if (Array.isArray(p.topics)) p.topics = p.topics.map((id) => t('learn.' + id + '.name')).join(t('list.sep'));
   if (p.alt) { const lk = LOOKS.find((x) => x.id === p.alt); if (lk) p.alt = tf(lk, 'name'); }
   return t(l.key, p);
 }
@@ -904,6 +921,12 @@ function mountChat(where) {
     bubble.appendChild(el('span', 'emo', lineEmoji(m.l)));
     if (m.l.kind === 'told') bubble.appendChild(el('span', 'k', t('adv.kind.told')));
     bubble.appendChild(el('span', 'x', advLine(m.l)));
+    // 季節的代表色：一排小色票，看一眼就知道是哪種感覺
+    if (m.l.params?.swatches) {
+      const sw = el('span', 'swatches');
+      for (const c of m.l.params.swatches) { const i = el('i'); i.style.background = c; sw.appendChild(i); }
+      bubble.appendChild(sw);
+    }
     row.appendChild(bubble);
     if (!m.shown) { row.classList.add('new'); m.shown = true; fresh = true; }
     log.appendChild(row); prevWho = 'ai';
@@ -1156,7 +1179,7 @@ function tapRegion(px, py, W, H) {
  * 一次只問一題：答完才問下一題，每答一題卡片就重排。
  * 問過的情境題也記進 asked3 —— 使用者如果沒答完就先去看商品，商品頁會接著問剩下的。
  */
-const Q2_ORDER = ['weather', 'mood', 'plan', 'audience', 'level'];
+const Q2_ORDER = ['weather', 'mood', 'plan', 'audience', 'level', 'seasonBase', 'seasonSplit'];
 
 function nextQuestion2() {
   for (const q of Q2_ORDER) {
@@ -1167,6 +1190,9 @@ function nextQuestion2() {
       return { id: q, ...(S.audGuess?.audience ? askAudienceGuess(S.audGuess.audience) : askAudience()) };
     }
     if (q === 'level') return { id: q, ...askLevel() };
+    // 季節：照片分得開就不問；冷暖不確定問金銀飾，同一邊分不開問明度或清濁那一題
+    if (q === 'seasonBase') { if (!S.season?.baseUnsure) continue; return { id: q, ...askSeasonBase() }; }
+    if (q === 'seasonSplit') { if (!S.season?.split) continue; return { id: q, ...askSeasonSplit(S.season.split) }; }
     S.asked3.add(q);
     const guess = q === 'mood' ? S.ctxAuto : q === 'weather' && S.ctxFeed ? S.ctx.weather : null;
     return { id: q, ...askContext(q, CTX_ITEMS[q], guess) };
@@ -1177,14 +1203,14 @@ function nextQuestion2() {
 /** 推薦畫面的選項：還在問問題時只給答案＋「直接看建議」；建議給完才出現其他選項 */
 function s2Opts() {
   if (S.q2) return [...S.q2.opts, { key: 'opt.skipQs', act: 'skipQs' }];
-  return [...optsForSkin(S.ranked, S.look), ...optsForColor(S.color)];
+  return [...optsForSkin(S.ranked, S.look), ...optsForSeason(S.season), ...optsForColor(S.color), optLearn(), optQuiz()];
 }
 
 /** 問完之後的建議：臉型、膚色、小技巧，最後是「我會先從哪一款開始」 */
 function suggest2() {
   $('#s2').dataset.phase = 'suggest';
   const tip = S.audience === 'men' ? plainGroom() : plainBlush(S.face);
-  return [...plainFace(S.face), ...plainSkin(S.skin), ...colorLines(S.color), ...tip, ...levelTip(S.level, 's2'),
+  return [...plainFace(S.face), ...plainSkin(S.skin), ...plainSeason(S.season), ...colorLines(S.color), ...tip, ...levelTip(S.level, 's2'),
           { kind: 'praise', key: 'adv.ctxDone', params: { look: S.ranked[0].look.id } }];
 }
 
@@ -1196,7 +1222,7 @@ function afterAnswer2(lines) {
 }
 
 /** AR 的選項：有上一支色號時才給「換回剛才那支」 */
-const arOpts = () => optsForAR(S.zoom, S.mode, !!S.prevLip);
+const arOpts = () => [...optsForAR(S.zoom, S.mode, !!S.prevLip), optLearn()];
 
 /**
  * 把「在現在這支上停了多久」記進偏好。
@@ -1298,6 +1324,37 @@ function runAct(o) {
     case 'retry': go(2); return { stay: false };
     // 顏色校正的引導：先講為什麼可能偏，再給「換光線重拍」與「設定色卡」兩條路
     case 'colorHow': return { lines: colorGuide(S.color), opts: colorGuideOpts() };
+    // ── 季節 ──
+    case 'whySeason': return { lines: explainSeason(S.season) };
+    case 'seasonColors': return { lines: seasonColors(S.season, PRODUCTS) };
+    case 'seaGold': case 'seaSilver': case 'seaDunno': case 'seaCoral': case 'seaBrick': case 'seaSharp': case 'seaHeavy': {
+      const ans = SEASON_ANSWER[o.act], before = S.season?.season;
+      if (ans) S.seasonAns[ans[0]] = ans[1];
+      S.season = classifySeason(S.seasonF, S.seasonAns);
+      rankAll(); renderLooks();
+      const lines = [{ kind: 'told', key: ans ? 'adv.seasonGot' : 'adv.seasonGotDunno', params: {} }];
+      if (S.season && S.season.season !== before) lines.push({ kind: 'fact', key: 'adv.seasonChanged', params: { season: 'season.' + S.season.season } });
+      return afterAnswer2(lines);
+    }
+    // ── 美妝小教室：配合當下（AR 裡正在調的品項、季節、經驗、對象）挑一課 ──
+    case 'learn': {
+      const lesson = pickLesson({ cat: S.step === 4 && S.tab !== 'paint' ? S.tab : null, season: S.season?.season,
+                                  level: S.level, audience: S.audience, learned: S.learned });
+      if (lesson) S.learned.add(lesson.id);
+      return { lines: lessonLines(lesson, S.season?.season) };
+    }
+    case 'quiz': {
+      const q = nextQuiz(PRODUCTS, S.quizDone);
+      if (!q) return { lines: [{ kind: 'fact', key: 'quiz.done', params: {} }] };
+      S.quizDone.add(q.id); S.curQuiz = q;
+      return { lines: q.lines, opts: q.opts };
+    }
+    case 'quizAns': {
+      const r = onQuizAnswer(S.curQuiz, o.val);
+      if (S.curQuiz) { S.quiz.n++; if (r.ok) S.quiz.ok++; }
+      S.curQuiz = null;
+      return { lines: r.lines };
+    }
     case 'colorOpen':
       openSettings('cal');
       return { lines: [{ kind: 'tip', key: 'adv.color.opened', params: {} }], opts: [{ key: 'opt.retake', act: 'retake' }, ...s2Opts()] };
@@ -1340,9 +1397,11 @@ function runAct(o) {
       if (!next) return {};
       const prev = switchLip(next);
       return { lines: [...onShadeChange(next, prev, S.skin), ...prefNote(S.pref, next),
-                       ...shadeHint(next, PRODUCTS.filter((p) => p.cat === 'lip'), S.ctx, S.level)],
+                       ...shadeHint(next, PRODUCTS.filter((p) => p.cat === 'lip'), S.ctx, S.level),
+                       ...seasonShadeLine(next, S.season, PRODUCTS.filter((p) => p.cat === 'lip'))],
                replace: ['adv.shadeGap', 'adv.shadeSame', 'adv.shadeNeutral', 'adv.shadeOff', 'adv.prefTone',
-                         'adv.dir.shadeWork', 'adv.dir.shadeNew', 'adv.dir.shadeParty'],
+                         'adv.dir.shadeWork', 'adv.dir.shadeNew', 'adv.dir.shadeParty',
+                         'adv.season.shadeFit', 'adv.season.shadeOff'],
                opts: arOpts() };
     }
     // 換回剛才那支 —— 對話裡的「上一步」，不用回頭找哪一顆是它
@@ -1644,7 +1703,7 @@ function applyContext() {
   const look = Object.keys(adv.finish).length
     ? { ...S.look, prefer: { ...S.look.prefer, ...adv.finish } }
     : S.look;
-  S.picks = resolveLook(look, S.skin.undertone);
+  S.picks = resolveLook(look, S.skin.undertone, seasonFit());
   S.amount = adjustIntensity(S.look.intensity, adv.amount);
   // 第一次化妝的人整體再輕一點：太濃第一眼就會嚇到，想要更明顯隨時可以往上調
   if (S.level === 'new') for (const k of ['lip', 'eye', 'cheek']) S.amount[k] = +(S.amount[k] * 0.85).toFixed(3);
@@ -1828,7 +1887,7 @@ function lookThumb(look, w, h) {
     P[i] = { x: (S.photoLm[i].x * PW - sx) / sw * w, y: (S.photoLm[i].y * PH - sy) / sh * h };
   }
 
-  const picks = resolveLook(look, S.skin.undertone);
+  const picks = resolveLook(look, S.skin.undertone, seasonFit());
   setMakeup(glCfgFor(picks, look.intensity, look));
   setSplit(-1);
   setIntensity(100); setSweep(-1); useBrush(false);
@@ -1917,7 +1976,7 @@ function paintPanel() {
   $('#p-price').textContent = `$${p.price}`;
 
   const sw = $('#swatches'); sw.innerHTML = '';
-  const recId = resolveLook(S.look, S.skin.undertone).lip.id;
+  const recId = resolveLook(S.look, S.skin.undertone, seasonFit()).lip.id;
   for (const q of PRODUCTS.filter((x) => x.cat === 'lip')) {
     const b = el('button', 'sw-btn' + (q.id === p.id ? ' on' : '') + (q.id === recId ? ' rec' : '') + (q.stock <= 0 ? ' oos' : ''));
     b.innerHTML = swatchHTML(q) + (tf(q, 'shade').split(' ').slice(1).join(' ') || tf(q, 'shade'));
@@ -2216,7 +2275,8 @@ function mountPanel() {
         if (dualB) S.pickB = q;
         else {
           advise4([...onShadeChange(q, S.picks[cat], S.skin),  // 換色號 → 當場回應，跟行程差很多再提一個方向
-                   ...(cat === 'lip' ? shadeHint(q, PRODUCTS.filter((p) => p.cat === 'lip'), S.ctx, S.level) : [])]);
+                   ...(cat === 'lip' ? [...shadeHint(q, PRODUCTS.filter((p) => p.cat === 'lip'), S.ctx, S.level),
+                                        ...seasonShadeLine(q, S.season, PRODUCTS.filter((p) => p.cat === 'lip'))] : [])]);
         S.picks[cat] = { ...q, _reason: [['reason.manual']], _alts: [] };
           if (cat === 'lip') { S.tried.add(q.id); paintPanel(); updateCallout(); }
         }
@@ -2846,8 +2906,8 @@ function paintVerdict(meas) {
                                amount0: S.amount0 ?? S.amount.lip, amount1: S.amount.lip, pref: S.pref });
   const buy = buyAdvice(S.picks, S.level);
   chatReset('s5', [{ kind: 'fact', key: 'adv.hi.s5', params: {} }, ...onFinish(v, S.skin), ...sum,
-                   ...levelTip(S.level, 's5'), ...buy.lines],
-            [...buy.opts.filter((o) => !bagHas(o.act)), ...optsForFinish()]);
+                   ...levelTip(S.level, 's5'), ...buy.lines, ...learnRecap(S.learned, S.quiz)],
+            [...buy.opts.filter((o) => !bagHas(o.act)), ...optsForFinish(), optLearn(), optQuiz()]);
   const bar = (label, n, extra) =>
     `<div class="bar"><span>${label}</span><i><b style="width:${n}%"></b></i><em>${extra ?? n}</em></div>`;
   box.innerHTML =
@@ -2975,6 +3035,8 @@ function reset() {
   S.pref = newPref(); S.said.clear(); S.prevLip = null;
   S.amount0 = null; S.asked3.clear(); S.shadeT0 = 0; S.lastAct = 0;
   S.audience = 'any'; S.asked2.clear(); S.q2 = null; S.audGuess = null; S.audChosen = false; S.level = null;
+  S.seasonF = null; S.seasonAns = {}; S.season = null;
+  S.learned.clear(); S.quizDone.clear(); S.quiz = { n: 0, ok: 0 }; S.curQuiz = null;
   $('#rec-items').innerHTML = ''; $('#rep-grid').innerHTML = '';
   $('#rec-after').innerHTML = ''; $('#verdict').innerHTML = '';
   [...$('#stars').children].forEach((x) => x.classList.remove('lit'));
