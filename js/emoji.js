@@ -62,6 +62,17 @@ const LINE = [
   [/^adv\.color\.(ready|opened)$/, '⚙️'],
   [/^adv\.color\.later$/, '👌'],
   [/^adv\.color\./, '🎨'],
+  [/^adv\.season\.note$/, '🙏'],
+  [/^adv\.season\.(shadeFit|inStore)$/, '💄'],
+  [/^adv\.season\.shadeOff$/, '👉'],
+  [/^adv\.(season|whySeason)/, '🌈'],
+  [/^adv\.askSeason/, '💬'],
+  [/^adv\.seasonGot/, '📝'],
+  [/^learn\.recap$/, '🎓'],
+  [/^learn\./, '📚'],
+  [/^quiz\.right$/, '🎉'],
+  [/^quiz\.almost$/, '🙂'],
+  [/^quiz\./, '📝'],
   [/^adv\.reg/, '👆'],
   [/^adv\.sum/, '🎉'],
   [/^adv\.(standout|fitAll|harmony|matchHigh)$/, '🎉'],
@@ -92,7 +103,10 @@ const ACT = {
   lvlOften: '💁', lvlSome: '🙂', lvlNew: '🌱',
   skipQs: '⏭️', buyLip: '🛍️', buyAll: '🛍️',
   colorHow: '🎨', colorOpen: '⚙️', retake: '📷', colorLater: '👌',
+  whySeason: '🌈', seasonColors: '🎨', learn: '📚', quiz: '📝', quizAns: '✏️',
+  seaGold: '💛', seaSilver: '🤍', seaDunno: '🤔', seaCoral: '🧡', seaBrick: '🤎', seaSharp: '✨', seaHeavy: '😪',
 };
+const SEASON_EMO = { spring: '🌸', summer: '🌊', autumn: '🍂', winter: '❄️' };
 const CTX = {
   bright: '😊', calm: '😌', tired: '😪', nervous: '😣',
   hot: '☀️', humid: '🌧️', mild: '🌤️', cold: '❄️',
@@ -102,6 +116,7 @@ const CTX = {
 export function optEmoji(o) {
   if (!o) return '';
   if (o.key === 'opt.ctxYes') return '👍';
+  if (o.act === 'quizAns' && /^season\./.test(o.key)) return SEASON_EMO[o.key.slice(7)] || '✏️';
   if (/^ctx(Mood|Weather|Plan)$/.test(o.act)) return CTX[o.val] || '💬';
   return ACT[o.act] || '';
 }

@@ -11,6 +11,10 @@ import { FACE_SHAPES, PROTOTYPES, CELEBS, classifyFace, faceLookBonus, faceReaso
 import { readFileSync } from 'node:fs';
 import { lineEmoji, optEmoji } from './js/emoji.js';
 import { audienceFromPrediction, faceCropBox, GENDER_MIN_PROB } from './js/gender.js';
+import { classifySeason, colorSeasonFit, seasonOfColor, personFit, SEASONS, SEASON_SWATCH } from './js/season.js';
+import { LESSONS, pickLesson, lessonLines, nextQuiz, onQuizAnswer, learnRecap, QUIZ } from './js/learn.js';
+import { plainSeason, askSeasonBase, askSeasonSplit, SEASON_ANSWER, explainSeason, seasonColors as seasonColorLines,
+         seasonShadeLine, optsForSeason, optLearn, optQuiz } from './js/advisor.js';
 import { CHART24, fitCCM, applyCCM, fitGainOnly, patchCenters, orientQuad, fitFromCanvas } from './js/chart.js';
 import { contextAdvice, adjustIntensity, rankWithContext, moodFromFace, externalWeather,
          MOODS, WEATHERS, PLANS } from './js/context.js';
@@ -981,6 +985,102 @@ console.log('\n\x1b[1m28. 顏色校正的引導：需要的時候才提\x1b[0m')
                 ...colorGuide(none), ...colorGuide(lost), ...colorGuide(warm)].map((l) => l.key);
   const allLines = keys.map((key) => ({ key, kind: 'fact' }));
   ok(allLines.every((l) => lineEmoji(l) === '🎨'), '引導的句子都有符號');
+}
+
+console.log('\n\x1b[1m29. 季節（春夏秋冬）、美妝小教室、小測驗\x1b[0m');
+{
+  // 典型的四種人（膚色殘差、膚色明度、頭髮、瞳孔、眼白）
+  const P = {
+    spring: { residual: 10, skinL: 74, skinC: 20, hairL: 45, eyeL: 42, scleraL: 80 },   // 暖、亮、淺髮淺瞳
+    autumn: { residual: 10, skinL: 58, skinC: 22, hairL: 20, eyeL: 24, scleraL: 72 },   // 暖、深
+    summer: { residual: -10, skinL: 72, skinC: 14, hairL: 42, eyeL: 40, scleraL: 74 },  // 冷、亮、對比弱
+    winter: { residual: -10, skinL: 70, skinC: 14, hairL: 12, eyeL: 16, scleraL: 86 },  // 冷、黑髮黑瞳、對比強
+  };
+  const got = Object.fromEntries(Object.entries(P).map(([k, f]) => [k, classifySeason(f)]));
+  console.log('  ' + Object.entries(got).map(([k, r]) => k + '→' + r.season + (r.between ? '(介於)' : '')).join('　'));
+  ok(Object.entries(got).every(([k, r]) => r.season === k), '四種典型：暖亮→春、暖深→秋、冷對比弱→夏、冷對比強→冬');
+  ok(got.spring.axes.warm > 0.5 && got.summer.axes.warm < -0.5, '第一步先分冷暖（底調殘差 ±10° → 明確偏暖／偏冷）');
+  // 第二步：同一邊只看對應的那一軸
+  const warmDeepContrast = classifySeason({ ...P.autumn, hairL: 10, eyeL: 12, scleraL: 88 });
+  ok(warmDeepContrast.season === 'autumn', '暖調的人：對比再強也不會變冬 —— 春秋只比明度');
+  const coolDark = classifySeason({ ...P.summer, skinL: 60 });
+  ok(coolDark.season === 'summer', '冷調的人：膚色深一點也不會變冬 —— 夏冬只比清濁');
+  // 分不開
+  const border = classifySeason({ residual: 0.5, skinL: 68, skinC: 16, hairL: 30, eyeL: 30, scleraL: 78 });
+  ok(border.baseUnsure, '底調殘差接近 0 → 冷暖不確定（要問金銀飾那一題）');
+  const mid = classifySeason({ residual: 10, skinL: 67, skinC: 20, hairL: 34, eyeL: 34, scleraL: 78 });
+  ok(mid.between && mid.split === 'light', '暖調、明度中間 → 介於春秋之間，要問的是明度那一題');
+  // 使用者的回答
+  const told = classifySeason(border.axes && { residual: 0.5, skinL: 68, skinC: 16, hairL: 30, eyeL: 30, scleraL: 78 }, { base: 'cool' });
+  ok(['summer', 'winter'].includes(told.season) && !told.baseUnsure, '回答「銀色」→ 冷暖確定為冷，落在夏或冬');
+  const toldLight = classifySeason({ residual: 10, skinL: 67, skinC: 20, hairL: 34, eyeL: 34, scleraL: 78 }, { light: false });
+  ok(toldLight.season === 'autumn', '介於春秋、回答「沉穩的磚紅色比較襯」→ 秋');
+  ok(Object.values(SEASON_ANSWER).every(([k]) => ['base', 'light', 'clear'].includes(k)), '每個回答都對應到三個方向之一');
+  // 頭髮量不到：照實標出來
+  const noHair = classifySeason({ ...P.winter, hairL: null });
+  ok(!noHair.measured.hair && explainSeason(noHair).some((l) => l.key === 'adv.whySeason.noHair'), '頭髮量不到 → 解釋裡照實說');
+  ok(classifySeason(null) === null, '沒有特徵 → 不判斷（不用猜的）');
+
+  // 商品屬於哪一季：用實測色值算
+  const byId = Object.fromEntries(PRODUCTS.map((p) => [p.id, seasonOfColor(p).season]));
+  console.log('  ' + PRODUCTS.filter((p) => p.cat === 'lip').map((p) => p.id + '→' + byId[p.id]).join('　'));
+  ok(byId.L512 === 'spring' && byId.L204 === 'autumn' && byId.L307 === 'winter' && byId.L118 === 'summer',
+     '唇色：蜜桃汽水→春、蜜楓棕→秋、冷調正紅→冬、玫瑰豆沙→夏');
+  ok(SEASONS.every((ss) => PRODUCTS.some((p) => p.cat === 'lip' && seasonOfColor(p).season === ss)), '四季都至少有一支唇色');
+  // 挑色號：有季節時，同一個妝容挑到的唇色跟季節一致
+  const look = LOOKS.find((l) => l.id === 'natural');
+  const lipFor = (res) => resolveLook(look, res.axes.warm > 0 ? 'warm' : 'cool', (p) => personFit(p, res)).lip;
+  const picked = Object.fromEntries(Object.entries(got).map(([k, r]) => [k, lipFor(r)]));
+  console.log('  自然妝挑到的唇色：' + Object.entries(picked).map(([k, p]) => k + '→' + p.id).join('　'));
+  ok(Object.entries(picked).every(([k, p]) => personFit(p, got[k]) >= 0.6), '四種人挑到的唇色，跟各自季節的契合度都 ≥ 0.6');
+  ok(picked.winter.id !== picked.summer.id && picked.spring.id !== picked.autumn.id, '同底調的兩季挑到不同唇色（季節真的有影響）');
+  ok(resolveLook(look, 'warm').lip.id === resolveLook(look, 'warm', null).lip.id, '沒有季節時跟原本完全一樣');
+
+  // 對話
+  const ps = plainSeason(got.summer);
+  ok(ps[0].key === 'adv.season.is' && ps[1].params.swatches === SEASON_SWATCH.summer, '推薦時講季節＋代表色色票');
+  ok(plainSeason(mid)[0].key === 'adv.season.between', '分不開時說「介於兩季之間」，不硬選');
+  ok(askSeasonBase().opts.length === 3 && askSeasonSplit('light').opts[0].act === 'seaCoral' && askSeasonSplit('clear').opts[0].act === 'seaSharp',
+     '自我檢查題：金銀飾／珊瑚或磚紅／黑色上衣，都有「不確定」');
+  const lips = PRODUCTS.filter((p) => p.cat === 'lip');
+  const off = seasonShadeLine(PRODUCTS.find((p) => p.id === 'L307'), got.summer, lips);
+  ok(off[0]?.key === 'adv.season.shadeOff' && personFit(PRODUCTS.find((p) => p.id === off[0].params.lip), got.summer) >= 0.7,
+     'AR 換到跟季節不搭的顏色 → 說它像哪一季，並給一支更搭的');
+  ok(seasonShadeLine(PRODUCTS.find((p) => p.id === 'L307'), got.winter, lips)[0]?.key === 'adv.season.shadeFit', '換到很搭的 → 說一聲');
+  ok(seasonColorLines(got.autumn, PRODUCTS).some((l) => l.key === 'adv.season.inStore'), '「我適合哪些顏色」會指到店裡真的有的色號');
+
+  // 美妝小教室
+  ok(pickLesson({ cat: 'lip', learned: new Set() }).cat === 'lip', 'AR 裡正在調唇 → 先教唇');
+  ok(pickLesson({ season: 'summer' }).cat === 'season', '有季節結果 → 教季節色怎麼用');
+  ok(pickLesson({ audience: 'men' }).id === 'menGroom', '男士 → 先教男士保養');
+  ok(pickLesson({ level: 'new', cat: 'lip' }).id === 'lipBlot', '新手調唇 → 教最好上手的「拍開」，不教進階唇峰');
+  const all = new Set(LESSONS.map((l) => l.id));
+  ok(pickLesson({ learned: all }) === null && lessonLines(null)[0].key === 'learn.done', '全部學過 → 說教完了，不重複');
+  // 每一課、每一題的文案三種語言都有
+  const keys = [...LESSONS.flatMap((l) => ['learn.' + l.id + '.t', 'learn.' + l.id + '.name', ...Array.from({ length: l.n }, (_, i) => 'learn.' + l.id + '.' + (i + 1))]),
+                ...QUIZ.flatMap((q) => ['q', 'a0', 'a1', 'a2', 'why'].map((x) => 'quiz.' + q.id + '.' + x)),
+                ...SEASONS.flatMap((x) => ['season.' + x, 'season.trait.' + x, 'season.colors.' + x, 'season.avoid.' + x, 'quiz.shade.why.' + x])];
+  const dictSrc = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
+  const has3 = (k) => { const m = dictSrc.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2 && !/''/.test(m); };
+  const missing = keys.filter((k) => !has3(k));
+  ok(missing.length === 0, '小教室、測驗、季節的文案三種語言齊全（' + keys.length + ' 句）' + (missing.length ? ' 缺：' + missing.join(', ') : ''));
+
+  // 小測驗
+  const done = new Set(); const seen = [];
+  for (let i = 0; i < 20; i++) { const q = nextQuiz(PRODUCTS, done); if (!q) break; done.add(q.id); seen.push(q); }
+  ok(seen.length >= QUIZ.length + 2 && new Set(seen.map((q) => q.id)).size === seen.length, '題目不重複，出完就停（' + seen.length + ' 題）');
+  const sq = seen.find((q) => q.id.startsWith('shade:'));
+  ok(sq && sq.opts.length === 4 && SEASONS[sq.answer] === seasonOfColor(PRODUCTS.find((p) => 'shade:' + p.id === sq.id)).season,
+     '色號題的答案由實測色值算出來（不是寫死的）');
+  const right = onQuizAnswer(sq, sq.answer), wrong = onQuizAnswer(sq, (sq.answer + 1) % 4);
+  ok(right.ok && right.lines[0].key === 'quiz.right' && !wrong.ok && wrong.lines[0].key === 'quiz.almost' && wrong.lines[1] === sq.why,
+     '答對稱讚；答錯說「差一點」＋告訴答案＋解說');
+  const rc = learnRecap(new Set(['order', 'lipBlot']), { n: 3, ok: 3 });
+  ok(rc.length === 2 && rc[1].kind === 'praise', '結束時回顧：學了幾課、答對幾題（全對用稱讚）');
+  ok(learnRecap(new Set(), { n: 2, ok: 0 })[0].key === 'quiz.tried', '　一題都沒答對時不報 0 分，改說挑戰了幾題');
+  const newOpts = [...optsForSeason(got.spring), optLearn(), optQuiz(), ...askSeasonBase().opts, ...askSeasonSplit('light').opts, ...askSeasonSplit('clear').opts, ...sq.opts];
+  ok(newOpts.every((o) => ACTS.includes(o.act) && optEmoji(o)), '新的選項都是已知動作、都有符號');
+  ok(sq.opts.map(optEmoji).join('') === '🌸🌊🍂❄️', '季節選項用各自的符號');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

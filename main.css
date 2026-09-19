@@ -1168,3 +1168,7 @@ body {
   border:1px solid var(--line); background:var(--cream-1); color:var(--ink-2); font:600 11px/1 inherit;
 }
 #settings .cal-btn.hot { border-color:var(--rose); background:var(--tint); color:var(--rose-soft); }
+
+/* ── 季節代表色：對話氣泡裡的一排小色票 ─────────────────── */
+.bubble .swatches { display:flex; gap:5px; margin-top:6px; }
+.bubble .swatches i { width:18px; height:18px; border-radius:50%; box-shadow:0 0 0 1px rgba(var(--edge-rgb),.25); }

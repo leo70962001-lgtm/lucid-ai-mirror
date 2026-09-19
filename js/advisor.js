@@ -1,5 +1,6 @@
 import { deltaE, hexToLab } from './analysis.js';
 import { faceReasonFor, chinWord, CELEBS, SHOW_CELEBS } from './faceshape.js';
+import { SEASON_SWATCH, personFit, seasonOfColor } from './season.js';
 
 /**
  * AI 顧問的說話層
@@ -371,12 +372,14 @@ export function optsForFinish() {
 export const EXPLAIN_ACTS = ['whyTone', 'whyMatch', 'whyFace', 'whyCeleb', 'whyAud',
                              'whyDepth', 'whyLight', 'whyPick',      // 膚色那一題的追問
                              'whyHue', 'whyLevel', 'whyStandout',    // 分數那一題的追問
-                             'colorHow'];                            // 顏色校正：問過就收掉
+                             'colorHow',                             // 顏色校正：問過就收掉
+                             'whySeason', 'seasonColors'];           // 季節的追問
 
 // 回答 AI 問題用的選項 —— 一次性的，答完就收掉
 export const ANSWER_ACTS = ['prefSoft', 'prefBold', 'prefKeep', 'keepBest', 'noThanks', 'keepYes', 'keepNo', 'skipQs', 'buyLip', 'buyAll',
                             'audWomen', 'audMen', 'audAny', 'audKeep', 'lvlOften', 'lvlSome', 'lvlNew',
-                            'ctxMood', 'ctxWeather', 'ctxPlan', 'ctxSkip', 'colorOpen', 'colorLater'];
+                            'ctxMood', 'ctxWeather', 'ctxPlan', 'ctxSkip', 'colorOpen', 'colorLater',
+                            'seaGold', 'seaSilver', 'seaDunno', 'seaCoral', 'seaBrick', 'seaSharp', 'seaHeavy', 'quizAns'];
 export const dropAnswers = (opts) => (opts || []).filter((o) => !ANSWER_ACTS.includes(o.act));
 
 /** 問過的「為什麼」就不再出現 —— 同一題問第二次不會有新資訊 */
@@ -496,6 +499,87 @@ export function colorGuide(st) {
 export const optsForColor = (st) => (st && st.level !== 'ok' ? [opt('opt.colorHow', 'colorHow')] : []);
 export const colorGuideOpts = () => [opt('opt.colorOpen', 'colorOpen'), opt('opt.retake', 'retake'), opt('opt.colorLater', 'colorLater')];
 
+// ── 季節（春夏秋冬）──────────────────────────────────
+// 講法：「比較接近」「介於…之間」，不說「你就是」。照片只能估方向，最準的是自然光下的披布比對。
+
+/** 推薦畫面：季節結果＋代表色（附色票） */
+export function plainSeason(res) {
+  if (!res) return [];
+  const s = res.season, P = (x) => ({ season: 'season.' + x, trait: 'season.trait.' + x });
+  const out = [res.between
+    ? line('fact', 'adv.season.between', { ...P(s), second: 'season.' + res.second })
+    : line('fact', 'adv.season.is', P(s))];
+  out.push(line('ref', 'adv.season.palette', { season: 'season.' + s, colors: 'season.colors.' + s,
+                                               avoid: 'season.avoid.' + s, swatches: SEASON_SWATCH[s] }));
+  return out;
+}
+export const seasonNote = () => [line('caution', 'adv.season.note', {})];
+
+/** 分不太開時才問的兩題：冷暖不確定 → 金銀飾；同一邊分不開 → 珊瑚／磚紅（明度）或黑色上衣（清濁） */
+export function askSeasonBase() {
+  return { lines: [line('ask', 'adv.askSeason.base', {})],
+           opts: [opt('opt.seaGold', 'seaGold'), opt('opt.seaSilver', 'seaSilver'), opt('opt.seaDunno', 'seaDunno')] };
+}
+export function askSeasonSplit(split) {
+  return split === 'light'
+    ? { lines: [line('ask', 'adv.askSeason.light', {})],
+        opts: [opt('opt.seaCoral', 'seaCoral'), opt('opt.seaBrick', 'seaBrick'), opt('opt.seaDunno', 'seaDunno')] }
+    : { lines: [line('ask', 'adv.askSeason.clear', {})],
+        opts: [opt('opt.seaSharp', 'seaSharp'), opt('opt.seaHeavy', 'seaHeavy'), opt('opt.seaDunno', 'seaDunno')] };
+}
+/** 回答轉成 classifySeason 的 answers */
+export const SEASON_ANSWER = {
+  seaGold: ['base', 'warm'], seaSilver: ['base', 'cool'],
+  seaCoral: ['light', true], seaBrick: ['light', false],
+  seaSharp: ['clear', true], seaHeavy: ['clear', false],
+};
+
+/** 「季節是怎麼判斷的？」：方法、這次量到的三個方向、量不到的部分照實說 */
+export function explainSeason(res) {
+  if (!res) return [];
+  const a = res.axes, pct = (v) => Math.round(v * 100);
+  const out = [line('fact', 'adv.whySeason.how', {}),
+               line('fact', 'adv.whySeason.me', { warm: a.warm >= 0 ? 'adv.dirWarm' : 'adv.dirCool',
+                                                   light: pct(a.light), clear: pct(a.clear), season: 'season.' + res.season })];
+  if (!res.measured.hair) out.push(line('caution', 'adv.whySeason.noHair', {}));
+  out.push(...seasonNote());
+  return out;
+}
+
+/** 「我適合哪些顏色？」：代表色、店裡最搭的唇色與腮紅、要小心的顏色 */
+export function seasonColors(res, products) {
+  if (!res) return [];
+  const best = (cat) => (products || []).filter((p) => p.cat === cat && p.stock > 0)
+    .sort((x, y) => personFit(y, res) - personFit(x, res))[0];
+  const lip = best('lip'), cheek = best('cheek');
+  return [...plainSeason(res).slice(1),
+          ...(lip && cheek ? [line('tip', 'adv.season.inStore', { lip: lip.id, cheek: cheek.id })] : []),
+          line('tip', 'adv.season.use', {})];
+}
+
+/**
+ * AR 換色號時：跟季節很搭就說一聲；偏離比較多就說它比較像哪一季，並給一支更搭的。
+ * 中間地帶不講 —— 每換一支都評論一次會很吵。
+ */
+export function seasonShadeLine(p, res, lips) {
+  if (!p || !res) return [];
+  const fit = personFit(p, res);
+  if (fit >= 0.75) return [line('tip', 'adv.season.shadeFit', { shade: p.id, season: 'season.' + res.season })];
+  if (fit < 0.55) {
+    const alt = (lips || []).filter((q) => q.stock > 0 && q.id !== p.id)
+      .sort((x, y) => personFit(y, res) - personFit(x, res))[0];
+    if (alt && personFit(alt, res) >= 0.7) {
+      return [line('tip', 'adv.season.shadeOff', { shade: p.id, its: 'season.' + seasonOfColor(p).season,
+                                                  season: 'season.' + res.season, lip: alt.id })];
+    }
+  }
+  return [];
+}
+
+export const optsForSeason = (res) => (res ? [opt('opt.whySeason', 'whySeason'), opt('opt.seasonColors', 'seasonColors')] : []);
+export const optLearn = () => opt('opt.learn', 'learn');
+export const optQuiz = () => opt('opt.quiz', 'quiz');
+
 export const ACTS = ['whyTone', 'whyDepth', 'whyLight', 'whyPick', 'whyFace', 'whyCeleb',
                      'whyHue', 'whyLevel', 'whyStandout',
                      'useTop', 'goProducts', 'toNeutral', 'softer', 'startAR',
@@ -504,7 +588,9 @@ export const ACTS = ['whyTone', 'whyDepth', 'whyLight', 'whyPick', 'whyFace', 'w
                      'keepYes', 'keepNo', 'audWomen', 'audMen', 'audAny', 'audKeep', 'whyAud',
                      'lvlOften', 'lvlSome', 'lvlNew', 'skipQs', 'buyLip', 'buyAll',
                      'ctxMood', 'ctxWeather', 'ctxPlan', 'ctxSkip',
-                     'colorHow', 'colorOpen', 'retake', 'colorLater'];
+                     'colorHow', 'colorOpen', 'retake', 'colorLater',
+                     'whySeason', 'seasonColors', 'learn', 'quiz', 'quizAns',
+                     'seaGold', 'seaSilver', 'seaDunno', 'seaCoral', 'seaBrick', 'seaSharp', 'seaHeavy'];
 
 // ── 反過來問：AI 也會提問 ───────────────────────────────
 // 只問「答案會真的改變接下來做什麼」的問題。問完沒有後續的問題不要問 ——
