@@ -589,7 +589,7 @@ export const ACTS = ['whyTone', 'whyDepth', 'whyLight', 'whyPick', 'whyFace', 'w
                      'lvlOften', 'lvlSome', 'lvlNew', 'skipQs', 'buyLip', 'buyAll',
                      'ctxMood', 'ctxWeather', 'ctxPlan', 'ctxSkip',
                      'colorHow', 'colorOpen', 'retake', 'colorLater',
-                     'whySeason', 'seasonColors', 'learn', 'quiz', 'quizAns',
+                     'whySeason', 'seasonColors', 'learn', 'quiz', 'quizAns', 'paintSelf',
                      'seaGold', 'seaSilver', 'seaDunno', 'seaCoral', 'seaBrick', 'seaSharp', 'seaHeavy'];
 
 // ── 反過來問：AI 也會提問 ───────────────────────────────

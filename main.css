@@ -1172,3 +1172,42 @@ body {
 /* ── 季節代表色：對話氣泡裡的一排小色票 ─────────────────── */
 .bubble .swatches { display:flex; gap:5px; margin-top:6px; }
 .bubble .swatches i { width:18px; height:18px; border-radius:50%; box-shadow:0 0 0 1px rgba(var(--edge-rgb),.25); }
+
+/* ── 自己上妝：鏡面按鈕＋畫的時候的底部工具列 ─────────────────
+   畫的時候抽屜整個收掉：抽屜打開會蓋住半張臉，沒辦法畫。 */
+#s4 .paint-btn {
+  position:absolute; left:12px; top:92px; z-index:5;
+  padding:8px 13px; border-radius:18px; border:0; cursor:pointer;
+  font:600 12px/1 inherit; color:#fff; background:rgba(var(--rose-rgb),.88);
+  box-shadow:0 4px 14px rgba(var(--shadow-rgb),.3);
+}
+@media (max-width:560px) { #s4 .paint-btn { left:8px; top:84px; padding:7px 11px; font-size:11px; } }
+#s4.painting-mode .paint-btn, #s4.painting-mode .sheet { display:none; }
+#s4.painting-mode .frame { cursor:crosshair; }
+.paintbar {
+  position:absolute; left:10px; right:10px; bottom:10px; z-index:7;
+  display:flex; flex-direction:column; gap:7px; padding:9px 10px;
+  border-radius:18px; background:rgba(255,250,249,.92); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  box-shadow:0 10px 30px rgba(var(--shadow-rgb),.28);
+}
+.paintbar[hidden] { display:none; }
+.pb-row { display:flex; align-items:center; gap:6px; }
+.pb-part {
+  display:flex; align-items:center; gap:5px; padding:7px 10px; border-radius:12px; cursor:pointer;
+  border:1px solid var(--line); background:#fff; color:var(--ink-2); font:600 11.5px/1 inherit;
+}
+.pb-part i { width:12px; height:12px; border-radius:50%; background:var(--c); }
+.pb-part.on { border-color:var(--rose); background:var(--tint); color:var(--rose-soft); }
+.pb-wipe, .pb-done {
+  padding:7px 10px; border-radius:12px; cursor:pointer; font:600 11.5px/1 inherit; white-space:nowrap;
+}
+.pb-wipe { margin-left:auto; border:1px solid var(--line); background:#fff; color:var(--ink-3); }
+.pb-done { border:0; color:#fff; background:linear-gradient(180deg,var(--primary-1),var(--primary-2)); }
+.pb-chips { display:flex; gap:6px; overflow-x:auto; flex:1; min-width:0; }
+.pb-chips .chip { flex:none; width:30px; height:30px; padding:2px; border-radius:10px; border:1px solid var(--line); background:#fff; cursor:pointer; }
+.pb-chips .chip i { display:block; height:100%; border-radius:8px; background:var(--c); }
+.pb-chips .chip.on { border-color:var(--rose); box-shadow:0 2px 8px rgba(var(--rose-rgb),.3); }
+.pb-chips .chip.oos { opacity:.35; }
+.pb-size { display:flex; align-items:center; gap:5px; flex:none; font-size:10.5px; color:var(--ink-3); }
+.pb-size input { width:84px; }
+.pb-tip { font-size:11px; line-height:1.45; color:var(--ink-2); }
