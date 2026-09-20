@@ -31,6 +31,7 @@ import { onSkin, onLook, onPicks, onShadeChange, onAmount, onFinish, lightNote,
          seasonShadeLine, optsForSeason, optLearn, optQuiz } from './advisor.js';
 import { seasonFeatures, classifySeason, personFit } from './season.js';
 import { pickLesson, lessonLines, nextQuiz, onQuizAnswer, learnRecap } from './learn.js';
+import { newTaste, noteTaste, tasteRead, tasteSuggest, tasteSummary, describeLip, LIP_FAMILIES } from './lipcolor.js';
 import { findHairline, faceFeatures, classifyFace, faceLookBonus, faceReasonFor } from './faceshape.js';
 import { lineEmoji, optEmoji } from './emoji.js';
 import { initGender, guessAudience } from './gender.js';
@@ -67,6 +68,7 @@ const S = {
   seasonF: null, seasonAns: {}, season: null,
   // 美妝小教室：這一位客人學過的課、出過的題、答對幾題（下一位客人重來）
   learned: new Set(), quizDone: new Set(), quiz: { n: 0, ok: 0 }, curQuiz: null,
+  taste: newTaste(),                // 唇色的喜好：冷暖、深淺、鮮豔、質地（看停留時間與自己挑的）
   // 情境：使用者告訴我們的，不是量出來的（見 js/context.js 開頭）
   ctx: { mood: null, weather: null, plan: null },
   ctxAuto: null, ctxFeed: false,
@@ -809,7 +811,8 @@ function advLine(l) {
     if (prod) p[k] = tf(prod, 'shade');
   }
   if (p.band) p.band = t(p.band);
-  for (const k of ['season', 'colors', 'avoid', 'its', 'answer', 'warm']) if (typeof p[k] === 'string') p[k] = t(p[k]);
+  for (const k of ['season', 'colors', 'avoid', 'its', 'answer', 'warm', 'family', 'depth']) if (typeof p[k] === 'string') p[k] = t(p[k]);
+  if (typeof p.finish === 'string' && p.finish.startsWith('finish.')) p.finish = t(p.finish);
   if (Array.isArray(p.topics)) p.topics = p.topics.map((id) => t('learn.' + id + '.name')).join(t('list.sep'));
   if (p.alt) { const lk = LOOKS.find((x) => x.id === p.alt); if (lk) p.alt = tf(lk, 'name'); }
   return t(l.key, p);
@@ -1225,7 +1228,9 @@ function afterAnswer2(lines) {
 }
 
 /** AR 的選項：有上一支色號時才給「換回剛才那支」 */
-const arOpts = () => [...optsForAR(S.zoom, S.mode, !!S.prevLip), { key: 'opt.paintSelf', act: 'paintSelf' }, optLearn()];
+const arOpts = () => [...optsForAR(S.zoom, S.mode, !!S.prevLip),
+                      ...(tasteRead(S.taste).ready ? [{ key: 'opt.myTaste', act: 'myTaste' }] : []),
+                      { key: 'opt.paintSelf', act: 'paintSelf' }, optLearn()];
 
 /**
  * 把「在現在這支上停了多久」記進偏好。
@@ -1234,7 +1239,9 @@ const arOpts = () => [...optsForAR(S.zoom, S.mode, !!S.prevLip), { key: 'opt.pai
  */
 function noteShadeDwell() {
   if (!S.shadeT0 || !S.picks?.lip) return;
-  noteDwell(S.pref, S.picks.lip, performance.now() - S.shadeT0);
+  const ms = performance.now() - S.shadeT0;
+  noteDwell(S.pref, S.picks.lip, ms);
+  noteTaste(S.taste, S.picks.lip, { ms, dwellMs: DWELL_MS });   // 停得久＝喜歡，記下它的冷暖、深淺、鮮豔、質地
   S.shadeT0 = performance.now();
 }
 
@@ -1244,6 +1251,7 @@ function switchLip(next, reason) {
   S.prevLip = prev;
   S.shadeT0 = performance.now();
   S.picks.lip = { ...next, _reason: [[reason || 'reason.manual']], _alts: [] };
+  noteTaste(S.taste, next, { picked: true });
   S.tried.add(next.id);
   startApply(); paintPanel(); updateCallout();
   if (S.step === 3) renderStep3();
@@ -1340,6 +1348,11 @@ function runAct(o) {
       return afterAnswer2(lines);
     }
     // ── 美妝小教室：配合當下（AR 裡正在調的品項、季節、經驗、對象）挑一課 ──
+    // 學到的喜好要講得出來，不然就只是偷偷改推薦
+    case 'myTaste': {
+      noteShadeDwell();
+      return { lines: tasteSummary(tasteRead(S.taste), PRODUCTS) };
+    }
     case 'paintSelf': {
       enterPaint();
       return { lines: [{ kind: 'tip', key: 'adv.paint.start', params: {} }] };
@@ -1400,15 +1413,18 @@ function runAct(o) {
     case 'nextShade': {
       const list = PRODUCTS.filter((p) => p.cat === 'lip' && p.stock > 0);
       noteShadeDwell();                                     // 先結算這一支的停留時間
-      const next = pickNext(list, S.picks.lip.id, S.pref);   // 再依「停留過的底調」優先挑
+      const read = tasteRead(S.taste);
+      // 學到喜好（看過 2 支以上）就照喜好挑；還沒學到就照原本「停留過的底調」輪
+      const next = (read.ready && tasteSuggest(read, list, S.picks.lip.id)) || pickNext(list, S.picks.lip.id, S.pref);
       if (!next) return {};
       const prev = switchLip(next);
-      return { lines: [...onShadeChange(next, prev, S.skin), ...prefNote(S.pref, next),
+      return { lines: [...onShadeChange(next, prev, S.skin), ...describeLip(next), ...prefNote(S.pref, next),
                        ...shadeHint(next, PRODUCTS.filter((p) => p.cat === 'lip'), S.ctx, S.level),
                        ...seasonShadeLine(next, S.season, PRODUCTS.filter((p) => p.cat === 'lip'))],
                replace: ['adv.shadeGap', 'adv.shadeSame', 'adv.shadeNeutral', 'adv.shadeOff', 'adv.prefTone',
                          'adv.dir.shadeWork', 'adv.dir.shadeNew', 'adv.dir.shadeParty',
-                         'adv.season.shadeFit', 'adv.season.shadeOff'],
+                         'adv.season.shadeFit', 'adv.season.shadeOff', 'adv.lip.desc',
+                         ...LIP_FAMILIES.map((f) => 'lipfam.' + f + '.say')],
                opts: arOpts() };
     }
     // 換回剛才那支 —— 對話裡的「上一步」，不用回頭找哪一顆是它
@@ -2362,10 +2378,11 @@ function mountPanel() {
         if (dualB) S.pickB = q;
         else {
           advise4([...onShadeChange(q, S.picks[cat], S.skin),  // 換色號 → 當場回應，跟行程差很多再提一個方向
-                   ...(cat === 'lip' ? [...shadeHint(q, PRODUCTS.filter((p) => p.cat === 'lip'), S.ctx, S.level),
+                   ...(cat === 'lip' ? [...describeLip(q),
+                                        ...shadeHint(q, PRODUCTS.filter((p) => p.cat === 'lip'), S.ctx, S.level),
                                         ...seasonShadeLine(q, S.season, PRODUCTS.filter((p) => p.cat === 'lip'))] : [])]);
         S.picks[cat] = { ...q, _reason: [['reason.manual']], _alts: [] };
-          if (cat === 'lip') { S.tried.add(q.id); paintPanel(); updateCallout(); }
+          if (cat === 'lip') { S.tried.add(q.id); noteTaste(S.taste, q, { picked: true }); paintPanel(); updateCallout(); }
         }
         if (S.amount[cat] === 0) S.amount[cat] = S.look?.intensity[cat] ?? 0.6;   // 濃度是 0 的話換色號看不出差別
         startApply();
@@ -2993,7 +3010,8 @@ function paintVerdict(meas) {
                                amount0: S.amount0 ?? S.amount.lip, amount1: S.amount.lip, pref: S.pref });
   const buy = buyAdvice(S.picks, S.level);
   chatReset('s5', [{ kind: 'fact', key: 'adv.hi.s5', params: {} }, ...onFinish(v, S.skin), ...sum,
-                   ...levelTip(S.level, 's5'), ...buy.lines, ...learnRecap(S.learned, S.quiz)],
+                   ...levelTip(S.level, 's5'), ...tasteSummary(tasteRead(S.taste), PRODUCTS),
+                   ...buy.lines, ...learnRecap(S.learned, S.quiz)],
             [...buy.opts.filter((o) => !bagHas(o.act)), ...optsForFinish(), optLearn(), optQuiz()]);
   const bar = (label, n, extra) =>
     `<div class="bar"><span>${label}</span><i><b style="width:${n}%"></b></i><em>${extra ?? n}</em></div>`;
@@ -3124,6 +3142,7 @@ function reset() {
   S.audience = 'any'; S.asked2.clear(); S.q2 = null; S.audGuess = null; S.audChosen = false; S.level = null;
   S.seasonF = null; S.seasonAns = {}; S.season = null;
   S.learned.clear(); S.quizDone.clear(); S.quiz = { n: 0, ok: 0 }; S.curQuiz = null;
+  S.taste = newTaste();
   $('#rec-items').innerHTML = ''; $('#rep-grid').innerHTML = '';
   $('#rec-after').innerHTML = ''; $('#verdict').innerHTML = '';
   [...$('#stars').children].forEach((x) => x.classList.remove('lit'));

@@ -26,6 +26,12 @@ export const LESSONS = [
   { id: 'eyeGrad',    cat: 'eye',    n: 3, lvl: 'any' },
   { id: 'brow',       cat: 'brow',   n: 2, lvl: 'any' },
   { id: 'lipLine',    cat: 'lip',    n: 2, lvl: 'pro' },
+  { id: 'lipFinish',  cat: 'lip',    n: 3, lvl: 'any' },
+  { id: 'mlbb',       cat: 'lip',    n: 2, lvl: 'new' },
+  { id: 'lipOwn',     cat: 'lip',    n: 2, lvl: 'any' },
+  { id: 'lipLayer',   cat: 'lip',    n: 2, lvl: 'any' },
+  { id: 'lipCare',    cat: 'lip',    n: 2, lvl: 'new' },
+  { id: 'lipTest',    cat: 'lip',    n: 2, lvl: 'any' },
   { id: 'lasting',    cat: 'basic',  n: 2, lvl: 'any' },
   { id: 'seasonUse',  cat: 'season', n: 2, lvl: 'any' },
   { id: 'seasonMyth', cat: 'season', n: 2, lvl: 'any' },
@@ -71,6 +77,9 @@ export const QUIZ = [
   { id: 'blush',  answer: 1 },   // 腮紅一次刷足還是少量多次？ → 少量多次
   { id: 'light',  answer: 2 },   // 試色在哪裡看最準？ → 自然光
   { id: 'coolSplit', answer: 1 }, // 夏季與冬季主要差在？ → 清濁（鮮豔或柔和）
+  { id: 'mlbb',   answer: 2 },   // MLBB 是什麼？ → 比原本唇色好看一點的自然色
+  { id: 'lipOwn', answer: 1 },   // 唇色偏深的人擦淡裸色會怎樣？ → 顏色會被唇色蓋掉、顯得暗沉
+  { id: 'matte',  answer: 0 },   // 霧面唇膏最需要注意？ → 唇紋與乾燥
 ];
 
 /**
