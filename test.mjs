@@ -11,6 +11,8 @@ import { FACE_SHAPES, PROTOTYPES, CELEBS, classifyFace, faceLookBonus, faceReaso
 import { readFileSync } from 'node:fs';
 import { lineEmoji, optEmoji } from './js/emoji.js';
 import { audienceFromPrediction, faceCropBox, GENDER_MIN_PROB } from './js/gender.js';
+import { lipFamily, lipDepth, lipMetrics, describeLip, newTaste, noteTaste, tasteRead, tasteLines,
+         tasteSuggest, tasteSummary, LIP_FAMILIES } from './js/lipcolor.js';
 import { classifySeason, colorSeasonFit, seasonOfColor, personFit, SEASONS, SEASON_SWATCH } from './js/season.js';
 import { LESSONS, pickLesson, lessonLines, nextQuiz, onQuizAnswer, learnRecap, QUIZ } from './js/learn.js';
 import { plainSeason, askSeasonBase, askSeasonSplit, SEASON_ANSWER, explainSeason, seasonColors as seasonColorLines,
@@ -1081,6 +1083,87 @@ console.log('\n\x1b[1m29. 季節（春夏秋冬）、美妝小教室、小測驗
   const newOpts = [...optsForSeason(got.spring), optLearn(), optQuiz(), ...askSeasonBase().opts, ...askSeasonSplit('light').opts, ...askSeasonSplit('clear').opts, ...sq.opts];
   ok(newOpts.every((o) => ACTS.includes(o.act) && optEmoji(o)), '新的選項都是已知動作、都有符號');
   ok(sq.opts.map(optEmoji).join('') === '🌸🌊🍂❄️', '季節選項用各自的符號');
+}
+
+console.log('\n\x1b[1m30. 唇色知識與喜好學習\x1b[0m');
+{
+  const lips = PRODUCTS.filter((p) => p.cat === 'lip');
+  const fam = Object.fromEntries(lips.map((p) => [p.id, lipFamily(p)]));
+  console.log('  ' + lips.map((p) => p.shade.replace(/^#\d+\s*/, '') + '→' + fam[p.id]).join('　'));
+  ok(fam.L307 === 'trueRed' && fam.L620 === 'berry' && fam.L118 === 'rosewood' && fam.L512 === 'coral'
+     && fam.L455 === 'nude' && fam.L204 === 'brick',
+     '色系由色值分出來，跟色號名稱對得上（正紅／莓果／豆沙／珊瑚／裸色／磚紅）');
+  ok(lips.every((p) => LIP_FAMILIES.includes(lipFamily(p))), '每一支都分得出色系');
+  ok(lipDepth(PRODUCTS.find((p) => p.id === 'L512')) === 'light' && lipDepth(PRODUCTS.find((p) => p.id === 'L307')) === 'deep',
+     '深淺講得出來：蜜桃汽水偏淺、冷調正紅偏深');
+  const d = describeLip(PRODUCTS.find((p) => p.id === 'L620'));
+  ok(d[0].key === 'adv.lip.desc' && d[0].params.family === 'lipfam.berry' && d[0].params.finish === 'finish.gloss'
+     && d[1].key === 'lipfam.berry.say',
+     '介紹一支＝色系＋質地＋深淺，再加一句這個色系的特徵');
+  // 三種語言的文案
+  const dictSrc2 = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
+  const ok3 = (k) => { const m = dictSrc2.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
+  const need = [...LIP_FAMILIES.flatMap((f) => ['lipfam.' + f, 'lipfam.' + f + '.say']),
+                'lipdepth.light', 'lipdepth.mid', 'lipdepth.deep', 'adv.lip.desc',
+                'adv.lip.finish.matte', 'adv.lip.finish.gloss', 'adv.lip.finish.shimmer',
+                ...['early', 'warm', 'cool', 'deep', 'light', 'vivid', 'soft', 'even', 'finish', 'pick'].map((x) => 'adv.taste.' + x)];
+  const miss = need.filter((k) => !ok3(k));
+  ok(miss.length === 0, '唇色與喜好的文案三種語言齊全（' + need.length + ' 句）' + (miss.length ? ' 缺：' + miss.join(',') : ''));
+
+  // 喜好學習
+  const P = (id) => PRODUCTS.find((p) => p.id === id);
+  ok(!tasteRead(newTaste()).ready, '一支都還沒看 → 不下結論');
+  const one = noteTaste(newTaste(), P('L307'), { ms: 9000 });
+  ok(!tasteRead(one).ready, '只看過一支 → 還是不下結論（一支不能代表喜好）');
+  ok(tasteLines(tasteRead(one))[0].key === 'adv.taste.early', '　而且照實說「還在看」');
+  ok(noteTaste(newTaste(), P('L307'), { ms: 300 }).obs.length === 0, '只掃過去（不到 0.5 權重）不算');
+
+  // 一直停在冷、深、鮮豔的色號上
+  let cool = newTaste();
+  noteTaste(cool, P('L307'), { ms: 8000 }); noteTaste(cool, P('L620'), { ms: 7000 }); noteTaste(cool, P('L512'), { ms: 1200 });
+  const rc = tasteRead(cool);
+  console.log('  冷／深／鮮豔的人：暖冷 ' + rc.warm.toFixed(2) + '、深淺 ' + rc.deep.toFixed(2) + '、鮮豔 ' + rc.vivid.toFixed(2) + '、質地 ' + rc.finish);
+  ok(rc.ready && rc.warm < -0.25 && rc.deep > 0.25, '停在冷、深的色號 → 學到「偏冷、偏深」');
+  const keys = tasteLines(rc).map((l) => l.key);
+  ok(keys.includes('adv.taste.cool') && keys.includes('adv.taste.deep'), '　而且講得出來');
+  const next = tasteSuggest(rc, PRODUCTS, 'L307');
+  ok(next.id === 'L118', '照喜好挑下一支：換掉正紅，給同樣偏冷、偏深的玫瑰豆沙（莓果紫紅缺貨）');
+  ok(PRODUCTS.filter((p) => p.cat === 'lip').some((p) => p.stock <= 0) && next.stock > 0, '　缺貨的不會被推薦');
+
+  // 一直停在暖、淺、柔和的色號上
+  let warm = newTaste();
+  noteTaste(warm, P('L512'), { ms: 9000 }); noteTaste(warm, P('L455'), { ms: 8000 });
+  const rw = tasteRead(warm);
+  console.log('  暖／淺／柔和的人：暖冷 ' + rw.warm.toFixed(2) + '、深淺 ' + rw.deep.toFixed(2) + '、鮮豔 ' + rw.vivid.toFixed(2) + '、質地 ' + rw.finish);
+  ok(rw.warm > 0.25 && rw.deep < -0.25, '停在暖、淺的色號 → 學到「偏暖、偏淺」');
+  ok(rw.finish === 'gloss', '兩支都是水光 → 連質地的偏好也學到');
+  ok(['L512', 'L455'].includes(tasteSuggest(rw, PRODUCTS).id), '照喜好挑：給暖而淺的那一類');
+  ok(tasteSuggest(rc, PRODUCTS).id !== tasteSuggest(rw, PRODUCTS).id, '兩種喜好挑到的不一樣（真的有學到東西）');
+
+  // 自己點選的權重比停留高
+  const picked = newTaste();
+  noteTaste(picked, P('L307'), { ms: 3000 });      // 看了一下下
+  noteTaste(picked, P('L512'), { picked: true });  // 自己挑的
+  ok(picked.obs[1].w > picked.obs[0].w, '自己挑的權重比「看了一下」高');
+
+  // 冷暖都停一樣久 → 不硬下結論
+  let even = newTaste();
+  noteTaste(even, P('L307'), { ms: 6000 }); noteTaste(even, P('L512'), { ms: 6000 });
+  const re = tasteRead(even);
+  ok(Math.abs(re.warm) < 0.25 ? tasteLines(re).some((l) => l.key === 'adv.taste.even') : true, '兩邊都停 → 說「接受度蠻廣的」，不硬選一邊');
+  ok(tasteSummary(tasteRead(newTaste()), PRODUCTS).length === 0, '沒學到東西時，結束畫面不講喜好');
+  const sum = tasteSummary(rc, PRODUCTS);
+  ok(sum[sum.length - 1].key === 'adv.taste.pick', '結束時：講今天的方向，並給一支最貼近的');
+
+  // 小教室與測驗：唇色的部分
+  const lipLessons = LESSONS.filter((l) => l.cat === 'lip');
+  ok(lipLessons.length >= 7 && ['lipFinish', 'mlbb', 'lipOwn', 'lipLayer', 'lipCare', 'lipTest'].every((id) => lipLessons.some((l) => l.id === id)),
+     '唇的課多了質地、MLBB、唇色的影響、疊擦、唇部保養、試色位置（共 ' + lipLessons.length + ' 課）');
+  ok(['mlbb', 'lipOwn', 'matte'].every((id) => QUIZ.some((q) => q.id === id)), '測驗也有唇色的題目');
+  const lipKeys = lipLessons.flatMap((l) => ['learn.' + l.id + '.t', 'learn.' + l.id + '.name', ...Array.from({ length: l.n }, (_, i) => 'learn.' + l.id + '.' + (i + 1))]);
+  ok(lipKeys.every(ok3), '　唇的課文案三種語言齊全');
+  ok(pickLesson({ cat: 'lip', level: 'new', learned: new Set(['lipBlot']) }).cat === 'lip', '調唇時會一直給唇的課（現在有好幾課可以給）');
+  ok(ACTS.includes('myTaste') && optEmoji({ act: 'myTaste', key: 'opt.myTaste' }), '「我的喜好學到什麼」是已知動作、有符號');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

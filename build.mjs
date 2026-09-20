@@ -27,7 +27,7 @@ const B = (p) => readFileSync(join(ROOT, p));
 const KB = (n) => (n / 1024).toFixed(0) + ' KB';
 const MB = (n) => (n / 1048576).toFixed(2) + ' MB';
 
-const MODULES = ['js/i18n.js', 'js/products.js', 'js/context.js', 'js/analysis.js', 'js/season.js', 'js/learn.js', 'js/advisor.js', 'js/emoji.js', 'js/gender.js', 'js/chart.js', 'js/faceshape.js', 'js/face-mesh.js', 'js/makeup.js',
+const MODULES = ['js/i18n.js', 'js/products.js', 'js/context.js', 'js/analysis.js', 'js/season.js', 'js/lipcolor.js', 'js/learn.js', 'js/advisor.js', 'js/emoji.js', 'js/gender.js', 'js/chart.js', 'js/faceshape.js', 'js/face-mesh.js', 'js/makeup.js',
                  'js/makeup-gl.js', 'js/calib.js', 'js/selftest-face.js', 'js/face.js', 'js/app.js'];
 const CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 const FA_CDN = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15';
