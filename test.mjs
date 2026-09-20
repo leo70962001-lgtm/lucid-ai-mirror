@@ -11,6 +11,8 @@ import { FACE_SHAPES, PROTOTYPES, CELEBS, classifyFace, faceLookBonus, faceReaso
 import { readFileSync } from 'node:fs';
 import { lineEmoji, optEmoji } from './js/emoji.js';
 import { audienceFromPrediction, faceCropBox, GENDER_MIN_PROB } from './js/gender.js';
+import { TRENDS, TREND_PACK, TREND_STALE_DAYS, trendsFor, trendPlan, trendPick, trendLines,
+         trendAgeDays, trendStale, trendStaleLines } from './js/trends.js';
 import { lipFamily, lipDepth, lipMetrics, describeLip, newTaste, noteTaste, tasteRead, tasteLines,
          tasteSuggest, tasteSummary, LIP_FAMILIES } from './js/lipcolor.js';
 import { classifySeason, colorSeasonFit, seasonOfColor, personFit, SEASONS, SEASON_SWATCH } from './js/season.js';
@@ -1164,6 +1166,57 @@ console.log('\n\x1b[1m30. 唇色知識與喜好學習\x1b[0m');
   ok(lipKeys.every(ok3), '　唇的課文案三種語言齊全');
   ok(pickLesson({ cat: 'lip', level: 'new', learned: new Set(['lipBlot']) }).cat === 'lip', '調唇時會一直給唇的課（現在有好幾課可以給）');
   ok(ACTS.includes('myTaste') && optEmoji({ act: 'myTaste', key: 'opt.myTaste' }), '「我的喜好學到什麼」是已知動作、有符號');
+}
+
+console.log('\n\x1b[1m31. 流行妝容：離線資料包、標日期、做得到才講\x1b[0m');
+{
+  console.log('  資料包 ' + TREND_PACK + '（' + TRENDS.length + ' 筆）');
+  ok(/^\d{4}-\d{2}$/.test(TREND_PACK) && TRENDS.length >= 8, '流行是一份有日期的資料包，不是即時抓的');
+  ok(TRENDS.every((it) => it.src && it.cats.length && it.want), '每一筆都有出處、影響的部位、想要的顏色方向');
+  ok(new Set(TRENDS.map((it) => it.id)).size === TRENDS.length, 'id 不重複');
+  // 做得到才講：每一筆都要在店裡找得到對應的商品（或是自己畫得出來）
+  const plans = TRENDS.map((it) => ({ it, plan: trendPlan(it, PRODUCTS) }));
+  console.log('  ' + plans.map(({ it, plan }) => it.id + '→' + (plan.lip?.id || plan.cheek?.id || plan.eye?.id) + (plan.paint ? '＋自己畫' : '')).join('　'));
+  ok(plans.every(({ it, plan }) => it.cats.every((c) => plan[c]) || plan.paint), '每一個流行都對應得到店裡真的有的商品，或是自己畫得出來');
+  ok(plans.every(({ plan }) => ['lip', 'eye', 'cheek'].every((c) => !plan[c] || plan[c].stock > 0)), '　而且都是有貨的');
+  // 挑的商品方向要對
+  const glaze = plans.find((x) => x.it.id === 'glazeLip').plan.lip;
+  const mauve = plans.find((x) => x.it.id === 'mauveLip').plan.lip;
+  const bronze = plans.find((x) => x.it.id === 'monoBronze').plan.lip;
+  ok(glaze.finish === 'gloss' && mauve.finish === 'matte', '要光澤的挑到水光、要霧感的挑到霧面');
+  ok(bronze.tone === 'warm' && mauve.tone !== 'warm', '古銅挑到暖色、霧紫豆沙挑到不暖的');
+  ok(glaze.id !== mauve.id && mauve.id !== bronze.id, '不同的流行挑到不同的色號');
+  // 排序：襯這一季的排前面
+  const forWinter = trendsFor({ season: 'winter' })[0], forAutumn = trendsFor({ season: 'autumn' })[0];
+  ok(forWinter.seasons.includes('winter') && forAutumn.seasons.includes('autumn'), '襯這一季的流行排前面');
+  ok(trendsFor({ audience: 'men' }).every((it) => it.men), '男士妝容只推適合的那幾個');
+  const said = new Set([forWinter.id]);
+  ok(trendsFor({ season: 'winter', said })[0].id !== forWinter.id, '講過的流行不會再講第二次');
+  // 喜好也會影響排序
+  const warmTaste = { ready: true, warm: 0.9, deep: 0.3, vivid: 0.2 }, coolTaste = { ready: true, warm: -0.9, deep: 0.3, vivid: 0.2 };
+  ok(trendsFor({ taste: warmTaste })[0].id !== trendsFor({ taste: coolTaste })[0].id, '今天喜歡暖色或冷色，推的流行不一樣');
+  // 講法：名稱、為什麼流行、兩句怎麼做、店裡哪一支、出處與日期
+  const L = trendLines(TRENDS.find((it) => it.id === 'blurLip'), trendPlan(TRENDS.find((it) => it.id === 'blurLip'), PRODUCTS));
+  ok(L[0].key === 'adv.trend.is' && L[1].key === 'trend.blurLip.how1' && L[2].key === 'trend.blurLip.how2', '講一個流行＝名稱＋為什麼＋兩句怎麼做');
+  ok(L.some((l) => l.key === 'adv.trend.here.lip') && L[L.length - 1].key === 'adv.trend.src' && L[L.length - 1].params.pack === TREND_PACK,
+     '　並指出店裡哪一支，最後附上出處與資料日期');
+  // 過期
+  const old = '2024-01';
+  ok(trendAgeDays(old) > TREND_STALE_DAYS && trendStale(old), '舊資料包會被判定為過期');
+  ok(trendStaleLines(old)[0].kind === 'caution' && trendStaleLines(old)[0].key === 'adv.trend.stale', '　而且照實說「有點舊了」');
+  ok(!trendStale(TREND_PACK, Date.parse(TREND_PACK + '-15')), '剛整理好的資料包不會被當成過期');
+  // 文案三種語言
+  const dictSrc3 = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
+  const has3t = (k) => { const m = dictSrc3.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
+  const keys = [...TRENDS.flatMap((it) => ['trend.' + it.id, 'trend.' + it.id + '.why', 'trend.' + it.id + '.how1', 'trend.' + it.id + '.how2']),
+                ...new Set(TRENDS.map((it) => 'trend.src.' + it.src)),
+                'adv.trend.is', 'adv.trend.src', 'adv.trend.stale', 'adv.trend.applied', 'adv.trend.paint', 'adv.trend.match',
+                'adv.trend.here.lip', 'adv.trend.here.cheek', 'adv.trend.here.both',
+                'opt.trendNow', 'opt.tryTrend', 'opt.trendNext', 'set.trend', 'set.trend.ok', 'set.trend.old', 'reason.trend'];
+  const missT = keys.filter((k) => !has3t(k));
+  ok(missT.length === 0, '流行的文案三種語言齊全（' + keys.length + ' 句）' + (missT.length ? ' 缺：' + missT.join(',') : ''));
+  const opts = [{ key: 'opt.trendNow', act: 'trendNow' }, { key: 'opt.tryTrend', act: 'tryTrend' }, { key: 'opt.trendNext', act: 'trendNext' }];
+  ok(opts.every((o) => ACTS.includes(o.act) && optEmoji(o)), '流行的選項都是已知動作、都有符號');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

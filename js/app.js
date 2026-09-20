@@ -32,6 +32,7 @@ import { onSkin, onLook, onPicks, onShadeChange, onAmount, onFinish, lightNote,
 import { seasonFeatures, classifySeason, personFit } from './season.js';
 import { pickLesson, lessonLines, nextQuiz, onQuizAnswer, learnRecap } from './learn.js';
 import { newTaste, noteTaste, tasteRead, tasteSuggest, tasteSummary, describeLip, LIP_FAMILIES } from './lipcolor.js';
+import { TRENDS, TREND_PACK, trendsFor, trendPlan, trendLines, trendStale, trendStaleLines } from './trends.js';
 import { findHairline, faceFeatures, classifyFace, faceLookBonus, faceReasonFor } from './faceshape.js';
 import { lineEmoji, optEmoji } from './emoji.js';
 import { initGender, guessAudience } from './gender.js';
@@ -69,6 +70,7 @@ const S = {
   // 美妝小教室：這一位客人學過的課、出過的題、答對幾題（下一位客人重來）
   learned: new Set(), quizDone: new Set(), quiz: { n: 0, ok: 0 }, curQuiz: null,
   taste: newTaste(),                // 唇色的喜好：冷暖、深淺、鮮豔、質地（看停留時間與自己挑的）
+  trendSaid: new Set(), trend: null,   // 講過哪些流行、現在在講的那一個
   // 情境：使用者告訴我們的，不是量出來的（見 js/context.js 開頭）
   ctx: { mood: null, weather: null, plan: null },
   ctxAuto: null, ctxFeed: false,
@@ -208,6 +210,13 @@ function mountCalSettings(box) {
   sec.appendChild(row);
   sec.appendChild(el('p', 'note', t('set.cal.help')));
   box.appendChild(sec);
+
+  // 流行資料：哪一版、幾筆、是不是該更新了（機台離線，只能由人更新）
+  const tr = el('div', 'cal');
+  tr.appendChild(el('h4', '', t('set.trend')));
+  tr.appendChild(el('p', 'cal-st ' + (trendStale() ? 'suggest' : 'ok'),
+                    t(trendStale() ? 'set.trend.old' : 'set.trend.ok', { pack: TREND_PACK, n: TRENDS.length })));
+  box.appendChild(tr);
 }
 
 /** 從對話打開設定並捲到指定區塊 */
@@ -811,7 +820,7 @@ function advLine(l) {
     if (prod) p[k] = tf(prod, 'shade');
   }
   if (p.band) p.band = t(p.band);
-  for (const k of ['season', 'colors', 'avoid', 'its', 'answer', 'warm', 'family', 'depth']) if (typeof p[k] === 'string') p[k] = t(p[k]);
+  for (const k of ['season', 'colors', 'avoid', 'its', 'answer', 'warm', 'family', 'depth', 'name', 'src']) if (typeof p[k] === 'string') p[k] = t(p[k]);
   if (typeof p.finish === 'string' && p.finish.startsWith('finish.')) p.finish = t(p.finish);
   if (Array.isArray(p.topics)) p.topics = p.topics.map((id) => t('learn.' + id + '.name')).join(t('list.sep'));
   if (p.alt) { const lk = LOOKS.find((x) => x.id === p.alt); if (lk) p.alt = tf(lk, 'name'); }
@@ -1206,17 +1215,29 @@ function nextQuestion2() {
   return null;
 }
 
+/**
+ * 季節正好襯某個流行時，在建議裡提一句（只提一次）。
+ * 流行是「參考」不是「應該」—— 所以只給一句＋一個選項，不改推薦的排序。
+ */
+function trendHint() {
+  if (!S.season || S.trendSaid.size) return [];
+  const it = trendsFor({ season: S.season.season, audience: S.audience, taste: tasteRead(S.taste), said: S.trendSaid })[0];
+  if (!it || !it.seasons.includes(S.season.season)) return [];
+  return [{ kind: 'tip', key: 'adv.trend.match', params: { season: 'season.' + S.season.season, name: 'trend.' + it.id } }];
+}
+
 /** 推薦畫面的選項：還在問問題時只給答案＋「直接看建議」；建議給完才出現其他選項 */
 function s2Opts() {
   if (S.q2) return [...S.q2.opts, { key: 'opt.skipQs', act: 'skipQs' }];
-  return [...optsForSkin(S.ranked, S.look), ...optsForSeason(S.season), ...optsForColor(S.color), optLearn(), optQuiz()];
+  return [...optsForSkin(S.ranked, S.look), ...optsForSeason(S.season), ...optsForColor(S.color),
+          { key: 'opt.trendNow', act: 'trendNow' }, optLearn(), optQuiz()];
 }
 
 /** 問完之後的建議：臉型、膚色、小技巧，最後是「我會先從哪一款開始」 */
 function suggest2() {
   $('#s2').dataset.phase = 'suggest';
   const tip = S.audience === 'men' ? plainGroom() : plainBlush(S.face);
-  return [...plainFace(S.face), ...plainSkin(S.skin), ...plainSeason(S.season), ...colorLines(S.color), ...tip, ...levelTip(S.level, 's2'),
+  return [...plainFace(S.face), ...plainSkin(S.skin), ...plainSeason(S.season), ...trendHint(), ...colorLines(S.color), ...tip, ...levelTip(S.level, 's2'),
           { kind: 'praise', key: 'adv.ctxDone', params: { look: S.ranked[0].look.id } }];
 }
 
@@ -1229,6 +1250,7 @@ function afterAnswer2(lines) {
 
 /** AR 的選項：有上一支色號時才給「換回剛才那支」 */
 const arOpts = () => [...optsForAR(S.zoom, S.mode, !!S.prevLip),
+                      { key: 'opt.trendNow', act: 'trendNow' },
                       ...(tasteRead(S.taste).ready ? [{ key: 'opt.myTaste', act: 'myTaste' }] : []),
                       { key: 'opt.paintSelf', act: 'paintSelf' }, optLearn()];
 
@@ -1352,6 +1374,44 @@ function runAct(o) {
     case 'myTaste': {
       noteShadeDwell();
       return { lines: tasteSummary(tasteRead(S.taste), PRODUCTS) };
+    }
+    // ── 流行妝容（離線資料包）──
+    case 'trendNow': case 'trendNext': {
+      const it = trendsFor({ season: S.season?.season, audience: S.audience, taste: tasteRead(S.taste), said: S.trendSaid })[0];
+      if (!it || S.trendSaid.has(it.id)) return { lines: [{ kind: 'fact', key: 'adv.trend.none', params: {} }] };
+      S.trendSaid.add(it.id); S.trend = it;
+      const plan = trendPlan(it, PRODUCTS);
+      return { lines: [...trendLines(it, plan), ...(S.trendSaid.size === 1 ? trendStaleLines() : [])],
+               opts: [{ key: 'opt.tryTrend', act: 'tryTrend' }, { key: 'opt.trendNext', act: 'trendNext' }, ...defaultOpts(S.step === 2 ? 's2' : 's4')] };
+    }
+    // 套用：能換的就換（唇、頰、眼、濃度），要自己畫的就打開自己上妝
+    case 'tryTrend': {
+      const it = S.trend; if (!it) return {};
+      // 還在推薦畫面、也還沒選妝容時：先用第一名當底，不然沒有商品可以換
+      if (!S.look && S.ranked?.length) { S.look = S.ranked[0].look; applyContext(); markLookCard(); }
+      if (!S.picks) return {};
+      const plan = trendPlan(it, PRODUCTS);
+      const apply = () => {
+        for (const cat of ['lip', 'eye', 'cheek']) {
+          const p = plan[cat]; if (!p) continue;
+          S.picks[cat] = { ...p, _reason: [['reason.trend']], _alts: [] };
+          if (cat === 'lip') { S.tried.add(p.id); noteTaste(S.taste, p, { picked: true }); }
+        }
+        if (plan.amount != null) S.amount.lip = plan.amount;
+      };
+      const say = { kind: 'praise', key: plan.paint ? 'adv.trend.paint' : 'adv.trend.applied', params: {} };
+      // 從推薦畫面套用：換好之後直接進鏡子，再在那邊接話
+      if (S.step === 2) {
+        apply();
+        go(S.stream ? 4 : 3);
+        if (plan.paint && S.step === 4) { enterPaint(); S.brush.tool = plan.paint; mountPaintbar(); }
+        chatSay(S.step === 4 ? 's4' : 's3', [say], S.step === 4 ? arOpts() : optsForPicks(S.picks, S.skin, S.pref));
+        return { stay: false };
+      }
+      step(apply);
+      startApply(); paintPanel(); updateCallout(); mountPanel();
+      if (plan.paint) { enterPaint(); S.brush.tool = plan.paint; mountPaintbar(); }
+      return { lines: [say], opts: arOpts() };
     }
     case 'paintSelf': {
       enterPaint();
@@ -3142,7 +3202,7 @@ function reset() {
   S.audience = 'any'; S.asked2.clear(); S.q2 = null; S.audGuess = null; S.audChosen = false; S.level = null;
   S.seasonF = null; S.seasonAns = {}; S.season = null;
   S.learned.clear(); S.quizDone.clear(); S.quiz = { n: 0, ok: 0 }; S.curQuiz = null;
-  S.taste = newTaste();
+  S.taste = newTaste(); S.trendSaid.clear(); S.trend = null;
   $('#rec-items').innerHTML = ''; $('#rep-grid').innerHTML = '';
   $('#rec-after').innerHTML = ''; $('#verdict').innerHTML = '';
   [...$('#stars').children].forEach((x) => x.classList.remove('lit'));
