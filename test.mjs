@@ -11,6 +11,7 @@ import { FACE_SHAPES, PROTOTYPES, CELEBS, classifyFace, faceLookBonus, faceReaso
 import { readFileSync } from 'node:fs';
 import { lineEmoji, optEmoji } from './js/emoji.js';
 import { audienceFromPrediction, faceCropBox, GENDER_MIN_PROB } from './js/gender.js';
+import { buildRoutine, stepLines, stepOpts, routineRecap } from './js/routine.js';
 import { TRENDS, TREND_PACK, TREND_STALE_DAYS, trendsFor, trendPlan, trendPick, trendLines,
          trendAgeDays, trendStale, trendStaleLines } from './js/trends.js';
 import { lipFamily, lipDepth, lipMetrics, describeLip, newTaste, noteTaste, tasteRead, tasteLines,
@@ -1217,6 +1218,56 @@ console.log('\n\x1b[1m31. 流行妝容：離線資料包、標日期、做得到
   ok(missT.length === 0, '流行的文案三種語言齊全（' + keys.length + ' 句）' + (missT.length ? ' 缺：' + missT.join(',') : ''));
   const opts = [{ key: 'opt.trendNow', act: 'trendNow' }, { key: 'opt.tryTrend', act: 'tryTrend' }, { key: 'opt.trendNext', act: 'trendNext' }];
   ok(opts.every((o) => ACTS.includes(o.act) && optEmoji(o)), '流行的選項都是已知動作、都有符號');
+}
+
+console.log('\n\x1b[1m32. 一步一步帶你畫：AI 引導 × AR × 學習\x1b[0m');
+{
+  const look = LOOKS.find((l) => l.id === 'natural');
+  const picks = resolveLook(look, 'cool');
+  const steps = buildRoutine({ picks, look });
+  console.log('  ' + steps.map((x) => x.id).join(' → '));
+  ok(steps[0].id === 'prep' && steps[steps.length - 1].id === 'done', '從素顏開始，最後一步是完成');
+  ok(steps.filter((x) => x.cat).map((x) => x.cat).join() === 'eye,cheek,lip', '順序是眼 → 頰 → 唇（先臉上後嘴唇）');
+  ok(steps.filter((x) => x.cat).every((x) => x.product && x.amount > 0 && x.mark === x.cat),
+     '每一步都有商品、目標濃度，以及鏡子上要圈的位置');
+  // 沒有的品項不排空步驟
+  const menLook = LOOKS.find((l) => l.id === 'men');
+  const noEye = buildRoutine({ picks: { lip: picks.lip, cheek: picks.cheek }, look: menLook });
+  ok(!noEye.some((x) => x.cat === 'eye') && noEye.length === 4, '沒有眼影就不會出現空的眼影步驟');
+  const zero = buildRoutine({ picks, look, amount: { eye: 0, cheek: 0.3, lip: 0.5 } });
+  ok(!zero.some((x) => x.cat === 'eye'), '濃度是 0 的部位也不排（那一步什麼都不會發生）');
+
+  // 講的話：第幾步、做什麼、常見失誤
+  const L1 = stepLines(steps, 1);
+  ok(L1[0].key === 'adv.guide.step' && L1[0].params.i === 1 && L1[0].params.n === 3 && L1[0].params.shade === picks.eye.id,
+     '每一步都講「第幾步／共幾步」與用哪一支');
+  ok(L1[1].key === 'guide.eye.do' && L1[2].key === 'guide.eye.tip', '　一句怎麼做、一句常見的失誤');
+  ok(stepLines(steps, 0)[0].key === 'adv.guide.prep' && stepLines(steps, steps.length - 1)[0].kind === 'praise',
+     '開頭先講順序，結尾是肯定句');
+
+  // 選項：最後一步改成「完成」，每一步都能自己畫或跳過，隨時能結束
+  const mid = stepOpts(steps, 1).map((o) => o.act), last = stepOpts(steps, steps.length - 2).map((o) => o.act);
+  ok(mid.join() === 'guideNext,guidePaint,guideSkip,guideEnd', '中間的步驟：下一步／自己畫／跳過／結束');
+  ok(stepOpts(steps, steps.length - 2)[0].key === 'opt.guideFinish' && last.includes('guideNext'), '最後一步的按鈕改成「完成最後一步」');
+  ok(stepOpts(steps, steps.length - 1).map((o) => o.act).join() === 'guideEnd', '走完之後只剩「結束引導」');
+  ok(stepOpts(steps, 0).map((o) => o.act).join() === 'guideNext,guideEnd', '第一步（看素顏）沒有「自己畫」與「跳過」');
+  const allOpts = [0, 1, steps.length - 2, steps.length - 1].flatMap((i) => stepOpts(steps, i));
+  ok(allOpts.every((o) => ACTS.includes(o.act) && optEmoji(o)), '引導的選項都是已知動作、都有符號');
+
+  // 回顧：只算真的做過的那幾步
+  const done = new Set(['eye', 'lip']);
+  const rc = routineRecap(steps, done);
+  ok(rc[0].key === 'adv.guide.recap' && rc[0].params.n === 2, '回顧只算真的跟著畫過的部位（跳過的不算）');
+  ok(routineRecap(steps, new Set()).length === 0, '一步都沒做就不講回顧');
+
+  // 文案三種語言
+  const dictSrc4 = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
+  const has3g = (k) => { const m = dictSrc4.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
+  const keys = [...['prep', 'eye', 'cheek', 'lip', 'done'].flatMap((x) => ['guide.' + x + '.do', 'guide.' + x + '.tip']),
+                ...['ask', 'prep', 'step', 'done', 'recap', 'skipped', 'end', 'paint'].map((x) => 'adv.guide.' + x),
+                ...['guideStart', 'guideNext', 'guideFinish', 'guidePaint', 'guideSkip', 'guideEnd', 'more', 'less'].map((x) => 'opt.' + x)];
+  const miss = keys.filter((k) => !has3g(k));
+  ok(miss.length === 0, '引導的文案三種語言齊全（' + keys.length + ' 句）' + (miss.length ? ' 缺：' + miss.join(',') : ''));
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);
