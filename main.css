@@ -1211,3 +1211,6 @@ body {
 .pb-size { display:flex; align-items:center; gap:5px; flex:none; font-size:10.5px; color:var(--ink-3); }
 .pb-size input { width:84px; }
 .pb-tip { font-size:11px; line-height:1.45; color:var(--ink-2); }
+
+/* 選項太多時的「更多…」：樣子比選項淡，看得出它不是一個答案 */
+.opts button.more { border-style:dashed; color:var(--ink-3); background:transparent; }

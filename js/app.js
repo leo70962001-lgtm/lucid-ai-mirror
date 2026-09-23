@@ -33,6 +33,7 @@ import { seasonFeatures, classifySeason, personFit } from './season.js';
 import { pickLesson, lessonLines, nextQuiz, onQuizAnswer, learnRecap } from './learn.js';
 import { newTaste, noteTaste, tasteRead, tasteSuggest, tasteSummary, describeLip, LIP_FAMILIES } from './lipcolor.js';
 import { TRENDS, TREND_PACK, trendsFor, trendPlan, trendLines, trendStale, trendStaleLines } from './trends.js';
+import { buildRoutine, stepLines, stepOpts, routineRecap } from './routine.js';
 import { findHairline, faceFeatures, classifyFace, faceLookBonus, faceReasonFor } from './faceshape.js';
 import { lineEmoji, optEmoji } from './emoji.js';
 import { initGender, guessAudience } from './gender.js';
@@ -71,6 +72,7 @@ const S = {
   learned: new Set(), quizDone: new Set(), quiz: { n: 0, ok: 0 }, curQuiz: null,
   taste: newTaste(),                // 唇色的喜好：冷暖、深淺、鮮豔、質地（看停留時間與自己挑的）
   trendSaid: new Set(), trend: null,   // 講過哪些流行、現在在講的那一個
+  guide: null,                         // 一步一步帶你畫：{ steps, i, saved, done }
   // 情境：使用者告訴我們的，不是量出來的（見 js/context.js 開頭）
   ctx: { mood: null, weather: null, plan: null },
   ctxAuto: null, ctxFeed: false,
@@ -968,11 +970,21 @@ function mountChat(where) {
   if (pendingAt) opts = [];
   if (opts.length) {
     const row = el('div', 'opts');
-    for (const o of opts) {
+    // 選項一多就難挑（AR 上一度有十個）。先給最前面五個，其餘收在「更多…」裡。
+    const MAX = 5;
+    const more = opts.length > MAX + 1 && !c.showAll;
+    const shown = more ? opts.slice(0, MAX) : opts;
+    for (const o of shown) {
       const e = optEmoji(o);
       const b = el('button', '', (e ? `<span class="emo">${e}</span>` : '') + t(o.key));
       b.onclick = () => chatAct(where, o);
       row.appendChild(b);
+    }
+    // 選項變少（例如進了引導模式）之後就不留「收起來」—— 那顆按鈕會變成沒有作用
+    if (more || (c.showAll && opts.length > MAX + 1)) {
+      const t2 = el('button', 'more', (more ? '⋯ ' : '') + t(more ? 'opt.more' : 'opt.less'));
+      t2.onclick = () => { c.showAll = !c.showAll; mountChat(where); };
+      row.appendChild(t2);
     }
     box.appendChild(row);
   }
@@ -1249,10 +1261,13 @@ function afterAnswer2(lines) {
 }
 
 /** AR 的選項：有上一支色號時才給「換回剛才那支」 */
-const arOpts = () => [...optsForAR(S.zoom, S.mode, !!S.prevLip),
-                      { key: 'opt.trendNow', act: 'trendNow' },
-                      ...(tasteRead(S.taste).ready ? [{ key: 'opt.myTaste', act: 'myTaste' }] : []),
-                      { key: 'opt.paintSelf', act: 'paintSelf' }, optLearn()];
+const arOpts = () => (S.guide
+  ? stepOpts(S.guide.steps, S.guide.i)
+  : [{ key: 'opt.guideStart', act: 'guideStart' },
+     ...optsForAR(S.zoom, S.mode, !!S.prevLip),
+     { key: 'opt.trendNow', act: 'trendNow' },
+     ...(tasteRead(S.taste).ready ? [{ key: 'opt.myTaste', act: 'myTaste' }] : []),
+     { key: 'opt.paintSelf', act: 'paintSelf' }, optLearn()]);
 
 /**
  * 把「在現在這支上停了多久」記進偏好。
@@ -1412,6 +1427,55 @@ function runAct(o) {
       startApply(); paintPanel(); updateCallout(); mountPanel();
       if (plan.paint) { enterPaint(); S.brush.tool = plan.paint; mountPaintbar(); }
       return { lines: [say], opts: arOpts() };
+    }
+    /* ══ 一步一步帶你畫 ══════════════════════════════════
+       一層一層加上去：每一步先圈出位置、說怎麼做與常見失誤，那一層才出現在鏡子裡。
+       這是 AI 引導、AR 與學習接在一起的地方 —— 圈的是「你的臉」，不是示意圖。 */
+    case 'guideStart': {
+      if (!S.picks) return {};
+      const steps = buildRoutine({ picks: S.picks, look: S.look, amount: S.amount });
+      S.guide = { steps, i: 0, saved: { ...S.amount }, done: new Set() };
+      // 先回到素顏：每一層要「出現」，才看得出它做了什麼
+      step(() => { for (const c of ['lip', 'eye', 'cheek']) S.amount[c] = 0; });
+      startApply(); mountPanel(); markFace('skin');
+      return { lines: stepLines(steps, 0), opts: stepOpts(steps, 0) };
+    }
+    case 'guideNext': case 'guideSkip': {
+      const g = S.guide; if (!g) return {};
+      const cur = g.steps[g.i];
+      // 「下一步」＝把這一層畫上去；「跳過」＝這一層不畫
+      if (o.act === 'guideNext' && cur?.cat) {
+        g.done.add(cur.id);
+        step(() => { S.amount[cur.cat] = cur.amount; });
+        startApply(); paintPanel(); updateCallout(); mountPanel();
+      }
+      g.i = Math.min(g.i + 1, g.steps.length - 1);
+      const next = g.steps[g.i];
+      if (next.mark) markFace(next.mark);
+      const skipped = o.act === 'guideSkip' ? [{ kind: 'fact', key: 'adv.guide.skipped', params: {} }] : [];
+      const tail = next.id === 'done' ? routineRecap(g.steps, g.done) : [];
+      return { lines: [...skipped, ...stepLines(g.steps, g.i), ...tail], opts: stepOpts(g.steps, g.i) };
+    }
+    case 'guidePaint': {
+      const g = S.guide; if (!g) return {};
+      const cur = g.steps[g.i];
+      if (cur?.cat) {
+        // 自己畫之前先把這一層的濃度補上，不然畫在全黑的底上看不出來
+        step(() => { S.amount[cur.cat] = cur.amount; });
+        startApply(); mountPanel();
+        g.done.add(cur.id);
+        enterPaint(); S.brush.tool = cur.cat; mountPaintbar();
+      }
+      return { lines: [{ kind: 'tip', key: 'adv.guide.paint', params: {} }], opts: stepOpts(g.steps, g.i) };
+    }
+    case 'guideEnd': {
+      const g = S.guide; if (!g) return {};
+      // 中途結束：把整組妝補回去，不要留一張只畫一半的臉
+      step(() => { for (const c of ['lip', 'eye', 'cheek']) S.amount[c] = g.saved[c] ?? S.amount[c]; });
+      startApply(); paintPanel(); updateCallout(); mountPanel();
+      const recap = g.steps[g.i]?.id === 'done' ? [] : routineRecap(g.steps, g.done);
+      S.guide = null;
+      return { lines: [...recap, { kind: 'fact', key: 'adv.guide.end', params: {} }], opts: arOpts() };
     }
     case 'paintSelf': {
       enterPaint();
@@ -2119,7 +2183,9 @@ function enter4() {
   $('#paint-btn').textContent = t('paint.btn');
   $('#s4').classList.remove('painting-mode'); $('#paintbar').hidden = true;
   mountZoomBtn();
-  advise4([...onAR({ ...S.picks.lip, shade: tf(S.picks.lip, 'shade') }, S.amount.lip), ...levelTip(S.level, 's4')], true);
+  advise4([...onAR({ ...S.picks.lip, shade: tf(S.picks.lip, 'shade') }, S.amount.lip), ...levelTip(S.level, 's4'),
+           // 新手一進鏡子就問要不要帶著畫 —— 這是他最需要、卻最不會自己按的功能
+           ...(S.level === 'new' && !S.guide ? [{ kind: 'ask', key: 'adv.guide.ask', params: {} }] : [])], true);
   bindMirror($('#s4 .frame'));
   // ?debug 時把筆刷內部狀態掛出來 —— 現場要判斷「畫不上去」是筆觸沒進去，
   // 還是畫進去了但沒重繪，只靠看畫面分不出來。
@@ -3202,7 +3268,7 @@ function reset() {
   S.audience = 'any'; S.asked2.clear(); S.q2 = null; S.audGuess = null; S.audChosen = false; S.level = null;
   S.seasonF = null; S.seasonAns = {}; S.season = null;
   S.learned.clear(); S.quizDone.clear(); S.quiz = { n: 0, ok: 0 }; S.curQuiz = null;
-  S.taste = newTaste(); S.trendSaid.clear(); S.trend = null;
+  S.taste = newTaste(); S.trendSaid.clear(); S.trend = null; S.guide = null;
   $('#rec-items').innerHTML = ''; $('#rep-grid').innerHTML = '';
   $('#rec-after').innerHTML = ''; $('#verdict').innerHTML = '';
   [...$('#stars').children].forEach((x) => x.classList.remove('lit'));
