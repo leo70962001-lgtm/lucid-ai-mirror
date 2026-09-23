@@ -822,9 +822,10 @@ function advLine(l) {
     if (prod) p[k] = tf(prod, 'shade');
   }
   if (p.band) p.band = t(p.band);
-  for (const k of ['season', 'colors', 'avoid', 'its', 'answer', 'warm', 'family', 'depth', 'name', 'src']) if (typeof p[k] === 'string') p[k] = t(p[k]);
+  for (const k of ['season', 'colors', 'avoid', 'its', 'answer', 'warm', 'family', 'depth', 'name', 'src', 'part']) if (typeof p[k] === 'string') p[k] = t(p[k]);
   if (typeof p.finish === 'string' && p.finish.startsWith('finish.')) p.finish = t(p.finish);
   if (Array.isArray(p.topics)) p.topics = p.topics.map((id) => t('learn.' + id + '.name')).join(t('list.sep'));
+  if (Array.isArray(p.parts)) p.parts = p.parts.map((k) => t(k)).join(t('list.sep'));
   if (p.alt) { const lk = LOOKS.find((x) => x.id === p.alt); if (lk) p.alt = tf(lk, 'name'); }
   return t(l.key, p);
 }
