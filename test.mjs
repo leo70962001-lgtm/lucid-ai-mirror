@@ -1302,7 +1302,27 @@ console.log('\n\x1b[1m33. 商品優先的結束畫面、鏡子前就能加入購
 
   const dictSrc6 = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
   const has3s = (k) => { const m = dictSrc6.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
-  const keys = ['adv.askBag', 'opt.bagYes', 'opt.bagNo', 'opt.recapAll', 'adv.recapNone', 's5.more'];
+  // 在鏡子前待很久、試了幾支卻什麼都沒加 → 提議整理成一頁看價錢
+  const wrapBase = { idleMs: 13000, dwellMs: 3000, arMs: 70000, tried: 3, bagEmpty: true, lipPct: 14,
+                     curShade: '#307 冷調正紅', curId: 'L307', price: 890, curDe: 20,
+                     said: new Set(['askBest', 'askKeep:L307', 'askBag:L307']) };
+  const wrap = observe(wrapBase);
+  ok(wrap && wrap.id === 'askWrap' && wrap.opts[0].act === 'wrapUp', '試了幾支、袋子還空的、又停下來 → 提議整理成商品那一頁');
+  ok(!observe({ ...wrapBase, bagEmpty: false }), '已經加過東西就不提議整理');
+  ok(!observe({ ...wrapBase, arMs: 20000 }), '才剛進鏡子（20 秒）不提議');
+  ok(!observe({ ...wrapBase, tried: 1 }), '只試過一支不提議（還沒有東西好整理）');
+  ok(ACTS.includes('wrapUp') && optEmoji({ act: 'wrapUp', key: 'opt.wrapUp' }), '「幫我整理」是已知動作、有符號');
+  // 商品頁最上面的橫幅
+  const html2 = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const s5b = html2.slice(html2.indexOf('id="s5"'), html2.indexOf('</section>', html2.indexOf('id="s5"')));
+  ok(s5b.indexOf('bag-bar') < s5b.indexOf('rec-items') && s5b.indexOf('bag-bar') < s5b.indexOf('adv5'),
+     '袋子橫幅（幾件、多少錢、一鍵帶走）排在最前面');
+  const app2 = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  ok(/function paintBagBar/.test(app2) && /bag.bar.all/.test(app2), '橫幅有「整組放進購物袋」的一鍵按鈕');
+  ok(/adv.arPlan/.test(app2), '進 AR 先講接下來的流程');
+  const keys = ['adv.askBag', 'opt.bagYes', 'opt.bagNo', 'opt.recapAll', 'adv.recapNone', 's5.more',
+                'bag.bar.none', 'bag.bar.some', 'bag.bar.all', 'adv.arPlan', 'opt.wrapUp', 'adv.askWrap', 'opt.wrapYes',
+                'thanks.sub', 'rate.stars'];
   ok(keys.every(has3s), '新文案三種語言齊全（' + keys.length + ' 句）');
 }
 

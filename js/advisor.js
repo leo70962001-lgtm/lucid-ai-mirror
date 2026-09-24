@@ -580,7 +580,7 @@ export const optsForSeason = (res) => (res ? [opt('opt.whySeason', 'whySeason'),
 export const optLearn = () => opt('opt.learn', 'learn');
 export const optQuiz = () => opt('opt.quiz', 'quiz');
 
-export const ACTS = ['recapAll', 'whyTone', 'whyDepth', 'whyLight', 'whyPick', 'whyFace', 'whyCeleb',
+export const ACTS = ['recapAll', 'wrapUp', 'whyTone', 'whyDepth', 'whyLight', 'whyPick', 'whyFace', 'whyCeleb',
                      'whyHue', 'whyLevel', 'whyStandout',
                      'useTop', 'goProducts', 'toNeutral', 'softer', 'startAR',
                      'stronger', 'nextShade', 'compare', 'dual', 'zoom', 'whyMatch', 'retry',
@@ -796,6 +796,12 @@ export function observe(o) {
     return { id: 'askBag:' + o.curId, yesNo: true,
              lines: [line('ask', 'adv.askBag', { shade: o.curShade, price: o.price, sec: Math.round(o.dwellMs / 1000) })],
              opts: [opt('opt.bagYes', 'buyLip'), opt('opt.bagNo', 'noThanks')] };
+  }
+  // 試了好幾支、袋子還是空的、又停下來了 —— 提議整理成一頁看價錢
+  if (o.arMs >= 60000 && o.idleMs >= 12000 && o.tried >= 2 && o.bagEmpty && !said.has('askWrap')) {
+    return { id: 'askWrap', yesNo: true,
+             lines: [line('ask', 'adv.askWrap', {})],
+             opts: [opt('opt.wrapYes', 'wrapUp'), opt('opt.bagNo', 'noThanks')] };
   }
   if (o.idleMs >= 20000 && o.curDe != null && !said.has('idleTry')) {
     return { id: 'idleTry', lines: [line('tip', 'adv.idleTry', { de: o.curDe.toFixed(1) })] };

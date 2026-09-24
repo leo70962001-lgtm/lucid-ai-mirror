@@ -1284,7 +1284,7 @@ const arOpts = () => (S.guide
      ...optsForAR(S.zoom, S.mode, !!S.prevLip),
      { key: 'opt.trendNow', act: 'trendNow' },
      ...(tasteRead(S.taste).ready ? [{ key: 'opt.myTaste', act: 'myTaste' }] : []),
-     { key: 'opt.paintSelf', act: 'paintSelf' }, optLearn()]);
+     { key: 'opt.paintSelf', act: 'paintSelf' }, { key: 'opt.wrapUp', act: 'wrapUp' }, optLearn()]);
 
 /**
  * 把「在現在這支上停了多久」記進偏好。
@@ -1494,6 +1494,8 @@ function runAct(o) {
       S.guide = null;
       return { lines: [...recap, { kind: 'fact', key: 'adv.guide.end', params: {} }], opts: arOpts() };
     }
+    // 整理今天試過的 → 直接帶到商品那一頁（引導的終點是「決定要不要帶走」）
+    case 'wrapUp': go(5); return { stay: false };
     case 'paintSelf': {
       enterPaint();
       return { lines: [{ kind: 'tip', key: 'adv.paint.start', params: {} }] };
@@ -1770,6 +1772,7 @@ function watchAR(lm, W) {
     curShade: tf(S.picks.lip, 'shade'), curId: S.picks.lip.id,
     price: S.picks.lip.price, inBag: S.bag.includes(S.picks.lip.id),
     tried: S.tried.size,
+    arMs: S.arMs + (S.arT0 ? performance.now() - S.arT0 : 0), bagEmpty: S.bag.length === 0,
     lipPct,
     best: (() => { const b = bestTried(); return b ? { shade: tf(b.p, 'shade'), de: b.de } : null; })(),
     curDe: deltaE(hexToLab(S.picks.lip.color), S.skin.lab),
@@ -2212,6 +2215,8 @@ function enter4() {
   mountZoomBtn();
   advise4([...onAR({ ...S.picks.lip, shade: tf(S.picks.lip, 'shade') }, S.amount.lip), ...levelTip(S.level, 's4'),
            // 新手一進鏡子就問要不要帶著畫 —— 這是他最需要、卻最不會自己按的功能
+           // 一進鏡子先講「接下來會怎麼進行」—— 知道流程的人才敢動手
+           { kind: 'tip', key: 'adv.arPlan', params: {} },
            ...(S.level === 'new' && !S.guide ? [{ kind: 'ask', key: 'adv.guide.ask', params: {} }] : [])], true);
   bindMirror($('#s4 .frame'));
   // ?debug 時把筆刷內部狀態掛出來 —— 現場要判斷「畫不上去」是筆觸沒進去，
@@ -3235,7 +3240,26 @@ function paintAfterRecs(meas) {
   box.appendChild(el('div', 'note', t('rec.note', { a: meas.alpha.toFixed(2) })));
 }
 
+/** 最上面那條橫幅：袋子裡幾件、多少錢、一鍵整組加入 —— 這一頁的重點就是這件事 */
+function paintBagBar() {
+  const box = $('#bag-bar'); if (!box || !S.picks) return;
+  const items = S.bag.map((id) => PRODUCTS.find((p) => p.id === id)).filter(Boolean);
+  const sum = items.reduce((n, p) => n + p.price, 0);
+  const full = ['lip', 'eye', 'cheek'].reduce((n, k) => n + S.picks[k].price, 0);
+  box.innerHTML = `<span class="txt">${items.length ? t('bag.bar.some', { n: items.length, sum }) : t('bag.bar.none', { full })}</span>`;
+  const left = ['lip', 'eye', 'cheek'].filter((c) => S.picks[c].stock > 0 && !S.bag.includes(S.picks[c].id));
+  if (left.length) {
+    const b = el('button', 'all', t('bag.bar.all'));
+    b.onclick = () => {
+      for (const c of left) S.bag.push(S.picks[c].id);
+      paintRecItems(); paintTotal();
+    };
+    box.appendChild(b);
+  }
+}
+
 function paintTotal() {
+  paintBagBar();
   const items = S.bag.map((id) => PRODUCTS.find((p) => p.id === id)).filter(Boolean);
   const sum = items.reduce((n, p) => n + p.price, 0);
   const full = ['lip', 'eye', 'cheek'].reduce((n, k) => n + S.picks[k].price, 0);
@@ -3244,17 +3268,33 @@ function paintTotal() {
     : t('total.none', { full });
 }
 
+// 表情跟著評分換 —— 幾顆星就是什麼心情，比一個永遠在笑的臉誠實，也可愛一點
+const FACES = ['😊', '🥺', '🙂', '😌', '😄', '🤩'];
+function setFace(n) {
+  const f = $('#rate-face'); if (!f) return;
+  f.textContent = FACES[n] || FACES[0];
+  f.classList.remove('bump'); void f.offsetWidth; f.classList.add('bump');
+}
+
 function enter5() {
   paintReport();
+  setFace(S.rating || 0);
 
   const st = $('#stars');
   if (!st.children.length) {
     for (let i = 1; i <= 5; i++) {
       const b = el('button', '', '★');
+      b.title = t('rate.stars', { n: i });
+      b.setAttribute('aria-label', t('rate.stars', { n: i }));
       b.onclick = () => {
         S.rating = i;
-        [...st.children].forEach((x, j) => x.classList.toggle('lit', j < i));
+        [...st.children].forEach((x, j) => {
+          x.classList.toggle('lit', j < i);
+          // 依序彈一下：重設動畫才會每次都播
+          if (j < i) { x.classList.remove('pop'); void x.offsetWidth; x.style.setProperty('--d', j * 60 + 'ms'); x.classList.add('pop'); }
+        });
         $('#rate-label').textContent = t('rate.' + i);
+        setFace(i);
       };
       st.appendChild(b);
     }
