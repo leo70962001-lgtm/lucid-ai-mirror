@@ -166,11 +166,11 @@ const DICT = {
 
   // ── Step 5 版面 ──
   // ── Step 5 修圖 ──
-  'sect.report':   ['EXPERIENCE REPORT　體驗報告', 'EXPERIENCE REPORT', 'EXPERIENCE REPORT　体験レポート'],
-  'sect.match':    ['MATCH SCORE　上妝結果契合度', 'MATCH SCORE', 'MATCH SCORE　仕上がりの適合度'],
-  'sect.rec':      ['RECOMMENDED FOR YOU　依這次分析為你推薦', 'RECOMMENDED FOR YOU', 'RECOMMENDED FOR YOU　分析に基づく提案'],
-  'sect.recAfter': ['BASED ON YOUR RESULT　依這次上妝結果延伸推薦', 'BASED ON YOUR RESULT', 'BASED ON YOUR RESULT　仕上がりからの提案'],
-  'sect.feedback': ['YOUR FEEDBACK　體驗回饋', 'YOUR FEEDBACK', 'YOUR FEEDBACK　フィードバック'],
+  'sect.report': ['詳細報告', 'Detailed report', '詳細レポート'],
+  'sect.match': ['上妝結果契合度', 'Match score', '仕上がりの適合度'],
+  'sect.rec': ['今天試的這幾件', 'What you tried today', '今日試したアイテム'],
+  'sect.recAfter': ['上妝結果延伸推薦', 'More shades based on the result', '仕上がりからの提案'],
+  'sect.feedback': ['體驗回饋', 'Your feedback', 'フィードバック'],
   'ba.before':     ['BEFORE　素顏', 'BEFORE', 'BEFORE　すっぴん'],
   'ba.after':      ['AFTER　上妝後', 'AFTER', 'AFTER　メイク後'],
 
@@ -308,6 +308,13 @@ const DICT = {
 
   'adv.whyLightChart': ['判定之前先用鏡框邊的標準色卡校正：讀到 {n} 塊色塊，校正前色卡平均偏了 ΔE {raw}，校正後剩 ΔE {de} —— 不論櫃位燈光偏暖偏冷，膚色都先換算回標準光再判定。', 'Before judging, the standard colour chart by the mirror is used: {n} patches read, off by ΔE {raw} before correction and ΔE {de} after — so warm or cool store lighting is corrected before your skin is judged.', '判定の前に、鏡の横の標準カラーチャートで補正しています。{n} 色を読み取り、補正前は平均 ΔE {raw}、補正後は ΔE {de}。売場の照明が暖色でも寒色でも、標準光に換算してから判定します。'],
   // 商品優先的結束畫面、AR 裡直接加入購物袋
+  'bag.bar.none': ['袋子還是空的 · 三件合計 ${full}', 'Bag is empty · ${full} for all three', 'カートは空です · 3点で ${full}'],
+  'bag.bar.some': ['袋子裡 {n} 件 · 合計 ${sum}', '{n} in the bag · ${sum}', 'カートに {n} 点 · 合計 ${sum}'],
+  'bag.bar.all': ['整組放進購物袋', 'Add all three', '3点まとめて入れる'],
+  'adv.arPlan': ['接下來我們這樣進行：先看整體、再調濃度或換色號，覺得喜歡就直接放進購物袋', 'Here is the plan: look at the whole face first, then adjust or swap shades — add anything you like straight to the bag', 'この後の流れです：まず全体を見て、濃さや色を調整し、気に入ったらそのままカートへ'],
+  'opt.wrapUp': ['幫我整理今天試過的', 'Wrap up what I tried', '試したものをまとめて'],
+  'adv.askWrap': ['看了一陣子了 —— 要不要我把今天試過的整理成一頁，順便看看價錢？', 'You have been at it a while — shall I put today’s shades on one page with the prices?', 'そろそろ、今日試した色と価格を1ページにまとめましょうか？'],
+  'opt.wrapYes': ['好，幫我整理', 'Yes, wrap it up', 'まとめて'],
   'adv.askBag': ['你在 {shade} 上停了 {sec} 秒 —— 要不要先放進購物袋？（${price}，等一下還可以拿掉）', 'You have stayed on {shade} for {sec}s — shall I put it in the bag? (${price}, removable later)', '{shade} を {sec} 秒見ていますね。カートに入れておきますか？（${price}、あとで外せます）'],
   'opt.bagYes': ['好，放進購物袋', 'Yes, add it', 'カートに入れる'],
   'opt.bagNo': ['先不用', 'Not yet', 'まだいいです'],
@@ -953,7 +960,7 @@ const DICT = {
                       'The light source cannot be estimated right now, so colours follow the camera white balance — they may differ from the real product.',
                       '光源を推定できないため、カメラのホワイトバランスをそのまま使っています。実物と差が出る場合があります。'],
   'adv.who':          ['AI 顧問', 'AI adviser', 'AI アドバイザー'],
-  'adv.title':        ['給你的回饋', 'What we can tell you', 'あなたへのフィードバック'],
+  'adv.title': ['AI 的收尾建議', 'A few words from the AI', 'AIからのひとこと'],
   'adv.kind.praise':  ['肯定', 'Good', '良い点'],
   'adv.kind.fact':    ['量測', 'Measured', '計測'],
   'adv.kind.tip':     ['建議', 'Tip', '提案'],
@@ -1059,6 +1066,8 @@ const DICT = {
   'ctx.why.tired':   ['疲憊 —— 加強腮紅補血色、偏暖色', 'Tired — more blush for colour, leaning warm', '疲れ気味 —— チークで血色を、暖色寄りに'],
   'ctx.why.nervous': ['緊張 —— 走最不會出錯的自然感', 'Nervous — the safest, most natural option', '緊張 —— 失敗しにくいナチュラルに'],
   // ── 回饋 ──
+  'thanks.sub': ['你的回饋會讓下一位客人的體驗更好', 'Your feedback makes the next person’s experience better', 'いただいた感想は次のお客さまの体験に活かします'],
+  'rate.stars': ['{n} 顆星', '{n} stars', '星 {n} つ'],
   'rate.0': ['請給我們今天的體驗評分', 'How was your experience today?', '本日の体験を評価してください'],
   'rate.1': ['很抱歉，我們會改進', 'We are sorry — we will do better', '申し訳ありません。改善します'],
   'rate.2': ['謝謝告訴我們哪裡不夠好', 'Thank you for telling us what fell short', '至らない点を教えていただきありがとうございます'],

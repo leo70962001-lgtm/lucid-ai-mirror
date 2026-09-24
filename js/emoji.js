@@ -65,6 +65,8 @@ const LINE = [
   [/^adv\.paint\.done$/, '👏'],
   [/^adv\.paint\./, '✍️'],
   [/^adv\.askBag$/, '🛍️'],
+  [/^adv\.askWrap$/, '🧾'],
+  [/^adv\.arPlan$/, '🧭'],
   [/^adv\.guide\.done$/, '🎉'],
   [/^adv\.guide\./, '🧭'],
   [/^guide\./, '🧭'],
@@ -117,7 +119,7 @@ const ACT = {
   skipQs: '⏭️', buyLip: '🛍️', buyAll: '🛍️',
   colorHow: '🎨', colorOpen: '⚙️', retake: '📷', colorLater: '👌',
   whySeason: '🌈', seasonColors: '🎨', learn: '📚', quiz: '📝', quizAns: '✏️', paintSelf: '✍️', myTaste: '💭', trendNow: '🗞️', tryTrend: '💄', trendNext: '🔁',
-  recapAll: '📋', guideStart: '🧭', guideNext: '👉', guidePaint: '✍️', guideSkip: '⏭️', guideEnd: '👌',
+  recapAll: '📋', wrapUp: '🧾', guideStart: '🧭', guideNext: '👉', guidePaint: '✍️', guideSkip: '⏭️', guideEnd: '👌',
   seaGold: '💛', seaSilver: '🤍', seaDunno: '🤔', seaCoral: '🧡', seaBrick: '🤎', seaSharp: '✨', seaHeavy: '😪',
 };
 const SEASON_EMO = { spring: '🌸', summer: '🌊', autumn: '🍂', winter: '❄️' };

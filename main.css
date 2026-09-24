@@ -1234,3 +1234,103 @@ body {
 }
 .sheet-shade .bag.in { border-color:var(--line); background:transparent; color:var(--ok); font-size:10px; }
 .sheet-shade .bag:disabled { cursor:default; }
+
+/* ══ 體驗回饋：做成一張卡 ══════════════════════════════════
+   原本是一顆大粉球加三行字，散在頁尾。改成一張有漸層與光暈的小卡：
+   表情跟著星等換、星星依序彈一下、標籤是圓潤的膠囊。
+   顏色全部走主題變數，所以五種配色都成立。 */
+#thanks {
+  position:relative; overflow:hidden; margin:6px 0 2px; padding:26px 20px 24px;
+  border-radius:26px; gap:11px;
+  background:
+    radial-gradient(120% 80% at 85% -10%, rgba(var(--rose-rgb),.16), transparent 60%),
+    radial-gradient(90% 70% at 10% 110%, rgba(var(--glow-rgb),.20), transparent 62%),
+    linear-gradient(170deg, var(--tint), #fff 62%);
+  box-shadow:0 0 0 1px var(--line), 0 14px 38px rgba(var(--drop-rgb),.16);
+}
+/* 角落的小光點：只是裝飾，不擋任何操作 */
+#thanks::before, #thanks::after {
+  content:""; position:absolute; border-radius:50%; pointer-events:none;
+  background:radial-gradient(circle at 30% 30%, rgba(255,255,255,.9), rgba(var(--rose-rgb),.22) 70%, transparent);
+}
+#thanks::before { width:120px; height:120px; left:-34px; top:-26px; opacity:.55; }
+#thanks::after  { width:86px;  height:86px;  right:-20px; bottom:-24px; opacity:.5; }
+
+#thanks .orb {
+  position:relative; width:96px; height:96px; border-radius:50%; display:grid; place-content:center;
+  background:radial-gradient(circle at 34% 28%, var(--orb-1), var(--orb-2) 46%, var(--orb-3));
+  box-shadow:0 14px 34px rgba(var(--rose-rgb),.38), inset 0 -6px 14px rgba(var(--ink-rgb),.10);
+  animation:orbFloat 4.5s ease-in-out infinite;
+}
+/* 上面那一點高光，看起來像有厚度的糖果球 */
+#thanks .orb::after {
+  content:""; position:absolute; left:20%; top:14%; width:26px; height:18px; border-radius:50%;
+  background:linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,0));
+  transform:rotate(-18deg);
+}
+#thanks .orb span { font-size:44px; line-height:1; display:block; }
+#thanks .orb span.bump { animation:facePop .42s cubic-bezier(.34,1.56,.64,1); }
+
+#thanks h2 {
+  margin:2px 0 0; font-size:30px; font-weight:300; letter-spacing:.06em; color:var(--ink);
+}
+#thanks h2::before, #thanks h2::after { content:"✦"; font-size:12px; color:var(--rose); vertical-align:middle; opacity:.7; }
+#thanks h2::before { margin-right:9px; }
+#thanks h2::after  { margin-left:9px; }
+#thanks .sub { margin:0; font-size:11.5px; line-height:1.6; color:var(--ink-3); max-width:280px; }
+
+#stars { gap:9px; }
+#stars button {
+  font-size:34px; color:rgba(var(--star-off-rgb),.26); padding:2px;
+  filter:drop-shadow(0 2px 6px rgba(var(--shadow-rgb),.12));
+}
+#stars button.lit { color:#e8b45c; text-shadow:0 4px 16px rgba(232,180,92,.5); }
+#stars button:hover { transform:scale(1.18) rotate(-6deg); }
+#stars button.pop { animation:starPop .5s cubic-bezier(.34,1.56,.64,1) both; animation-delay:var(--d,0ms); }
+
+#rate-label { font-size:12.5px; color:var(--ink-2); font-weight:600; }
+
+#tags { max-width:360px; gap:8px; }
+#tags button {
+  padding:8px 14px; border-radius:18px; font-size:11.5px; font-weight:600; color:var(--ink-2);
+  background:rgba(255,255,255,.86); box-shadow:0 2px 8px rgba(var(--shadow-rgb),.10);
+  border:1px solid var(--line);
+}
+#tags button:hover { transform:translateY(-1px); border-color:var(--rose-dim); }
+#tags button.on {
+  border-color:transparent; color:#fff;
+  background:linear-gradient(180deg, var(--primary-1), var(--primary-2));
+  box-shadow:0 5px 14px rgba(var(--primary-rgb),.32);
+}
+#tags button.on::before { content:"✓ "; font-weight:700; }
+
+@keyframes orbFloat { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-6px); } }
+@keyframes facePop  { 0% { transform:scale(.6) rotate(-8deg); } 60% { transform:scale(1.12) rotate(3deg); } 100% { transform:scale(1); } }
+@keyframes starPop  { 0% { transform:scale(.7); } 55% { transform:scale(1.25); } 100% { transform:scale(1); } }
+/* 會暈的人把動畫關掉（系統設定） */
+@media (prefers-reduced-motion:reduce) {
+  #thanks .orb, #thanks .orb span.bump, #stars button.pop { animation:none; }
+}
+@media (max-width:560px) {
+  #thanks { padding:22px 14px 20px; border-radius:22px; }
+  #thanks .orb { width:82px; height:82px; }
+  #thanks .orb span { font-size:38px; }
+  #thanks h2 { font-size:26px; }
+  #stars button { font-size:30px; }
+  #tags { max-width:100%; }
+}
+
+/* 商品頁最上面的袋子橫幅：這一頁最重要的一句話（幾件、多少錢、一鍵帶走） */
+#bag-bar {
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:2px 0 10px; padding:11px 14px;
+  border-radius:16px; background:linear-gradient(120deg, var(--tint), #fff 70%);
+  box-shadow:0 0 0 1px var(--line);
+}
+#bag-bar .txt { flex:1; min-width:0; font:600 12.5px/1.4 inherit; color:var(--ink); }
+#bag-bar .all {
+  flex:none; padding:9px 14px; border-radius:13px; border:0; cursor:pointer;
+  font:700 11.5px/1 inherit; color:#fff;
+  background:linear-gradient(180deg, var(--primary-1), var(--primary-2));
+  box-shadow:0 5px 14px rgba(var(--primary-rgb),.3);
+}
+#bag-bar .all:hover { box-shadow:0 7px 18px rgba(var(--primary-rgb),.38); }
