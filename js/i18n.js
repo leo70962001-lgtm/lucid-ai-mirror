@@ -307,6 +307,13 @@ const DICT = {
                       '了解しました。この項目は考慮しません。申告のない項目は提案に影響しません。'],
 
   'adv.whyLightChart': ['判定之前先用鏡框邊的標準色卡校正：讀到 {n} 塊色塊，校正前色卡平均偏了 ΔE {raw}，校正後剩 ΔE {de} —— 不論櫃位燈光偏暖偏冷，膚色都先換算回標準光再判定。', 'Before judging, the standard colour chart by the mirror is used: {n} patches read, off by ΔE {raw} before correction and ΔE {de} after — so warm or cool store lighting is corrected before your skin is judged.', '判定の前に、鏡の横の標準カラーチャートで補正しています。{n} 色を読み取り、補正前は平均 ΔE {raw}、補正後は ΔE {de}。売場の照明が暖色でも寒色でも、標準光に換算してから判定します。'],
+  // 商品優先的結束畫面、AR 裡直接加入購物袋
+  'adv.askBag': ['你在 {shade} 上停了 {sec} 秒 —— 要不要先放進購物袋？（${price}，等一下還可以拿掉）', 'You have stayed on {shade} for {sec}s — shall I put it in the bag? (${price}, removable later)', '{shade} を {sec} 秒見ていますね。カートに入れておきますか？（${price}、あとで外せます）'],
+  'opt.bagYes': ['好，放進購物袋', 'Yes, add it', 'カートに入れる'],
+  'opt.bagNo': ['先不用', 'Not yet', 'まだいいです'],
+  'opt.recapAll': ['今天的回顧', 'Today’s recap', '今日のまとめ'],
+  'adv.recapNone': ['今天的重點就是這些了，想看詳細的分析可以展開下面的報告', 'That is the gist — open the report below for the detailed analysis', '今日のポイントは以上です。詳しい分析は下のレポートからどうぞ'],
+  's5.more': ['看詳細報告與分析', 'Detailed report and analysis', '詳しいレポートと分析'],
   // 一步一步帶你畫（引導模式）
   'adv.guide.ask': ['要我一步一步帶你畫一次嗎？一層一層加上去，你會看到每一步的差別', 'Want me to walk you through it step by step? We add one layer at a time so you can see what each one does', '一歩ずつ一緒に塗ってみますか？1つずつ重ねるので、各ステップの違いが見えます'],
   'adv.guide.prep': ['好，我們分 {n} 步。先看現在的素顏 —— 等一下每加一層，你就會看到差在哪裡', 'Right, {n} steps. First, your bare face — you will see what changes as each layer goes on', 'では {n} ステップで。まずはすっぴんの状態から。重ねるごとの変化を見ていきましょう'],

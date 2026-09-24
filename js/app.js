@@ -1050,7 +1050,23 @@ function syncSheet() {
   $('#sheet-peek').textContent = lastAI ? lineEmoji(lastAI.l) + ' ' + advLine(lastAI.l) : '';
   liftMirror();
   const p = S.picks?.lip;
-  if (p) $('#sheet-shade').innerHTML = `<i style="background:${disp(p.color)}"></i><span>${tf(p, 'shade')}</span>`;
+  if (p) {
+    // 商品資訊就放在鏡子旁邊：看到喜歡的當下就能加入，不用等到最後一頁
+    const box = $('#sheet-shade');
+    box.innerHTML = `<i style="background:${disp(p.color)}"></i><span>${tf(p, 'shade')}</span><b>$${p.price}</b>`;
+    const inBag = S.bag.includes(p.id);
+    const add = el('button', 'bag' + (inBag ? ' in' : ''), inBag ? t('bag.added') : '＋');
+    add.title = t(inBag ? 'bag.added' : 'bag.add');
+    add.disabled = p.stock <= 0 || inBag;
+    add.onclick = (e) => {
+      e.stopPropagation();
+      if (S.bag.includes(p.id)) return;
+      S.bag.push(p.id); paintRecItems(); paintTotal(); syncSheet();
+      const items = S.bag.map((id) => PRODUCTS.find((x) => x.id === id)).filter(Boolean);
+      chatSay('s4', [{ kind: 'fact', key: 'adv.buy.added', params: { n: items.length, sum: items.reduce((s2, x) => s2 + x.price, 0) } }], arOpts());
+    };
+    box.appendChild(add);
+  }
 }
 
 /** 每個畫面的預設選項 —— 對話走到沒得點的時候，用它把路接回來 */
@@ -1636,14 +1652,23 @@ function runAct(o) {
         const p = S.picks?.[c];
         if (p && p.stock > 0 && !S.bag.includes(p.id)) { S.bag.push(p.id); n++; }
       }
-      paintRecItems(); paintTotal();
+      paintRecItems(); paintTotal(); if (S.step === 4) syncSheet();
       const items = S.bag.map((id) => PRODUCTS.find((p) => p.id === id)).filter(Boolean);
       return { lines: [{ kind: 'fact', key: 'adv.buy.added', params: { n: items.length, sum: items.reduce((s, p) => s + p.price, 0) } }],
-               opts: [...buyAdvice(S.picks, S.level).opts.filter((x) => !bagHas(x.act)), ...optsForFinish()] };
+               opts: S.step === 4 ? arOpts()
+                                  : [...buyAdvice(S.picks, S.level).opts.filter((x) => !bagHas(x.act)), ...optsForFinish()] };
     }
     case 'noThanks':
       return { lines: [{ kind: 'fact', key: 'adv.keepCur', params: { shade: tf(S.picks.lip, 'shade') } }],
                opts: arOpts() };
+    // 最後一頁的回顧：問了才講（預設只講結果與購買建議，不要一次倒十句）
+    case 'recapAll': {
+      const sum = sessionSummary({ tried: S.tried.size, shade: tf(S.picks.lip, 'shade'),
+                                   amount0: S.amount0 ?? S.amount.lip, amount1: S.amount.lip, pref: S.pref });
+      const lines = [...sum, ...tasteSummary(tasteRead(S.taste), PRODUCTS), ...learnRecap(S.learned, S.quiz),
+                     ...levelTip(S.level, 's5')];
+      return { lines: lines.length ? lines : [{ kind: 'fact', key: 'adv.recapNone', params: {} }] };
+    }
     case 'compare': case 'dual': {
       const want = o.act === 'compare' ? 'bare' : 'dual';
       const off = S.mode === want;                 // 再按一次就是關掉，跟畫面上的模式鈕同一個意思
@@ -1743,6 +1768,7 @@ function watchAR(lm, W) {
     idleMs: now - (S.lastAct || S.arT0 || now),
     dwellMs: now - (S.shadeT0 || now),
     curShade: tf(S.picks.lip, 'shade'), curId: S.picks.lip.id,
+    price: S.picks.lip.price, inBag: S.bag.includes(S.picks.lip.id),
     tried: S.tried.size,
     lipPct,
     best: (() => { const b = bestTried(); return b ? { shade: tf(b.p, 'shade'), de: b.de } : null; })(),
@@ -3133,13 +3159,11 @@ function paintVerdict(meas) {
   S.lastV = v;
   // 最後這一支也要算停留時間，不然「你停在哪一支」會漏掉最後一支
   noteDwell(S.pref, S.picks.lip, performance.now() - (S.shadeT0 || performance.now()));
-  const sum = sessionSummary({ tried: S.tried.size, shade: tf(S.picks.lip, 'shade'),
-                               amount0: S.amount0 ?? S.amount.lip, amount1: S.amount.lip, pref: S.pref });
   const buy = buyAdvice(S.picks, S.level);
-  chatReset('s5', [{ kind: 'fact', key: 'adv.hi.s5', params: {} }, ...onFinish(v, S.skin), ...sum,
-                   ...levelTip(S.level, 's5'), ...tasteSummary(tasteRead(S.taste), PRODUCTS),
-                   ...buy.lines, ...learnRecap(S.learned, S.quiz)],
-            [...buy.opts.filter((o) => !bagHas(o.act)), ...optsForFinish(), optLearn(), optQuiz()]);
+  // 這一頁的主角是商品：對話只留「結果一句 ＋ 購買建議」，其餘（回顧、喜好、學到什麼）問了才講
+  chatReset('s5', [{ kind: 'fact', key: 'adv.hi.s5', params: {} }, ...onFinish(v, S.skin).slice(0, 1), ...buy.lines],
+            [...buy.opts.filter((o) => !bagHas(o.act)), { key: 'opt.recapAll', act: 'recapAll' },
+             ...optsForFinish(), optLearn(), optQuiz()]);
   const bar = (label, n, extra) =>
     `<div class="bar"><span>${label}</span><i><b style="width:${n}%"></b></i><em>${extra ?? n}</em></div>`;
   box.innerHTML =

@@ -580,7 +580,7 @@ export const optsForSeason = (res) => (res ? [opt('opt.whySeason', 'whySeason'),
 export const optLearn = () => opt('opt.learn', 'learn');
 export const optQuiz = () => opt('opt.quiz', 'quiz');
 
-export const ACTS = ['whyTone', 'whyDepth', 'whyLight', 'whyPick', 'whyFace', 'whyCeleb',
+export const ACTS = ['recapAll', 'whyTone', 'whyDepth', 'whyLight', 'whyPick', 'whyFace', 'whyCeleb',
                      'whyHue', 'whyLevel', 'whyStandout',
                      'useTop', 'goProducts', 'toNeutral', 'softer', 'startAR',
                      'stronger', 'nextShade', 'compare', 'dual', 'zoom', 'whyMatch', 'retry',
@@ -790,6 +790,12 @@ export function observe(o) {
     return { id: 'askKeep:' + o.curId, yesNo: true,
              lines: [line('ask', 'adv.askKeep', { shade: o.curShade, sec: Math.round(o.dwellMs / 1000) })],
              opts: [opt('opt.keepYes', 'keepYes'), opt('opt.keepNo', 'keepNo')] };
+  }
+  // 停在同一支很久、而且還沒放進袋子 —— 這時候問最自然（他正在喜歡它）
+  if (o.dwellMs >= 14000 && o.idleMs >= 8000 && o.curShade && o.price && !o.inBag && !said.has('askBag:' + o.curId)) {
+    return { id: 'askBag:' + o.curId, yesNo: true,
+             lines: [line('ask', 'adv.askBag', { shade: o.curShade, price: o.price, sec: Math.round(o.dwellMs / 1000) })],
+             opts: [opt('opt.bagYes', 'buyLip'), opt('opt.bagNo', 'noThanks')] };
   }
   if (o.idleMs >= 20000 && o.curDe != null && !said.has('idleTry')) {
     return { id: 'idleTry', lines: [line('tip', 'adv.idleTry', { de: o.curDe.toFixed(1) })] };
