@@ -1214,3 +1214,23 @@ body {
 
 /* 選項太多時的「更多…」：樣子比選項淡，看得出它不是一個答案 */
 .opts button.more { border-style:dashed; color:var(--ink-3); background:transparent; }
+
+/* ── 結束畫面：商品在前，細節收在摺疊區 ───────────────────── */
+#s5-more { margin:18px 0 6px; border-top:1px solid var(--line); }
+#s5-more > summary {
+  list-style:none; cursor:pointer; padding:12px 2px; user-select:none;
+  font:600 12px/1 inherit; color:var(--ink-3);
+}
+#s5-more > summary::-webkit-details-marker { display:none; }
+#s5-more > summary::after { content:" ⌄"; }
+#s5-more[open] > summary::after { content:" ⌃"; }
+#s5-more > summary:hover { color:var(--rose-soft); }
+
+/* AR 抽屜：色號旁邊的價格與加入購物袋 */
+.sheet-shade b { flex:none; font:700 11px ui-monospace,monospace; color:var(--ink-2); }
+.sheet-shade .bag {
+  flex:none; margin-left:2px; min-width:26px; height:24px; padding:0 7px; border-radius:12px; cursor:pointer;
+  border:1px solid var(--rose-dim); background:var(--tint); color:var(--rose-soft); font:700 12px/1 inherit;
+}
+.sheet-shade .bag.in { border-color:var(--line); background:transparent; color:var(--ok); font-size:10px; }
+.sheet-shade .bag:disabled { cursor:default; }

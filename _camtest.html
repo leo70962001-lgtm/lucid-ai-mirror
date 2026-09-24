@@ -120,28 +120,31 @@
       <section class="screen" id="s5" hidden>
         <div id="s5-scroll">
 
+        <!-- 這一頁的主角是商品：今天試過的那幾件排最前面，分析與報告收在下面的摺疊區 -->
+        <div class="sect-title" data-i18n="sect.rec">RECOMMENDED FOR YOU</div>
+        <div id="rec-items"></div>
+        <div class="note" id="rec-total"></div>
+
         <div class="sect-title" data-i18n="adv.title">給你的回饋</div>
         <div class="advisor big" id="adv5" hidden></div>
 
-        <div class="sect-title" data-i18n="sect.rec">RECOMMENDED FOR YOU</div>
-        <div id="rec-items"></div>
+        <details id="s5-more">
+          <summary data-i18n="s5.more">看詳細報告與分析</summary>
 
-        <div class="sect-title" data-i18n="sect.recAfter">BASED ON YOUR RESULT</div>
-        <div id="rec-after"></div>
+          <div class="sect-title" data-i18n="sect.recAfter">BASED ON YOUR RESULT</div>
+          <div id="rec-after"></div>
 
-        <div class="note" id="rec-total"></div>
+          <div class="sect-title" data-i18n="sect.report">EXPERIENCE REPORT</div>
+          <div class="ba">
+            <figure><canvas id="rep-before"></canvas><figcaption data-i18n="ba.before">BEFORE</figcaption></figure>
+            <figure><canvas id="rep-after"></canvas><figcaption data-i18n="ba.after">AFTER</figcaption></figure>
+          </div>
+          <div class="sect-title" data-i18n="sect.match">MATCH SCORE</div>
+          <div id="verdict"></div>
 
-
-        <div class="sect-title" data-i18n="sect.report">EXPERIENCE REPORT</div>
-        <div class="ba">
-          <figure><canvas id="rep-before"></canvas><figcaption data-i18n="ba.before">BEFORE</figcaption></figure>
-          <figure><canvas id="rep-after"></canvas><figcaption data-i18n="ba.after">AFTER</figcaption></figure>
-        </div>
-        <div class="sect-title" data-i18n="sect.match">MATCH SCORE</div>
-        <div id="verdict"></div>
-
-        <div class="rep-grid" id="rep-grid"></div>
-        <div class="note" id="rep-note"></div>
+          <div class="rep-grid" id="rep-grid"></div>
+          <div class="note" id="rep-note"></div>
+        </details>
 
         <div class="sect-title" data-i18n="sect.feedback">YOUR FEEDBACK</div>
         <div id="thanks">

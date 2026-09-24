@@ -1270,5 +1270,41 @@ console.log('\n\x1b[1m32. 一步一步帶你畫：AI 引導 × AR × 學習\x1b[
   ok(miss.length === 0, '引導的文案三種語言齊全（' + keys.length + ' 句）' + (miss.length ? ' 缺：' + miss.join(',') : ''));
 }
 
+console.log('\n\x1b[1m33. 商品優先的結束畫面、鏡子前就能加入購物袋\x1b[0m');
+{
+  // 停在同一支夠久、還沒放進袋子 → 主動問（商品就在鏡子前面，不用等到最後一頁）
+  const base = { idleMs: 9000, dwellMs: 15000, curShade: '#307 冷調正紅', curId: 'L307', price: 890,
+                 tried: 2, lipPct: 14, curDe: 20, said: new Set(['askKeep:L307']) };
+  const ask = observe(base);
+  ok(ask && ask.id === 'askBag:L307' && ask.yesNo, '停在同一支 15 秒又沒動作 → 問要不要放進購物袋（可以點頭搖頭）');
+  ok(ask.lines[0].params.price === 890 && ask.lines[0].params.shade === base.curShade, '　問的時候講出色號與價格');
+  ok(ask.opts.map((o) => o.act).join() === 'buyLip,noThanks' && ask.opts.every((o) => ACTS.includes(o.act) && optEmoji(o)),
+     '　答案是「放進購物袋／先不用」，都是已知動作');
+  ok(!observe({ ...base, inBag: true }), '已經在購物袋裡就不再問');
+  ok(!observe({ ...base, dwellMs: 6000 }), '只停了 6 秒不問（還在比較，不是喜歡）');
+  ok(!observe({ ...base, said: new Set(['askKeep:L307', 'askBag:L307']) }), '同一支只問一次');
+  ok(!observe({ ...base, price: null }), '沒有價格資訊就不問（問了也給不出金額）');
+
+  // 結束畫面的對話：只留結果與購買建議，回顧要問了才講
+  const dictSrc5 = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  ok(/chatReset\('s5',[^;]*onFinish\(v, S\.skin\)\.slice\(0, 1\)/.test(dictSrc5),
+     '結束畫面開場只講一句結果評語（不是把三段分析全倒出來）');
+  ok(/case 'recapAll'/.test(dictSrc5) && /opt\.recapAll/.test(dictSrc5), '回顧、喜好、學到什麼改成「今天的回顧」問了才講');
+  const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const s5 = html.slice(html.indexOf('id="s5"'), html.indexOf('</section>', html.indexOf('id="s5"')));
+  ok(s5.indexOf('rec-items') < s5.indexOf('adv5'), '商品排在對話前面（這一頁的主角是商品）');
+  ok(s5.indexOf('rec-items') < s5.indexOf('s5-more'), '　也排在詳細報告前面');
+  for (const id of ['rec-after', 'rep-before', 'verdict', 'rep-grid']) {
+    ok(s5.indexOf('s5-more') < s5.indexOf(id), '　' + id + ' 收進摺疊區');
+  }
+  ok(/<details id="s5-more">/.test(s5) && !/<details id="s5-more" open>/.test(s5), '詳細報告預設收起來');
+  ok(s5.includes('id="thanks"'), '評分留在最後');
+
+  const dictSrc6 = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
+  const has3s = (k) => { const m = dictSrc6.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
+  const keys = ['adv.askBag', 'opt.bagYes', 'opt.bagNo', 'opt.recapAll', 'adv.recapNone', 's5.more'];
+  ok(keys.every(has3s), '新文案三種語言齊全（' + keys.length + ' 句）');
+}
+
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);
 process.exit(fail ? 1 : 0);
