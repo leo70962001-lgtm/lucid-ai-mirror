@@ -3580,13 +3580,13 @@ function enter5() {
 
   setActions([
     { label: t('btn.restart'), cls: 'ghost', on: reset },
-    { label: t('btn.submit'), cls: 'primary', on: () => {
+    { label: t('btn.done5'), cls: 'primary', on: () => {
         console.log('[feedback]', {
           rating: S.rating, tags: [...S.tags], look: S.look?.id,
           bag: S.bag, tried: [...S.tried], arSeconds: Math.round(S.arMs / 1000),
           skin: { ita: S.skin?.itaDeg, undertone: S.skin?.undertone },
         });
-        $('#rate-label').textContent = t(S.rating ? 'sent.rated' : 'sent.unrated');
+        flash(t('done.thanks'));
       } },
   ]);
 }
