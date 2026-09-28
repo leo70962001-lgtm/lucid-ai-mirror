@@ -1272,20 +1272,14 @@ console.log('\n\x1b[1m32. 一步一步帶你畫：AI 引導 × AR × 學習\x1b[
   ok(miss.length === 0, '引導的文案三種語言齊全（' + keys.length + ' 句）' + (miss.length ? ' 缺：' + miss.join(',') : ''));
 }
 
-console.log('\n\x1b[1m33. 商品優先的結束畫面、鏡子前就能加入購物袋\x1b[0m');
+console.log('\n\x1b[1m33. 商品優先的結束畫面；試妝時不講商品與價錢\x1b[0m');
 {
-  // 停在同一支夠久、還沒放進袋子 → 主動問（商品就在鏡子前面，不用等到最後一頁）
-  const base = { idleMs: 9000, dwellMs: 15000, curShade: '#307 冷調正紅', curId: 'L307', price: 890,
+  // 試妝時不講商品與價錢：停在同一支很久也不會問要不要放進購物袋（留到最後一頁）
+  const base = { idleMs: 9000, dwellMs: 15000, curShade: '#307 冷調正紅', curId: 'L307',
                  tried: 2, lipPct: 14, curDe: 20, said: new Set(['askKeep:L307']) };
   const ask = observe(base);
-  ok(ask && ask.id === 'askBag:L307' && ask.yesNo, '停在同一支 15 秒又沒動作 → 問要不要放進購物袋（可以點頭搖頭）');
-  ok(ask.lines[0].params.price === 890 && ask.lines[0].params.shade === base.curShade, '　問的時候講出色號與價格');
-  ok(ask.opts.map((o) => o.act).join() === 'buyLip,noThanks' && ask.opts.every((o) => ACTS.includes(o.act) && optEmoji(o)),
-     '　答案是「放進購物袋／先不用」，都是已知動作');
-  ok(!observe({ ...base, inBag: true }), '已經在購物袋裡就不再問');
-  ok(!observe({ ...base, dwellMs: 6000 }), '只停了 6 秒不問（還在比較，不是喜歡）');
-  ok(!observe({ ...base, said: new Set(['askKeep:L307', 'askBag:L307']) }), '同一支只問一次');
-  ok(!observe({ ...base, price: null }), '沒有價格資訊就不問（問了也給不出金額）');
+  ok(!ask || !/^askBag/.test(ask.id), '試妝時停在同一支很久，AI 也不會問要不要放進購物袋');
+  ok(!ask || !ask.lines.some((l) => 'price' in l.params), '　試妝時的主動提示不帶價錢');
 
   // 結束畫面的對話：只留結果與購買建議，回顧要問了才講
   const dictSrc5 = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
@@ -1304,8 +1298,8 @@ console.log('\n\x1b[1m33. 商品優先的結束畫面、鏡子前就能加入購
   const has3s = (k) => { const m = dictSrc6.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
   // 在鏡子前待很久、試了幾支卻什麼都沒加 → 提議整理成一頁看價錢
   const wrapBase = { idleMs: 13000, dwellMs: 3000, arMs: 70000, tried: 3, bagEmpty: true, lipPct: 14,
-                     curShade: '#307 冷調正紅', curId: 'L307', price: 890, curDe: 20,
-                     said: new Set(['askBest', 'askKeep:L307', 'askBag:L307']) };
+                     curShade: '#307 冷調正紅', curId: 'L307', curDe: 20,
+                     said: new Set(['askBest', 'askKeep:L307']) };
   const wrap = observe(wrapBase);
   ok(wrap && wrap.id === 'askWrap' && wrap.opts[0].act === 'wrapUp', '試了幾支、袋子還空的、又停下來 → 提議整理成商品那一頁');
   ok(!observe({ ...wrapBase, bagEmpty: false }), '已經加過東西就不提議整理');
@@ -1320,7 +1314,7 @@ console.log('\n\x1b[1m33. 商品優先的結束畫面、鏡子前就能加入購
   const app2 = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
   ok(/function blockTake/.test(app2) && /blk\.take/.test(app2), '兩塊各有「整組放進購物袋」的一鍵按鈕');
   ok(/adv.arPlan/.test(app2), '進 AR 先講接下來的流程');
-  const keys = ['adv.askBag', 'opt.bagYes', 'opt.bagNo', 'opt.recapAll', 'adv.recapNone', 's5.more',
+  const keys = ['opt.bagNo', 'opt.recapAll', 'adv.recapNone', 's5.more',
                 'bag.bar.none', 'bag.bar.some', 'bag.bar.all', 'adv.arPlan', 'opt.wrapUp', 'adv.askWrap', 'opt.wrapYes',
                 'thanks.sub', 'rate.stars'];
   ok(keys.every(has3s), '新文案三種語言齊全（' + keys.length + ' 句）');
@@ -1403,6 +1397,17 @@ console.log('\n\x1b[1m35. 最後一頁的兩塊、自己上妝的錄影\x1b[0m')
   const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
   const s5 = html.slice(html.indexOf('id="s5"'), html.indexOf('</section>', html.indexOf('id="s5"')));
   const shown = s5.slice(0, s5.indexOf('id="s5-legacy"'));
+  // 試妝（第 3 步）不講價錢與商品；最後一頁才講
+  const appSrc = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const syncSrc = appSrc.slice(appSrc.indexOf('function syncSheet'), appSrc.indexOf('/** 每個畫面的預設選項'));
+  ok(!/p\.price|bag\.add|\$\$\{/.test(syncSrc), 'AR 抽屜的色號列只有顏色與色號名（沒有價錢、沒有加入購物袋）');
+  ok(/\$\('#hero'\)\.hidden = !shopping/.test(appSrc) && /shopping \? .*p\.brand/.test(appSrc), '試色面板在試妝時不秀品牌、商品名與商品圖');
+  ok(/S\.step !== 4 \|\| !l\.key\.startsWith\('adv\.trend\.here'\)/.test(appSrc), 'AR 裡講流行時不指「店裡哪一支」');
+  ok(/const noShop = /.test(appSrc), '照片試妝不講庫存');
+  const cssSrc = readFileSync(new URL('./main.css', import.meta.url), 'utf8');
+  ok(cssSrc.includes('#panel [hidden] { display:none !important; }'), '試色面板裡藏起來的售價、庫存、加入購物車真的會藏（.spec 的 flex 不會蓋掉 hidden）');
+  ok(/#adv2 \.msg\.you \{[^}]*align-self:flex-end/.test(cssSrc) && /#adv2 \.msg\.ai \.bubble[^{]*\{[^}]*background:#fff/.test(cssSrc), '第 2 步是訊息 App 的樣子（AI 白卡在左、你的回答在右），跟第 3 步的直播留言不一樣');
+  ok((shown.match(/\$\{|price|take-/g) || []).length > 0 && /blk\.take/.test(appSrc), '最後一頁才有商品、價錢與整組帶走');
   ok((shown.match(/<article class="blk/g) || []).length === 2, '看得到的內容就兩塊（article）');
   for (const [blk, ids] of [['blk-ai', ['img-ai', 'items-ai', 'take-ai']], ['blk-me', ['img-me', 'items-me', 'take-me', 'clip-me']]]) {
     const a = shown.indexOf('id="' + blk + '"'), b = shown.indexOf('</article>', a);

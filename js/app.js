@@ -694,6 +694,9 @@ function showOnPhoto(look, animate = true) {
   })();
 }
 
+/** 試妝的步驟不講庫存、價錢這類購物資訊（最後一頁才講） */
+const noShop = (lines) => lines.filter((l) => l.key !== 'adv.lowStock');
+
 /** 有季節結果時，挑色號用「這個顏色有多像你的季節」；介於兩季之間時兩邊都算 */
 const seasonFit = () => (S.season ? (p) => personFit(p, S.season) : null);
 
@@ -1066,20 +1069,9 @@ function syncSheet() {
   const p = S.picks?.lip;
   if (p) {
     // 商品資訊就放在鏡子旁邊：看到喜歡的當下就能加入，不用等到最後一頁
+    // 試妝時只講顏色：價錢、加入購物袋都留到最後一頁 —— 這一步的重點是體驗
     const box = $('#sheet-shade');
-    box.innerHTML = `<i style="background:${disp(p.color)}"></i><span>${tf(p, 'shade')}</span><b>$${p.price}</b>`;
-    const inBag = S.bag.includes(p.id);
-    const add = el('button', 'bag' + (inBag ? ' in' : ''), inBag ? t('bag.added') : '＋');
-    add.title = t(inBag ? 'bag.added' : 'bag.add');
-    add.disabled = p.stock <= 0 || inBag;
-    add.onclick = (e) => {
-      e.stopPropagation();
-      if (S.bag.includes(p.id)) return;
-      S.bag.push(p.id); paintRecItems(); paintTotal(); syncSheet();
-      const items = S.bag.map((id) => PRODUCTS.find((x) => x.id === id)).filter(Boolean);
-      chatSay('s4', [{ kind: 'fact', key: 'adv.buy.added', params: { n: items.length, sum: items.reduce((s2, x) => s2 + x.price, 0) } }], arOpts());
-    };
-    box.appendChild(add);
+    box.innerHTML = `<i style="background:${disp(p.color)}"></i><span>${tf(p, 'shade')}</span>`;
   }
 }
 
@@ -1429,7 +1421,8 @@ function runAct(o) {
       if (!it || S.trendSaid.has(it.id)) return { lines: [{ kind: 'fact', key: 'adv.trend.none', params: {} }] };
       S.trendSaid.add(it.id); S.trend = it;
       const plan = trendPlan(it, PRODUCTS);
-      return { lines: [...trendLines(it, plan), ...(S.trendSaid.size === 1 ? trendStaleLines() : [])],
+      const tl = trendLines(it, plan).filter((l) => S.step !== 4 || !l.key.startsWith('adv.trend.here'));
+      return { lines: [...tl, ...(S.trendSaid.size === 1 ? trendStaleLines() : [])],
                opts: [{ key: 'opt.tryTrend', act: 'tryTrend' }, { key: 'opt.trendNext', act: 'trendNext' }, ...defaultOpts(S.step === 2 ? 's2' : 's4')] };
     }
     // 套用：能換的就換（唇、頰、眼、濃度），要自己畫的就打開自己上妝
@@ -1539,7 +1532,7 @@ function runAct(o) {
       duelOff();
       switchLip(win);
       return { lines: [picked, { kind: 'praise', key: 'adv.duel.win', params: { shade: win.id } }, ...describeLip(win)],
-               opts: [{ key: 'opt.bagYes', act: 'buyLip' }, ...arOpts()] };
+               opts: arOpts() };
     }
     case 'duelEnd': duelOff(); return { lines: [{ kind: 'fact', key: 'adv.duel.end', params: {} }], opts: arOpts() };
     // ── 拍下這個妝 ──
@@ -1587,7 +1580,7 @@ function runAct(o) {
         if (alt) { S.picks[cat] = { ...alt, _reason: [['reason.neutral']], _alts: [] }; n++; }
       }
       renderStep3(); paintPanel();
-      return { lines: [{ kind: 'fact', key: 'adv.didNeutral', params: { n } }, ...onPicks(S.picks, S.skin)],
+      return { lines: [{ kind: 'fact', key: 'adv.didNeutral', params: { n } }, ...noShop(onPicks(S.picks, S.skin))],
                opts: optsForPicks(S.picks, S.skin, S.pref) };
     }
     case 'softer': case 'stronger': {
@@ -1825,7 +1818,6 @@ function watchAR(lm, W) {
     idleMs: now - (S.lastAct || S.arT0 || now),
     dwellMs: now - (S.shadeT0 || now),
     curShade: tf(S.picks.lip, 'shade'), curId: S.picks.lip.id,
-    price: S.picks.lip.price, inBag: S.bag.includes(S.picks.lip.id),
     tried: S.tried.size,
     arMs: S.arMs + (S.arT0 ? performance.now() - S.arT0 : 0), bagEmpty: S.bag.length === 0,
     lipPct,
@@ -1985,7 +1977,7 @@ function mountContext() {
 /** 情境改變 → 重新挑商品、重畫配方與預覽 */
 function refreshContext() {
   applyContext(); mountContext(); renderStep3();
-  chatReset('s3', [...onPicks(S.picks, S.skin), ...S.advShade], optsForPicks(S.picks, S.skin, S.pref));
+  chatReset('s3', [...noShop(onPicks(S.picks, S.skin)), ...S.advShade], optsForPicks(S.picks, S.skin, S.pref));
 }
 
 function enter3() {
@@ -1996,7 +1988,7 @@ function enter3() {
   // 第一次進來時 AI 反問一題：答案會真的改變濃度，所以值得問。
   const q = nextQuestion();
   const base = optsForPicks(S.picks, S.skin, S.pref);
-  chatReset('s3', [...onPicks(S.picks, S.skin), ...levelTip(S.level, 's3'), ...S.advShade, ...prefRecall(S.pref, S.picks), ...(q ? q.lines : [])],
+  chatReset('s3', [...noShop(onPicks(S.picks, S.skin)), ...levelTip(S.level, 's3'), ...S.advShade, ...prefRecall(S.pref, S.picks), ...(q ? q.lines : [])],
             q ? [...q.opts, ...base] : base);
   setActions([
     { label: t('btn.changeLook'), cls: 'ghost', on: () => go(2) },
@@ -2208,8 +2200,10 @@ function paintPanel() {
   $('#panel-cap').textContent = t(shopping ? 'panel.featured' : 'panel.tryon');
   $('#spec-stock').hidden = $('#spec-price').hidden = !shopping;
   $('#bag').hidden = !shopping;
-  $('#p-name').innerHTML = `${p.brand} <em>${tf(p, 'name')}</em>`;
-  mountProduct($('#hero'), p);
+  // 試妝時只秀色號（顏色本身是體驗的一部分）；品牌、商品名、商品圖是購物資訊，最後一頁才出現
+  $('#p-name').innerHTML = shopping ? `${p.brand} <em>${tf(p, 'name')}</em>` : `<em>${tf(p, 'shade')}</em>`;
+  $('#hero').hidden = !shopping;
+  if (shopping) mountProduct($('#hero'), p);
   $('#p-finish').textContent = finishLabel(p.finish);
   $('#p-shade').textContent = tf(p, 'shade');
   $('#p-stock').textContent = p.stock > 0 ? t('stock.n', { n: p.stock }) : t('stock.out');

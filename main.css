@@ -1682,3 +1682,36 @@ body {
 }
 #adv4 .msg.you { background:none; box-shadow:none; padding:0; border-radius:0; }
 #adv4 .msg.ai .avatar { box-shadow:0 0 0 1.5px rgba(255,255,255,.8), 0 1px 4px rgba(0,0,0,.4); }
+
+
+/* ══ 第 2 步：像跟美容顧問傳訊息（跟第 3 步的直播留言刻意不一樣）═══════════
+   第 2 步是「諮詢」：一來一往地問答，用訊息 App 的樣子 —— AI 在左邊是白色卡片、你的回答在右邊是主題色氣泡，
+   外面有一張淡淡的對話卡。第 3 步是「體驗」：留言浮在鏡子上，眼睛留給自己的臉。 */
+#adv2 {
+  background:linear-gradient(180deg, rgba(255,255,255,.72), var(--tint)) !important;
+  box-shadow:0 0 0 1px var(--hair), 0 6px 18px rgba(60,35,45,.06) !important;
+  border-radius:20px; padding:10px 10px 8px !important;
+}
+#adv2 .log { -webkit-mask-image:none; mask-image:none; padding-top:2px; gap:7px; }
+#adv2 .msg.ai .bubble, #adv2 .msg.ai.cont .bubble {
+  background:#fff; padding:8px 12px; border-radius:6px 18px 18px 18px; max-width:86%;
+  box-shadow:0 0 0 1px var(--hair), 0 3px 10px rgba(60,35,45,.06);
+}
+#adv2 .msg.ai.cont .bubble { border-radius:18px; }
+#adv2 .msg.ai.ask .bubble {            /* AI 在問你：淡主題色的卡片，一眼看得出這一則要回答 */
+  background:linear-gradient(180deg, #fff, var(--tint-2)); color:var(--ink); font-weight:600;
+  box-shadow:0 0 0 1.5px rgba(var(--rose-rgb),.35), 0 4px 12px rgba(var(--rose-rgb),.12);
+}
+#adv2 .msg.ai .avatar { width:24px; height:24px; font-size:9px; line-height:24px; }
+#adv2 .msg.ai.cont { padding-left:30px; }
+#adv2 .msg.you {                        /* 你的回答：右邊、主題色氣泡 */
+  align-self:flex-end; margin-left:0; padding:7px 13px; border-radius:18px 18px 6px 18px;
+  background:linear-gradient(180deg, var(--primary-1), var(--primary-2)); color:#fff;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.3), 0 4px 12px rgba(var(--primary-rgb),.25);
+}
+#adv2 .msg.you::before { content:none; }
+#adv2 .msg.typing .bubble { background:#fff; padding:10px 13px; }
+/* 試妝時藏起來的商品圖：#hero 本身有 display 設定，要明確讓 hidden 生效 */
+#hero[hidden] { display:none !important; }
+/* 試色面板在試妝時要藏起來的購物資訊（庫存、售價、加入購物車）：.spec 本身是 flex，hidden 會被蓋掉 */
+#panel [hidden] { display:none !important; }

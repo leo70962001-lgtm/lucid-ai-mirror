@@ -64,7 +64,6 @@ const LINE = [
   [/^adv\.color\./, '🎨'],
   [/^adv\.paint\.done$/, '👏'],
   [/^adv\.paint\./, '✍️'],
-  [/^adv\.askBag$/, '🛍️'],
   [/^adv\.skin\.note$/, '🙏'],
   [/^adv\.skin\.good$/, '✨'],
   [/^adv\.skin\./, '🪞'],

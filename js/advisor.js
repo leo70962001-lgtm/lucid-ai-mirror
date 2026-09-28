@@ -792,13 +792,7 @@ export function observe(o) {
              lines: [line('ask', 'adv.askKeep', { shade: o.curShade, sec: Math.round(o.dwellMs / 1000) })],
              opts: [opt('opt.keepYes', 'keepYes'), opt('opt.keepNo', 'keepNo')] };
   }
-  // 停在同一支很久、而且還沒放進袋子 —— 這時候問最自然（他正在喜歡它）
-  if (o.dwellMs >= 14000 && o.idleMs >= 8000 && o.curShade && o.price && !o.inBag && !said.has('askBag:' + o.curId)) {
-    return { id: 'askBag:' + o.curId, yesNo: true,
-             lines: [line('ask', 'adv.askBag', { shade: o.curShade, price: o.price, sec: Math.round(o.dwellMs / 1000) })],
-             opts: [opt('opt.bagYes', 'buyLip'), opt('opt.bagNo', 'noThanks')] };
-  }
-  // 試了好幾支、袋子還是空的、又停下來了 —— 提議整理成一頁看價錢
+  // 試了好幾支、又停下來了 —— 提議把今天試過的整理成一頁（商品與價錢在那一頁才出現）
   if (o.arMs >= 60000 && o.idleMs >= 12000 && o.tried >= 2 && o.bagEmpty && !said.has('askWrap')) {
     return { id: 'askWrap', yesNo: true,
              lines: [line('ask', 'adv.askWrap', {})],
