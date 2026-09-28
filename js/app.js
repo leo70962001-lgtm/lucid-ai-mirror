@@ -1024,7 +1024,9 @@ function liftMirror() {
     if (painting) { s4.style.setProperty('--mirror-scale', '1'); s4.style.setProperty('--lift', '0px'); return; }
     const scale = fit ? Math.max(0.5, Math.min(1, (H - h - 14) / H)) : 1;
     s4.style.setProperty('--mirror-scale', scale.toFixed(3));
-    s4.style.setProperty('--lift', (fit ? -6 : Math.round(Math.min(h * 0.5, H * 0.22))) + 'px');
+    // AI 顧問分頁的留言是透明的（直播的樣子），臉只要稍微往上讓出嘴唇就好，推太多底下會露出一條空白
+    const live = S.sheet.state === 'open' && S.sheet.tab === 'ai';
+    s4.style.setProperty('--lift', (fit ? -6 : Math.round(Math.min(h * (live ? 0.22 : 0.5), H * (live ? 0.1 : 0.22)))) + 'px');
   });
 }
 addEventListener('resize', () => { if (S.step === 4) liftMirror(); });

@@ -1620,3 +1620,65 @@ body {
 /* 鏡面往上推之後露出來的那一條：直播風格時改成深色，跟底部漸層接起來 */
 #s4:has(.sheet[data-tab="ai"]) > .frame { background:#1b1216; }
 @media (max-width:560px) { #bar h1 { font-size:13px; letter-spacing:.05em; } }
+
+/* ══ 對話：直播留言的樣子（沒有底色、沒有外框）═════════════════
+   直播 App 的留言是「頭像＋名字＋文字」直接疊在畫面上，靠文字陰影讓字看得清楚；
+   只有要特別注意的那一則會換顏色。所以這裡把氣泡底色、對話框的外框、抽屜上方那一條框都拿掉。
+   參考：TikTok LIVE 風格的留言疊加層（左下角留言串、頭像＋暱稱、文字直接疊在畫面上）。 */
+
+/* 共同：對話區沒有框、沒有底 */
+.advisor { background:none !important; box-shadow:none !important; padding:4px 2px; }
+.advisor .log { gap:5px; }
+.advisor .msg.ai .bubble,
+.advisor .msg.ai.cont .bubble,
+.advisor .msg.ai.ask .bubble,
+.advisor .msg.ai.ref .bubble {
+  background:none; box-shadow:none; border-radius:0; padding:1px 0; max-width:100%;
+  -webkit-backdrop-filter:none; backdrop-filter:none;
+}
+.advisor .msg.ai .avatar { width:20px; height:20px; font-size:8px; line-height:20px; }
+.advisor .msg.ai.cont { padding-left:26px; }
+.advisor .msg.ai.ask .bubble { color:var(--rose-soft); font-weight:700; }   /* AI 在問你：換顏色，像被點名的留言 */
+.advisor .msg.you {                      /* 你的回答：也是一行留言，靠左、主題色的字，不是一顆膠囊 */
+  align-self:flex-start; margin-left:26px; padding:0; border-radius:0;
+  background:none; box-shadow:none; color:var(--rose-soft); font-weight:700;
+}
+.advisor .msg.you::before { content:"↳ "; opacity:.6; }
+.advisor .msg.typing .bubble { padding:4px 0; }
+.advisor .log {                          /* 舊的留言往上淡出 */
+  -webkit-mask-image:linear-gradient(to bottom, transparent 0, #000 22%);
+          mask-image:linear-gradient(to bottom, transparent 0, #000 22%);
+  padding-top:14px;
+}
+
+/* AR：疊在影像上，白字＋陰影；AI 在問你用淡粉紅、你的回答用淡金色（像直播裡的名字顏色） */
+#adv4 .msg, #adv4 .msg.ai .bubble { color:#fff; font-weight:600;
+  text-shadow:0 0 2px rgba(0,0,0,.85), 0 1px 4px rgba(0,0,0,.7); }
+#adv4 .msg.ai.ask .bubble { color:#ffd3e2; }
+#adv4 .msg.you { color:#ffe3a3; margin-left:26px; text-shadow:0 0 2px rgba(0,0,0,.85), 0 1px 4px rgba(0,0,0,.7); }
+#adv4 .msg.typing .bubble i { background:#fff; box-shadow:0 0 3px rgba(0,0,0,.6); }
+#adv4 .log {
+  -webkit-mask-image:linear-gradient(to bottom, transparent 0, #000 40%);
+          mask-image:linear-gradient(to bottom, transparent 0, #000 40%);
+}
+
+/* AR 抽屜上方那一條框拿掉：分頁、色號、收合鈕直接浮在畫面上 */
+.sheet[data-tab="ai"] .sheet-head {
+  background:none; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; padding:0 4px 4px;
+}
+.sheet[data-tab="ai"] .sheet-tabs { background:rgba(0,0,0,.22); }
+.sheet[data-tab="ai"] .sheet-shade span, .sheet[data-tab="ai"] .sheet-shade b { text-shadow:0 0 2px rgba(0,0,0,.85), 0 1px 4px rgba(0,0,0,.6); }
+.sheet[data-tab="ai"] .sheet-toggle { background:rgba(0,0,0,.22); }
+/* 快速回覆：像直播底部的按鈕，淡一點 */
+#adv4 .opts button { background:rgba(0,0,0,.26); box-shadow:none; -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }
+/* 底部漸層淡一點：字靠陰影就讀得到，不需要一大塊深色 */
+#s4 > .frame::after { background:linear-gradient(to bottom, transparent, rgba(18,10,14,.18) 50%, rgba(18,10,14,.5)); }
+/* 留言從底部往上長（最新的一則貼著下面的按鈕，像直播）—— 用 margin-top:auto，捲動才不會壞 */
+.advisor .log > :first-child { margin-top:auto; }
+/* AR 的留言同樣沒有底色（之前 AR 專用的膠囊樣式權重較高，要在這裡明確拿掉） */
+#adv4 .msg.ai .bubble, #adv4 .msg.ai.cont .bubble, #adv4 .msg.ai.ask .bubble {
+  background:none; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none;
+  padding:1px 0; border-radius:0; max-width:100%;
+}
+#adv4 .msg.you { background:none; box-shadow:none; padding:0; border-radius:0; }
+#adv4 .msg.ai .avatar { box-shadow:0 0 0 1.5px rgba(255,255,255,.8), 0 1px 4px rgba(0,0,0,.4); }
