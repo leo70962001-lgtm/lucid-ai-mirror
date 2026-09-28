@@ -1298,7 +1298,7 @@ console.log('\n\x1b[1m33. 商品優先的結束畫面、鏡子前就能加入購
   const legacyAt = s5.indexOf('id="s5-legacy" hidden');
   ok(legacyAt > 0 && ['rec-items', 'adv5', 's5-more', 'rec-after', 'verdict', 'rep-grid', 'bag-bar'].every((id) => s5.indexOf('id="' + id + '"') > legacyAt),
      '以前的購物清單、對話、詳細報告都收進不顯示的舊區塊');
-  ok(s5.includes('id="thanks"') && s5.indexOf('id="thanks"') > s5.indexOf('id="blk-me"'), '評分留在最後');
+  ok(s5.indexOf('id="thanks"') > legacyAt, '評分卡拿掉了（收進不顯示的舊區塊）');
 
   const dictSrc6 = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
   const has3s = (k) => { const m = dictSrc6.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
@@ -1428,6 +1428,12 @@ console.log('\n\x1b[1m35. 最後一頁的兩塊、自己上妝的錄影\x1b[0m')
   const keys = ['blk.ai', 'blk.me', 'blk.meTag', 'blk.diff', 'blk.same', 'blk.changed', 'blk.look', 'blk.swap', 'blk.amt', 'blk.painted',
                 'blk.take', 'blk.taken', 'rec.start', 'rec.stop', 'rec.unsupported', 'adv.rec.saved', 'clip.title', 'clip.save'];
   ok(keys.every(has3), '文案三種語言齊全（' + keys.length + ' 句）');
+  // 介面：AR 對話是直播的樣子（浮在畫面上、舊的淡出）；妝容調整維持白色面板
+  const css = readFileSync(new URL('./main.css', import.meta.url), 'utf8');
+  ok(/\.sheet\[data-tab="ai"\] \{\s*background:transparent/.test(css) && /#adv4 \.log \{[^}]*mask-image/.test(css),
+     'AR 的 AI 顧問分頁：留言浮在畫面上（透明底），舊的往上淡出');
+  ok(!/\.sheet\[data-tab="tune"\] \{\s*background:transparent/.test(css), '妝容調整分頁仍是白色面板（有滑桿要操作）');
+  ok(/'btn.done5'/.test(readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8')), '評分卡拿掉之後，按鈕改成「完成」');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

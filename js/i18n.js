@@ -1124,6 +1124,8 @@ const DICT = {
   // ── 回饋 ──
   'thanks.sub': ['你的回饋會讓下一位客人的體驗更好', 'Your feedback makes the next person’s experience better', 'いただいた感想は次のお客さまの体験に活かします'],
   'rate.stars': ['{n} 顆星', '{n} stars', '星 {n} つ'],
+  'btn.done5': ['完成', 'Done', '完了'],
+  'done.thanks': ['謝謝光臨！今天的妝和商品都在上面了', 'Thank you! Today’s looks and products are all above', 'ありがとうございました！今日のメイクと商品は上にまとめてあります'],
   'rate.0': ['請給我們今天的體驗評分', 'How was your experience today?', '本日の体験を評価してください'],
   'rate.1': ['很抱歉，我們會改進', 'We are sorry — we will do better', '申し訳ありません。改善します'],
   'rate.2': ['謝謝告訴我們哪裡不夠好', 'Thank you for telling us what fell short', '至らない点を教えていただきありがとうございます'],

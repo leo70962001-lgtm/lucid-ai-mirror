@@ -1412,3 +1412,211 @@ body {
 }
 .pb-rec.on { background:#c22a40; color:#fff; border-color:transparent; }
 @media (prefers-reduced-motion:reduce) { .rec-badge { animation:none; } }
+
+/* ══ 介面美化（2026）═════════════════════════════════════════
+   參考美妝 App 的做法：溫暖中性色的極簡底、玻璃質感的面板、優雅的襯線標題、
+   細的金色線做點綴；框線少一點、留白多一點，讓照片與商品顏色當主角。
+   只改外觀，不動版面邏輯；強調色一律走主題變數，五種配色都成立。
+   參考：Toptal「UX in the Beauty Industry」、Sephora Virtual Artist 案例、2026 UI 趨勢（玻璃、暖色極簡、金屬光）。 */
+:root {
+  --hair:rgba(70,45,55,.09);                      /* 取代粉紅框線的中性細線 */
+  --paper:#fffdfb;
+  --soft:0 1px 2px rgba(60,35,45,.05), 0 8px 24px rgba(60,35,45,.07);
+  --soft-lg:0 2px 8px rgba(60,35,45,.06), 0 30px 70px rgba(60,35,45,.13);
+  --display:"Cormorant Garamond","Didot","Bodoni 72","Bodoni MT","Playfair Display",Georgia,"Times New Roman",serif;
+  --gold:linear-gradient(90deg,#ecd9b8,#c8a064 50%,#ecd9b8);
+}
+
+/* 底：暖奶油色，只留兩團很淡的主題色光暈 */
+body {
+  background:
+    radial-gradient(900px 620px at 12% -5%, rgba(var(--rose-rgb),.13), transparent 60%),
+    radial-gradient(800px 600px at 95% 105%, rgba(var(--glow-rgb),.16), transparent 62%),
+    #f7f2ef;
+}
+
+/* 鏡面主體：像一塊玻璃，細邊、柔和的大陰影 */
+#mirror {
+  background:linear-gradient(170deg, rgba(255,253,251,.96), rgba(252,247,245,.94));
+  box-shadow:0 0 0 1px var(--hair), var(--soft-lg);
+  -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px);
+}
+#mirror::after { opacity:.55; }
+
+/* 標題列：不要底線，標題用襯線大寫，副標題是小的無襯線 */
+#bar { border-bottom:0; background:transparent; position:relative; }
+#bar::after {  /* 一條從中間淡出的細線，取代整條底線 */
+  content:""; position:absolute; left:16px; right:16px; bottom:0; height:1px;
+  background:linear-gradient(90deg, transparent, var(--hair) 20%, var(--hair) 80%, transparent);
+}
+#bar h1 {
+  font-family:var(--display); font-weight:500; font-size:15.5px; letter-spacing:.16em; color:var(--ink);
+}
+#bar h1 small {
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  font-size:10.5px; letter-spacing:.08em; font-weight:500; color:var(--ink-3); margin-top:1px;
+}
+#back {
+  border:0; border-radius:50%; background:rgba(255,255,255,.75);
+  box-shadow:0 0 0 1px var(--hair), 0 2px 6px rgba(60,35,45,.06);
+}
+#back:hover:not(:disabled) { background:#fff; color:var(--rose-soft); }
+
+/* 語言：分段控制（像 iOS），選到的是白底浮起來，不是整顆塗滿主題色 */
+#lang { padding:3px; gap:2px; border-radius:16px; background:rgba(var(--line-rgb),.18); }
+#lang button { border:0; border-radius:13px; padding:5px 10px; color:var(--ink-3); background:transparent; }
+#lang button.on { background:#fff; color:var(--rose-soft); box-shadow:0 1px 4px rgba(60,35,45,.12); }
+#set-btn { border:0; background:rgba(255,255,255,.75); box-shadow:0 0 0 1px var(--hair); }
+
+/* 右上角的標章：縮小成一個細金圈的字標 */
+#badge {
+  width:44px; height:44px; font-size:7.5px; letter-spacing:.14em; border:0; color:var(--ink-2);
+  background:radial-gradient(circle at 35% 30%, #fff, #f6efe9);
+  box-shadow:0 0 0 1px rgba(200,160,100,.55), 0 0 0 3px #fff, 0 0 0 4px rgba(200,160,100,.25);
+}
+
+/* 步驟進度：圓潤一點，現在這一步是漸層 */
+.pip { height:4px; border-radius:3px; background:rgba(var(--line-rgb),.2); }
+.pip.on { background:linear-gradient(90deg, var(--primary-1), var(--primary-2)); box-shadow:0 2px 8px rgba(var(--primary-rgb),.3); }
+.pip.done { background:rgba(var(--rose-rgb),.38); }
+
+/* 區塊標題：小字間距＋一小段金線 */
+.sect-title { position:relative; padding-bottom:6px; letter-spacing:.2em; color:var(--ink-3); }
+.sect-title::after { content:""; position:absolute; left:0; bottom:0; width:22px; height:2px; border-radius:2px; background:var(--gold); }
+
+/* 按鈕：主要按鈕有一點玻璃高光；次要按鈕是白玻璃＋細邊 */
+.btn { border-radius:16px; letter-spacing:.06em; }
+.btn.primary {
+  background:linear-gradient(180deg, var(--primary-1), var(--primary-2));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 8px 20px rgba(var(--primary-rgb),.26);
+}
+.btn.primary:hover { box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 10px 26px rgba(var(--primary-rgb),.36); }
+.btn.ghost { background:rgba(255,255,255,.85); border-color:transparent; box-shadow:0 0 0 1px var(--hair), 0 2px 6px rgba(60,35,45,.05); }
+
+/* 對話：AI 氣泡是一張白紙（細邊＋柔和陰影），你的回答是主題色漸層 */
+.advisor .msg.ai .bubble {
+  background:var(--paper); border-radius:6px 18px 18px 18px;
+  box-shadow:0 0 0 1px var(--hair), 0 4px 14px rgba(60,35,45,.06);
+}
+.advisor .msg.ai.cont .bubble { border-radius:18px; }
+.advisor .msg.ai.ask .bubble {
+  background:linear-gradient(180deg, #fff, var(--tint));
+  box-shadow:0 0 0 1px rgba(var(--rose-rgb),.28), 0 6px 16px rgba(var(--rose-rgb),.12);
+}
+.advisor .msg.ai .avatar {
+  background:linear-gradient(135deg, var(--primary-1), var(--primary-2));
+  box-shadow:0 0 0 2px #fff, 0 3px 8px rgba(var(--primary-rgb),.3);
+}
+.advisor .msg.you {
+  background:linear-gradient(180deg, var(--primary-1), var(--primary-2));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.3), 0 4px 12px rgba(var(--primary-rgb),.25);
+  border-radius:18px 18px 6px 18px;
+}
+
+/* 快速回覆：淡淡的主題色膠囊，沒有框線 */
+.advisor .opts button {
+  border:0; border-radius:999px; padding:8px 13px; font-weight:600; font-size:11.5px;
+  color:var(--rose-soft); background:rgba(var(--rose-rgb),.09); box-shadow:none;
+}
+.advisor .opts button:hover { background:rgba(var(--rose-rgb),.16); transform:translateY(-1px); }
+.advisor .opts button.more { background:transparent; color:var(--ink-3); border:0; text-decoration:underline; text-underline-offset:3px; }
+
+/* 推薦的妝容卡：白紙卡片，選到的外圈是主題色；「先從這款開始」是金色的小標 */
+.look { border:0; border-radius:18px; background:var(--paper); box-shadow:0 0 0 1px var(--hair), var(--soft); }
+.look:hover { background:#fff; box-shadow:0 0 0 1px rgba(var(--rose-rgb),.3), var(--soft); }
+.look.on { background:linear-gradient(180deg, #fff, var(--tint)); box-shadow:0 0 0 1.5px var(--rose), 0 10px 24px rgba(var(--rose-rgb),.18); }
+/* 中文標題不套襯線：Windows 會換成細明體，粗細也對不上 —— 襯線只給英文標題與價格 */
+.look b { font-size:14px; font-weight:700; letter-spacing:.04em; white-space:nowrap; }
+.look .best { background:var(--gold); color:#5a4020; border-radius:10px; letter-spacing:.06em; box-shadow:0 1px 3px rgba(150,110,50,.25); }
+
+/* AR 抽屜：更通透的玻璃 */
+.sheet {
+  background:rgba(255,252,250,.78); -webkit-backdrop-filter:blur(22px) saturate(1.2); backdrop-filter:blur(22px) saturate(1.2);
+  box-shadow:0 0 0 1px rgba(255,255,255,.7) inset, 0 0 0 1px var(--hair), 0 18px 40px rgba(60,35,45,.18);
+}
+
+/* 最後一頁的兩塊：標題襯線、價格襯線、頂端一條金線 */
+.blk { position:relative; background:var(--paper); box-shadow:0 0 0 1px var(--hair), var(--soft); }
+.blk::before { content:""; position:absolute; left:18px; right:18px; top:0; height:2px; border-radius:2px; background:var(--gold); opacity:.8; }
+.blk.me { background:linear-gradient(180deg, var(--paper), var(--tint)); }
+.blk h3 { font-size:16px; font-weight:700; letter-spacing:.06em; }
+.blk .it { background:#fff; box-shadow:0 0 0 1px var(--hair); border-radius:14px; }
+.blk .it .sw { width:30px; height:30px; border-radius:50%; box-shadow:inset 0 -3px 6px rgba(0,0,0,.12), 0 0 0 2px #fff, 0 0 0 3px var(--hair); }
+.blk .it .p { font-family:var(--display); font-size:15px; font-weight:600; color:var(--ink); }
+.blk .pic { border-radius:18px; box-shadow:0 0 0 1px var(--hair), 0 8px 20px rgba(60,35,45,.08); }
+
+/* 底部：時鐘與字標淡一點 */
+#foot { color:var(--ink-3); letter-spacing:.08em; }
+
+/* ══ AR 對話：直播 App 的樣子 ══════════════════════════════
+   「AI 顧問」分頁不再是一張蓋住半張臉的白卡，而是像直播留言一樣浮在畫面上：
+   半透明深色膠囊、白字、靠左，舊訊息往上淡出；快速回覆是一排半透明按鈕（像直播底部的工具列）。
+   畫面底部加一層深色漸層，字才看得清楚，也剛好補上鏡面往上推之後露出來的那一條。
+   「妝容調整」分頁有滑桿要操作，維持原本的白色面板。 */
+#s4 > .frame::after {
+  content:""; position:absolute; left:0; right:0; bottom:0; height:48%; z-index:1; pointer-events:none;
+  background:linear-gradient(to bottom, transparent, rgba(18,10,14,.32) 45%, rgba(18,10,14,.72));
+  opacity:0; transition:opacity .25s;
+}
+#s4:has(.sheet[data-tab="ai"]) > .frame::after { opacity:1; }
+#s4.painting-mode > .frame::after { opacity:0; }
+
+.sheet[data-tab="ai"] {
+  background:transparent; box-shadow:none; overflow:visible;
+  -webkit-backdrop-filter:none; backdrop-filter:none;
+}
+.sheet[data-tab="ai"] .sheet-head {
+  margin-bottom:6px; padding:3px 8px 6px; border-radius:18px;
+  background:rgba(18,10,14,.36); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+  box-shadow:0 0 0 1px rgba(255,255,255,.14) inset;
+}
+.sheet[data-tab="ai"] .sheet-grip::after { background:rgba(255,255,255,.55); }
+.sheet[data-tab="ai"] .sheet-tabs { background:rgba(255,255,255,.14); }
+.sheet[data-tab="ai"] .sheet-tabs button { color:rgba(255,255,255,.82); }
+.sheet[data-tab="ai"] .sheet-tabs button.on { background:#fff; color:var(--rose-soft); }
+.sheet[data-tab="ai"] .sheet-shade, .sheet[data-tab="ai"] .sheet-shade b { color:#fff; }
+.sheet[data-tab="ai"] .sheet-shade .bag { background:rgba(255,255,255,.2); border-color:rgba(255,255,255,.4); color:#fff; }
+.sheet[data-tab="ai"] .sheet-shade .bag.in { background:transparent; color:#b9f3cf; }
+.sheet[data-tab="ai"] .sheet-toggle { color:#fff; background:rgba(255,255,255,.16); border-color:transparent; }
+.sheet[data-tab="ai"] .sheet-peek { color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.5); }
+.sheet[data-tab="ai"] .sheet-body { border-top:0; }
+.sheet[data-tab="ai"] .sheet-pane { padding:0 2px 2px; }
+
+/* 留言：新的在下面，舊的往上淡出 */
+#adv4 .log {
+  padding-top:28px;
+  -webkit-mask-image:linear-gradient(to bottom, transparent 0, #000 42%);
+          mask-image:linear-gradient(to bottom, transparent 0, #000 42%);
+  scrollbar-width:none;
+}
+#adv4 .log::-webkit-scrollbar { display:none; }
+#adv4 .msg { color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.28); }
+#adv4 .msg.ai .bubble {
+  max-width:90%; padding:6px 11px; border-radius:16px; color:#fff;
+  background:rgba(18,10,14,.46); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+  box-shadow:0 0 0 1px rgba(255,255,255,.12) inset;
+}
+#adv4 .msg.ai.ask .bubble {       /* AI 在問你：主題色的膠囊，像直播裡被置頂的那一則 */
+  background:linear-gradient(90deg, rgba(var(--primary-rgb),.88), rgba(var(--primary-rgb),.62));
+  box-shadow:0 0 0 1px rgba(255,255,255,.25) inset, 0 4px 14px rgba(var(--primary-rgb),.35);
+}
+#adv4 .msg.ai .avatar { box-shadow:0 0 0 2px rgba(255,255,255,.85); }
+#adv4 .msg.you {                   /* 你的回答也靠左，跟 AI 的留言排在同一串（直播的留言都在左邊） */
+  align-self:flex-start; margin-left:30px; padding:5px 11px; border-radius:16px;
+  background:rgba(255,255,255,.9); color:var(--rose-soft); text-shadow:none;
+  box-shadow:0 2px 8px rgba(0,0,0,.18);
+}
+#adv4 .msg.typing .bubble i { background:#fff; }
+#adv4 .bubble img.snap { box-shadow:0 0 0 2px rgba(255,255,255,.8); }
+
+/* 快速回覆：一排半透明的按鈕 */
+#adv4 .opts button {
+  color:#fff; background:rgba(18,10,14,.46); border:0;
+  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+  box-shadow:0 0 0 1px rgba(255,255,255,.2) inset;
+}
+#adv4 .opts button:hover { background:rgba(18,10,14,.62); transform:translateY(-1px); }
+#adv4 .opts button.more { color:#fff; text-decoration:none; background:rgba(255,255,255,.2); }
+/* 鏡面往上推之後露出來的那一條：直播風格時改成深色，跟底部漸層接起來 */
+#s4:has(.sheet[data-tab="ai"]) > .frame { background:#1b1216; }
+@media (max-width:560px) { #bar h1 { font-size:13px; letter-spacing:.05em; } }
