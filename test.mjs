@@ -1294,13 +1294,11 @@ console.log('\n\x1b[1m33. 商品優先的結束畫面、鏡子前就能加入購
   ok(/case 'recapAll'/.test(dictSrc5) && /opt\.recapAll/.test(dictSrc5), '回顧、喜好、學到什麼改成「今天的回顧」問了才講');
   const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
   const s5 = html.slice(html.indexOf('id="s5"'), html.indexOf('</section>', html.indexOf('id="s5"')));
-  ok(s5.indexOf('rec-items') < s5.indexOf('adv5'), '商品排在對話前面（這一頁的主角是商品）');
-  ok(s5.indexOf('rec-items') < s5.indexOf('s5-more'), '　也排在詳細報告前面');
-  for (const id of ['rec-after', 'rep-before', 'verdict', 'rep-grid']) {
-    ok(s5.indexOf('s5-more') < s5.indexOf(id), '　' + id + ' 收進摺疊區');
-  }
-  ok(/<details id="s5-more">/.test(s5) && !/<details id="s5-more" open>/.test(s5), '詳細報告預設收起來');
-  ok(s5.includes('id="thanks"'), '評分留在最後');
+  // 最後一頁改成兩塊之後：以前的購物清單、對話、詳細報告都收進不顯示的舊區塊（程式照寫、畫面不出現）
+  const legacyAt = s5.indexOf('id="s5-legacy" hidden');
+  ok(legacyAt > 0 && ['rec-items', 'adv5', 's5-more', 'rec-after', 'verdict', 'rep-grid', 'bag-bar'].every((id) => s5.indexOf('id="' + id + '"') > legacyAt),
+     '以前的購物清單、對話、詳細報告都收進不顯示的舊區塊');
+  ok(s5.includes('id="thanks"') && s5.indexOf('id="thanks"') > s5.indexOf('id="blk-me"'), '評分留在最後');
 
   const dictSrc6 = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
   const has3s = (k) => { const m = dictSrc6.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
@@ -1317,10 +1315,10 @@ console.log('\n\x1b[1m33. 商品優先的結束畫面、鏡子前就能加入購
   // 商品頁最上面的橫幅
   const html2 = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
   const s5b = html2.slice(html2.indexOf('id="s5"'), html2.indexOf('</section>', html2.indexOf('id="s5"')));
-  ok(s5b.indexOf('bag-bar') < s5b.indexOf('rec-items') && s5b.indexOf('bag-bar') < s5b.indexOf('adv5'),
-     '袋子橫幅（幾件、多少錢、一鍵帶走）排在最前面');
+  ok(s5b.indexOf('blk-ai') < s5b.indexOf('blk-me') && s5b.indexOf('blk-me') < s5b.indexOf('s5-legacy'),
+     '最後一頁只有兩塊：先「AI 推薦的妝」，再「你自己決定的妝」');
   const app2 = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
-  ok(/function paintBagBar/.test(app2) && /bag.bar.all/.test(app2), '橫幅有「整組放進購物袋」的一鍵按鈕');
+  ok(/function blockTake/.test(app2) && /blk\.take/.test(app2), '兩塊各有「整組放進購物袋」的一鍵按鈕');
   ok(/adv.arPlan/.test(app2), '進 AR 先講接下來的流程');
   const keys = ['adv.askBag', 'opt.bagYes', 'opt.bagNo', 'opt.recapAll', 'adv.recapNone', 's5.more',
                 'bag.bar.none', 'bag.bar.some', 'bag.bar.all', 'adv.arPlan', 'opt.wrapUp', 'adv.askWrap', 'opt.wrapYes',
@@ -1398,6 +1396,38 @@ console.log('\n\x1b[1m34. 膚況分析、二選一找命定色、拍下這個妝
                 'opt.duelStart', 'opt.duelLeft', 'opt.duelRight', 'opt.duelEnd', 'opt.snap', 'adv.snap.done', 'adv.snap.fail', 'snap.title', 'snap.save'];
   const missR = keys.filter((k) => !has3r(k));
   ok(missR.length === 0, '文案三種語言齊全（' + keys.length + ' 句）' + (missR.length ? ' 缺：' + missR.join(',') : ''));
+}
+
+console.log('\n\x1b[1m35. 最後一頁的兩塊、自己上妝的錄影\x1b[0m');
+{
+  const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const s5 = html.slice(html.indexOf('id="s5"'), html.indexOf('</section>', html.indexOf('id="s5"')));
+  const shown = s5.slice(0, s5.indexOf('id="s5-legacy"'));
+  ok((shown.match(/<article class="blk/g) || []).length === 2, '看得到的內容就兩塊（article）');
+  for (const [blk, ids] of [['blk-ai', ['img-ai', 'items-ai', 'take-ai']], ['blk-me', ['img-me', 'items-me', 'take-me', 'clip-me']]]) {
+    const a = shown.indexOf('id="' + blk + '"'), b = shown.indexOf('</article>', a);
+    ok(ids.every((id) => { const i = shown.indexOf('id="' + id + '"'); return i > a && i < b; }),
+       blk + '：一張成品圖＋用到的商品＋整組帶走' + (blk === 'blk-me' ? '＋錄影' : ''));
+  }
+  const app = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  ok(/function planFor\(baseLook\)/.test(app) && /S\.picks = plan\.picks;/.test(app), 'AI 推薦的那一組用跟平常同一套算法重算（不另外寫一份）');
+  ok(/renderOnPhoto\('#img-ai', ai\.picks, ai\.amount, ai\.look, false\)/.test(app), 'AI 的圖不含你畫的筆觸');
+  ok(/renderOnPhoto\('#img-me', S\.picks, S\.amount, S\.look, true\)/.test(app), '你的圖含自己畫的筆觸');
+  ok(/blk\.swap/.test(app) && /blk\.amt/.test(app) && /blk\.painted/.test(app) && /blk\.same/.test(app),
+     '講出跟 AI 不一樣的地方：換了哪支、濃度、自己畫的；沒改就說沒改');
+  // 錄影
+  ok(/captureStream\(30\)/.test(app) && /new MediaRecorder/.test(app), '錄的是鏡子上看到的畫面（含妝）');
+  ok(!/audio:\s*true/.test(app.slice(app.indexOf('function recStart'), app.indexOf('function recStop'))), '不錄聲音');
+  ok(/REC_MAX_MS = 90000/.test(app) && /setTimeout\(recStop, REC_MAX_MS\)/.test(app), '最長 90 秒自動停');
+  ok(/if \(n !== 4\) recStop\(\);/.test(app) && /const wasRec = !!S\.rec;\s*recStop\(\);/.test(app), '離開鏡子、畫完（按完成）都會停錄');
+  ok(/URL\.revokeObjectURL\(c\.url\)/.test(app), '按「重新開始」會把錄影刪掉（只留在這一場）');
+  ok(/rec\.hidden = !recMime\(\)/.test(app), '瀏覽器錄不了就不顯示錄影鈕');
+  ok(html.includes('id="rec-badge"'), '錄的時候鏡子上有 REC 標示');
+  const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
+  const has3 = (k) => { const m = dict.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
+  const keys = ['blk.ai', 'blk.me', 'blk.meTag', 'blk.diff', 'blk.same', 'blk.changed', 'blk.look', 'blk.swap', 'blk.amt', 'blk.painted',
+                'blk.take', 'blk.taken', 'rec.start', 'rec.stop', 'rec.unsupported', 'adv.rec.saved', 'clip.title', 'clip.save'];
+  ok(keys.every(has3), '文案三種語言齊全（' + keys.length + ' 句）');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

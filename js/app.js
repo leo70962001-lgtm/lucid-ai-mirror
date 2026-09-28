@@ -78,6 +78,8 @@ const S = {
   skinCond: null,                      // 膚況：泛紅、油光、明暗均勻（照片量的，給化妝建議用）
   duel: null,                          // 二選一找命定色：{ d, used, i }
   snaps: [],                           // 在鏡子前拍下的妝（最多三張）
+  rec: null, clips: [],                // 自己上妝的錄影：錄製中的 MediaRecorder、錄好的片段（最多兩段）
+  aiPlan: null,                        // 最後一頁「AI 推薦的妝」那一組
   // 情境：使用者告訴我們的，不是量出來的（見 js/context.js 開頭）
   ctx: { mood: null, weather: null, plan: null },
   ctxAuto: null, ctxFeed: false,
@@ -351,6 +353,7 @@ function go(n) {
   // 離開 AR 就把第二層關掉 —— 否則評價頁的 AFTER 對照圖、推薦頁的縮圖
   // 會跟著變成半邊一個色號，報告與縮圖就不是「他實際看到的那張臉」了。
   if (n !== 4 && lastSigB !== 'null') { setMakeupB(null); lastSigB = 'null'; }
+  if (n !== 4) recStop();
   if (n !== 4 && S.tab === 'paint') { S.tab = 'lip'; $('#s4')?.classList.remove('painting-mode'); const pb = $('#paintbar'); if (pb) pb.hidden = true; }
   S.step = n;
   cancelAnimationFrame(S.raf);
@@ -1925,16 +1928,24 @@ const CTX_GROUPS = [['mood', MOODS], ['weather', WEATHERS], ['plan', PLANS]];
  * 膚色契合仍然由 resolveLook 依「量測到的底調」決定 ——
  * 情境只改「偏好的質地」與濃度，不去動誰配得上這個人的膚色。
  */
-function applyContext() {
+/** 一個妝容在今天的條件下（情境、膚色、季節、經驗）會挑到哪幾件、多濃 —— 不改任何狀態 */
+function planFor(baseLook) {
   const adv = contextAdvice(S.ctx);
   const look = Object.keys(adv.finish).length
-    ? { ...S.look, prefer: { ...S.look.prefer, ...adv.finish } }
-    : S.look;
-  S.picks = resolveLook(look, S.skin.undertone, seasonFit());
-  S.amount = adjustIntensity(S.look.intensity, adv.amount);
+    ? { ...baseLook, prefer: { ...baseLook.prefer, ...adv.finish } }
+    : baseLook;
+  const picks = resolveLook(look, S.skin.undertone, seasonFit());
+  const amount = adjustIntensity(baseLook.intensity, adv.amount);
   // 第一次化妝的人整體再輕一點：太濃第一眼就會嚇到，想要更明顯隨時可以往上調
-  if (S.level === 'new') for (const k of ['lip', 'eye', 'cheek']) S.amount[k] = +(S.amount[k] * 0.85).toFixed(3);
-  return adv;
+  if (S.level === 'new') for (const k of ['lip', 'eye', 'cheek']) amount[k] = +(amount[k] * 0.85).toFixed(3);
+  return { look: baseLook, picks, amount, adv };
+}
+
+function applyContext() {
+  const plan = planFor(S.look);
+  S.picks = plan.picks;
+  S.amount = plan.amount;
+  return plan.adv;
 }
 
 function mountContext() {
@@ -2447,6 +2458,57 @@ function mountTabs() {
    選了也沒有臉可以畫，等於功能不見了。
    現在：鏡面上一顆「✍️ 自己畫」、AI 也會提議；進入後抽屜收起來、整面鏡子都能畫，
    工具縮成底部一條（塗在哪裡、顏色、粗細、擦掉、完成）。撤銷／重做沿用鏡面左上那一組。 */
+/* ══ 自己上妝的錄影 ═════════════════════════════════════
+   錄的是鏡子上看到的畫面（含妝），不錄聲音。只存在這台機器的記憶體裡：
+   按「重新開始」或關掉頁面就沒了，不會上傳。要按「● 錄影」才開始（不自動錄），
+   錄的時候鏡子上一直有 REC 標示；最長 90 秒自動停。 */
+const REC_MAX_MS = 90000;
+function recMime() {
+  if (!window.MediaRecorder || !$('#ar')?.captureStream) return null;
+  return ['video/mp4;codecs=avc1', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4']
+    .find((m) => MediaRecorder.isTypeSupported?.(m)) || null;
+}
+function recStart() {
+  if (S.rec) return;
+  const mime = recMime();
+  if (!mime) { flash(t('rec.unsupported'), true); return; }
+  const stream = $('#ar').captureStream(30);
+  const r = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 2500000 });
+  const chunks = [];
+  r.ondataavailable = (e) => { if (e.data?.size) chunks.push(e.data); };
+  r.onstop = () => {
+    stream.getTracks().forEach((tr) => tr.stop());
+    const blob = new Blob(chunks, { type: mime.split(';')[0] });
+    if (blob.size) {
+      S.clips.push({ url: URL.createObjectURL(blob), secs: Math.max(1, Math.round((performance.now() - S.rec0) / 1000)),
+                     ext: mime.includes('mp4') ? 'mp4' : 'webm' });
+      while (S.clips.length > 2) URL.revokeObjectURL(S.clips.shift().url);
+    }
+    S.rec = null; clearInterval(S.recTick); mountRecBadge();
+    if ($('#s4').classList.contains('painting-mode')) mountPaintbar();
+    if (S.step === 5) paintClip();
+  };
+  r.start(500);
+  S.rec = r; S.rec0 = performance.now();
+  S.recTimer = setTimeout(recStop, REC_MAX_MS);
+  S.recTick = setInterval(mountRecBadge, 1000);
+  mountRecBadge();
+}
+function recStop() {
+  clearTimeout(S.recTimer);
+  if (S.rec && S.rec.state !== 'inactive') S.rec.stop();
+}
+function mountRecBadge() {
+  const b = $('#rec-badge'); if (!b) return;
+  b.hidden = !S.rec;
+  if (S.rec) {
+    const s = Math.round((performance.now() - S.rec0) / 1000);
+    b.querySelector('span').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  }
+  const btn = $('#paintbar .pb-rec');
+  if (btn) btn.textContent = S.rec ? t('rec.stop') : t('rec.start');
+}
+
 function enterPaint() {
   if (S.step !== 4) return;
   S.tab = 'paint';
@@ -2456,6 +2518,8 @@ function enterPaint() {
 }
 function exitPaint(quiet = false) {
   if (S.tab !== 'paint' && !$('#s4').classList.contains('painting-mode')) return;
+  const wasRec = !!S.rec;
+  recStop();
   $('#s4').classList.remove('painting-mode');
   $('#paintbar').hidden = true;
   if (!quiet) {
@@ -2463,7 +2527,8 @@ function exitPaint(quiet = false) {
     mountTabs(); mountModes(); mountPanel();
     // 畫完回到對話：有畫東西就肯定一下，並提醒可以撤銷；順便給一個跟剛才畫的部位有關的小技巧
     const drew = hasBrush();
-    chatSay('s4', [{ kind: drew ? 'praise' : 'fact', key: drew ? 'adv.paint.done' : 'adv.paint.none', params: {} }], arOpts());
+    chatSay('s4', [{ kind: drew ? 'praise' : 'fact', key: drew ? 'adv.paint.done' : 'adv.paint.none', params: {} },
+                   ...(wasRec ? [{ kind: 'tip', key: 'adv.rec.saved', params: {} }] : [])], arOpts());
     S.sheet.state = 'open'; S.sheet.tab = 'ai';
   }
   liftMirror(); syncSheet();
@@ -2487,7 +2552,10 @@ function mountPaintbar() {
   };
   const done = el('button', 'pb-done', t('paint.done'));
   done.onclick = () => exitPaint();
-  row.append(wipe, done);
+  const rec = el('button', 'pb-rec' + (S.rec ? ' on' : ''), S.rec ? t('rec.stop') : t('rec.start'));
+  rec.hidden = !recMime();                  // 這個瀏覽器錄不了就不放這顆鈕
+  rec.onclick = () => { S.rec ? recStop() : recStart(); rec.classList.toggle('on', !S.rec); };
+  row.append(rec, wipe, done);
   bar.appendChild(row);
 
   const row2 = el('div', 'pb-row');
@@ -2941,10 +3009,10 @@ function arLoop() {
           const o = out4.getContext('2d');
           o.clearRect(0, 0, W, H); o.drawImage(base4, 0, 0);
           if (!holdBare) renderMakeup(o, base4, smooth, cfg());   // 2D 退路也要吃「按住看素顏」
-          disp.dataset.live = '1';          // 鏡子真的畫過一幀了（拍照前要確認，不然會拍到空白畫布）
           if (S.mode === 'bare') { const bx = Math.round(W * S.splitX); dctx.drawImage(out4, 0, 0, bx, H, 0, 0, bx, H); }
           else dctx.drawImage(out4, 0, 0);
         }
+        disp.dataset.live = '1';            // 鏡子真的畫過一幀了（拍照前要確認，不然會拍到空白畫布）
         if (S.zoom) drawLipZoom(dctx, smooth, W, H);
         drawMark(dctx, smooth, W, H);      // AI 講到哪，就在鏡子上圈到哪
         if (S.mode === 'bare' || S.mode === 'dual') drawSplitUI(dctx, W, H);
@@ -3379,8 +3447,107 @@ function setFace(n) {
   f.classList.remove('bump'); void f.offsetWidth; f.classList.add('bump');
 }
 
+/* ══ 最後一頁：兩塊 ═══════════════════════════════════
+   一塊是 AI 推薦的妝（推薦第一名，照今天的條件挑的商品），一塊是你自己決定的妝
+   （最後停下來的色號、濃度、自己畫的筆觸，錄了影就放影片）。
+   兩張圖都畫在同一張素顏照上，差在哪裡一眼就看得出來；各自列出用到的商品，可以各自帶走。 */
+function renderOnPhoto(id, picks, amount, look, brush) {
+  const c = $(id); if (!c || !S.photo) return;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  c.width = S.photo.width; c.height = S.photo.height;
+  ctx.drawImage(S.photo, 0, 0);
+  setMakeup(glCfgFor(picks, amount, look)); lastSig = '';   // 換掉了渲染器裡的妝，下一次 syncMakeup 要重建
+  setSplit(-1); setIntensity(100); setSweep(-1); useBrush(brush);
+  resetRefs();
+  if (!renderGL(ctx, toPixels(S.photoLm, c.width, c.height), c.width, c.height)) {
+    renderMakeup(ctx, S.photo, S.photoLm, {
+      refL: S.skin?.lab.L,
+      lip: { color: disp(picks.lip.color), finish: picks.lip.finish, amount: amount.lip, gradient: !!look?.lipGradient },
+      eye: { color: disp(picks.eye.color), finish: picks.eye.finish, amount: amount.eye },
+      cheek: { color: disp(picks.cheek.color), finish: picks.cheek.finish, amount: amount.cheek },
+    });
+  }
+}
+
+/** 一塊裡的商品清單：色塊、品項、色號、價格、加入購物袋；跟 AI 不一樣的標「你換的」 */
+function blockItems(boxId, picks, diffFrom) {
+  const box = $(boxId); box.innerHTML = '';
+  for (const cat of ['lip', 'eye', 'cheek']) {
+    const p = picks[cat];
+    const row = el('div', 'it');
+    const changed = diffFrom && diffFrom[cat].id !== p.id;
+    row.innerHTML = swatchHTML(p, 'sw') +
+      `<div class="t"><b>${catLabel(cat)}${changed ? `<em>${t('blk.diff')}</em>` : ''}</b><span>${tf(p, 'shade')}</span></div>
+       <div class="p">$${p.price}</div>`;
+    const inBag = S.bag.includes(p.id);
+    const add = el('button', 'add' + (inBag ? ' in' : ''), inBag ? '✓' : '＋');
+    add.title = t(inBag ? 'bag.added' : 'bag.add');
+    add.disabled = p.stock <= 0 || inBag;
+    add.onclick = () => { if (!S.bag.includes(p.id)) { S.bag.push(p.id); paintTwo(false); paintTotal(); } };
+    row.appendChild(add);
+    box.appendChild(row);
+  }
+}
+
+/** 整組帶走的按鈕：還沒加的才加；全部都在袋子裡就變成「已全部加入」 */
+function blockTake(btnId, picks) {
+  const b = $(btnId);
+  const left = ['lip', 'eye', 'cheek'].filter((c) => picks[c].stock > 0 && !S.bag.includes(picks[c].id));
+  const sum = ['lip', 'eye', 'cheek'].reduce((n, c) => n + picks[c].price, 0);
+  b.textContent = left.length ? t('blk.take', { sum }) : t('blk.taken');
+  b.disabled = !left.length;
+  b.onclick = () => { for (const c of left) S.bag.push(picks[c].id); paintTwo(false); paintTotal(); };
+}
+
+/** 你跟 AI 不一樣的地方，用一句話講完 */
+function diffLine(ai) {
+  const ch = [];
+  if (S.look?.id !== ai.look.id) ch.push(t('blk.look', { look: tf(S.look, 'name') }));
+  for (const c of ['lip', 'eye', 'cheek']) {
+    if (S.picks[c].id !== ai.picks[c].id) ch.push(t('blk.swap', { cat: catLabel(c), shade: tf(S.picks[c], 'shade') }));
+    else if (Math.abs(S.amount[c] - ai.amount[c]) >= 0.05) {
+      ch.push(t('blk.amt', { cat: catLabel(c), a: Math.round(ai.amount[c] * 100), b: Math.round(S.amount[c] * 100) }));
+    }
+  }
+  if (hasBrush()) ch.push(t('blk.painted'));
+  return ch.length ? t('blk.changed', { list: ch.join(t('list.sep')) }) : t('blk.same');
+}
+
+/** 兩塊一起畫；images = false 時只更新商品與按鈕（加入購物袋後不用重畫照片） */
+function paintTwo(images = true) {
+  if (!S.photo || !S.ranked?.length) return;
+  const top = S.ranked[0];
+  const ai = planFor(top.look);
+  S.aiPlan = ai;
+  if (images) {
+    renderOnPhoto('#img-ai', ai.picks, ai.amount, ai.look, false);        // AI 推薦的：不含你畫的筆觸
+    renderOnPhoto('#img-me', S.picks, S.amount, S.look, true);            // 你的：含自己畫的筆觸
+  }
+  $('#blk-ai-name').textContent = tf(ai.look, 'name');
+  $('#blk-ai-why').textContent = cardWhy(top.look, top.why);
+  $('#blk-me-name').textContent = S.look ? tf(S.look, 'name') : '';
+  $('#blk-me-why').textContent = diffLine(ai);
+  blockItems('#items-ai', ai.picks, null);
+  blockItems('#items-me', S.picks, ai.picks);
+  blockTake('#take-ai', ai.picks);
+  blockTake('#take-me', S.picks);
+  paintClip();
+}
+
+/** 自己化妝的錄影：最新一段放在「你自己決定的妝」下面，可以播也可以存 */
+function paintClip() {
+  const box = $('#clip-me'); if (!box) return;
+  const clip = S.clips[S.clips.length - 1];
+  box.hidden = !clip;
+  if (!clip) { box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="cap">${t('clip.title', { n: clip.secs })}</div>
+    <video src="${clip.url}" playsinline muted loop controls autoplay></video>
+    <a href="${clip.url}" download="lucid-my-makeup.${clip.ext}">${t('clip.save')}</a>`;
+}
+
 function enter5() {
   paintReport();
+  paintTwo();
   setFace(S.rating || 0);
 
   const st = $('#stars');
@@ -3438,6 +3605,7 @@ function reset() {
   S.learned.clear(); S.quizDone.clear(); S.quiz = { n: 0, ok: 0 }; S.curQuiz = null;
   S.taste = newTaste(); S.trendSaid.clear(); S.trend = null; S.guide = null;
   S.skinCond = null; S.duel = null; S.snaps = [];
+  recStop(); for (const c of S.clips) URL.revokeObjectURL(c.url); S.clips = []; S.aiPlan = null;   // 錄影只留在這一場
   $('#rec-items').innerHTML = ''; $('#rep-grid').innerHTML = '';
   $('#rec-after').innerHTML = ''; $('#verdict').innerHTML = '';
   [...$('#stars').children].forEach((x) => x.classList.remove('lit'));
