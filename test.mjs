@@ -11,6 +11,8 @@ import { FACE_SHAPES, PROTOTYPES, CELEBS, classifyFace, faceLookBonus, faceReaso
 import { readFileSync } from 'node:fs';
 import { lineEmoji, optEmoji } from './js/emoji.js';
 import { audienceFromPrediction, faceCropBox, GENDER_MIN_PROB } from './js/gender.js';
+import { skinCondition, skinCondTop, skinCondLines, scLevel, SC_LEVELS } from './js/skincond.js';
+import { nextDuel, duelSides, duelLines, duelOpts, duelPicked, DUEL_AXES } from './js/duel.js';
 import { buildRoutine, stepLines, stepOpts, routineRecap } from './js/routine.js';
 import { TRENDS, TREND_PACK, TREND_STALE_DAYS, trendsFor, trendPlan, trendPick, trendLines,
          trendAgeDays, trendStale, trendStaleLines } from './js/trends.js';
@@ -1324,6 +1326,78 @@ console.log('\n\x1b[1m33. 商品優先的結束畫面、鏡子前就能加入購
                 'bag.bar.none', 'bag.bar.some', 'bag.bar.all', 'adv.arPlan', 'opt.wrapUp', 'adv.askWrap', 'opt.wrapYes',
                 'thanks.sub', 'rate.stars'];
   ok(keys.every(has3s), '新文案三種語言齊全（' + keys.length + ' 句）');
+}
+
+console.log('\n\x1b[1m34. 膚況分析、二選一找命定色、拍下這個妝\x1b[0m');
+{
+  // ── 膚況：用合成的臉測（每個取樣點周圍塗上指定顏色）──
+  const W = 400, H = 400;
+  const pts = { 151: [.5, .2], 9: [.5, .27], 108: [.4, .22], 337: [.6, .22], 50: [.3, .55], 280: [.7, .55],
+                101: [.33, .48], 330: [.67, .48], 205: [.35, .62], 425: [.65, .62], 4: [.5, .5], 5: [.5, .47], 195: [.5, .42], 197: [.5, .38] };
+  const lm = []; for (const [i, [x, y]] of Object.entries(pts)) lm[+i] = { x, y };
+  const face = (paint) => ({ width: W, height: H, getContext: () => ({
+    getImageData: (x0, y0, w, h) => {
+      const data = new Uint8ClampedArray(w * h * 4);
+      for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+        const k = (j * w + i) * 4, c = paint((x0 + i) / W, (y0 + j) / H, i, j);
+        data[k] = c[0]; data[k + 1] = c[1]; data[k + 2] = c[2]; data[k + 3] = 255;
+      }
+      return { data };
+    } }) });
+  const isCheek = (x, y) => y > 0.44 && Math.abs(x - 0.5) > 0.1;
+  const isNose = (x, y) => y > 0.36 && y < 0.53 && Math.abs(x - 0.5) < 0.05;
+  const skin = [214, 176, 156];
+  const even = skinCondition(face(() => skin), lm);
+  ok(even && even.level.red === 'low' && even.level.shine === 'low' && even.level.uneven === 'low', '均勻、不紅、不油的臉 → 三項都是「不明顯」');
+  ok(skinCondTop(even).length === 0, '　推薦畫面就不講（不要一拍照就挑毛病）');
+  ok(skinCondLines(even).some((l) => l.key === 'adv.skin.good') && skinCondLines(even).some((l) => l.key === 'adv.skin.note'),
+     '　問了才講：膚況均勻＋一句限制（不是皮膚檢測）');
+  const redFace = skinCondition(face((x, y) => (isCheek(x, y) || isNose(x, y)) ? [226, 160, 150] : skin), lm);
+  console.log('  泛紅的臉：a* 差 ' + redFace.red.toFixed(1) + ' → ' + redFace.level.red);
+  ok(redFace.level.red !== 'low' && skinCondTop(redFace)[0].key === 'adv.skin.red', '臉頰、鼻翼比額頭紅 → 抓得到泛紅，並給綠色飾底的建議');
+  const shinyFace = skinCondition(face((x, y, i, j) => (y < 0.53 && Math.abs(x - 0.5) < 0.13 && (i + j) % 5 === 0) ? [252, 250, 248] : skin), lm);
+  console.log('  T 字反光的臉：反光點 ' + shinyFace.shine.toFixed(1) + '% → ' + shinyFace.level.shine);
+  ok(shinyFace.level.shine !== 'low' && skinCondLines(shinyFace).some((l) => l.key === 'adv.skin.shine'), 'T 字有很亮又沒顏色的點 → 抓得到油光');
+  // 左右打光不一樣（一邊亮一邊暗）不能被當成不均
+  const sideLit = skinCondition(face((x) => skin.map((v) => Math.round(v * (0.8 + 0.4 * x)))), lm);
+  console.log('  單邊打光的臉：起伏 ' + sideLit.uneven.toFixed(2) + '（已扣掉左右漸層）');
+  ok(sideLit.level.uneven === 'low', '只是一邊亮一邊暗（打光）→ 不算明暗不均');
+  const blotchy = skinCondition(face((x, y) => (Math.abs(x - 0.3) < 0.04 && Math.abs(y - 0.55) < 0.04) || (Math.abs(x - 0.6) < 0.04 && Math.abs(y - 0.22) < 0.04) ? [170, 130, 112] : skin), lm);
+  ok(blotchy.level.uneven !== 'low', '有幾塊明顯偏暗的斑 → 算明暗不均');
+  ok(skinCondition(face(() => skin), []) === null, '沒有臉部點位 → 不判斷');
+  ok(scLevel('red', 2) === 'low' && scLevel('red', 4) === 'mid' && scLevel('red', 9) === 'high' && SC_LEVELS.shine.length === 2, '低／中／高的門檻');
+
+  // ── 二選一 ──
+  const L = (id) => PRODUCTS.find((p) => p.id === id);
+  const r1 = nextDuel(PRODUCTS, L('L307'), new Set(['L307']), 0);
+  console.log('  第 1 輪：' + r1.a.id + ' vs ' + r1.b.id + '（' + r1.axis + '）');
+  ok(r1 && r1.axis === 'warm' && r1.b.stock > 0, '第 1 輪比冷暖，挑戰者有貨');
+  const sides = duelSides(r1);
+  ok(sides.a !== sides.b && ['warm', 'cool'].includes(sides.a), '　講得出左右各偏哪一邊');
+  const used = new Set([r1.a.id, r1.b.id]);
+  const r2 = nextDuel(PRODUCTS, r1.b, used, 1);
+  ok(r2 && r2.round >= 1 && !used.has(r2.b.id) && r2.a.id === r1.b.id, '第 2 輪：贏家留下，換一個沒上場過的挑戰者、比下一件事');
+  ok(nextDuel(PRODUCTS, L('L307'), new Set(PRODUCTS.map((p) => p.id)), 0) === null, '沒有可以比的色號 → 結束');
+  ok(PRODUCTS.filter((p) => p.cat === 'lip' && p.stock <= 0).every((p) => p.id !== r1.b.id && p.id !== r2.b.id), '缺貨的不會上場');
+  const dl = duelLines(r1, 1, 3);
+  ok(dl[0].key === 'adv.duel.round' && dl[0].params.axis === 'duel.axis.warm' && dl[1].kind === 'ask', '每輪講「第幾輪、比什麼、左右各是哪支」再問');
+  ok(duelOpts().map((o) => o.act).join() === 'duelLeft,duelRight,duelEnd', '選項只有左、右、不玩了');
+  ok(duelPicked(r1, true).kind === 'told' && duelPicked(r1, false).params.shade === r1.b.id, '選完回一句「你選了哪支、是偏哪一邊的」');
+
+  // ── 選項與文案 ──
+  const newActs = ['skinCond', 'duelStart', 'duelLeft', 'duelRight', 'duelEnd', 'snap'];
+  ok(newActs.every((a) => ACTS.includes(a) && optEmoji({ act: a, key: 'opt.' + a })), '新動作都是已知動作、都有符號');
+  const app3 = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  ok(/if \(S\.duel \|\| S\.guide\) return;/.test(app3), '玩二選一或跟著畫的時候，AI 不插別的話');
+  ok(/function snapLook/.test(app3) && /download = /.test(app3), '拍下的妝可以在最後一頁存下來');
+  const dict7 = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
+  const has3r = (k) => { const m = dict7.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
+  const keys = ['opt.skinCond', 'sclv.low', 'sclv.mid', 'sclv.high', ...['summary', 'red', 'shine', 'uneven', 'good', 'note', 'none'].map((x) => 'adv.skin.' + x),
+                ...['start', 'round', 'q', 'picked', 'win', 'end', 'none'].map((x) => 'adv.duel.' + x),
+                ...DUEL_AXES.map((a) => 'duel.axis.' + a), ...['warm', 'cool', 'deep', 'light', 'vivid', 'soft'].map((x) => 'duel.side.' + x),
+                'opt.duelStart', 'opt.duelLeft', 'opt.duelRight', 'opt.duelEnd', 'opt.snap', 'adv.snap.done', 'adv.snap.fail', 'snap.title', 'snap.save'];
+  const missR = keys.filter((k) => !has3r(k));
+  ok(missR.length === 0, '文案三種語言齊全（' + keys.length + ' 句）' + (missR.length ? ' 缺：' + missR.join(',') : ''));
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

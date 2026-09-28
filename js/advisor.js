@@ -373,7 +373,8 @@ export const EXPLAIN_ACTS = ['whyTone', 'whyMatch', 'whyFace', 'whyCeleb', 'whyA
                              'whyDepth', 'whyLight', 'whyPick',      // 膚色那一題的追問
                              'whyHue', 'whyLevel', 'whyStandout',    // 分數那一題的追問
                              'colorHow',                             // 顏色校正：問過就收掉
-                             'whySeason', 'seasonColors'];           // 季節的追問
+                             'whySeason', 'seasonColors',            // 季節的追問
+                             'skinCond'];
 
 // 回答 AI 問題用的選項 —— 一次性的，答完就收掉
 export const ANSWER_ACTS = ['prefSoft', 'prefBold', 'prefKeep', 'keepBest', 'noThanks', 'keepYes', 'keepNo', 'skipQs', 'buyLip', 'buyAll',
@@ -580,7 +581,7 @@ export const optsForSeason = (res) => (res ? [opt('opt.whySeason', 'whySeason'),
 export const optLearn = () => opt('opt.learn', 'learn');
 export const optQuiz = () => opt('opt.quiz', 'quiz');
 
-export const ACTS = ['recapAll', 'wrapUp', 'whyTone', 'whyDepth', 'whyLight', 'whyPick', 'whyFace', 'whyCeleb',
+export const ACTS = ['recapAll', 'wrapUp', 'skinCond', 'duelStart', 'duelLeft', 'duelRight', 'duelEnd', 'snap', 'whyTone', 'whyDepth', 'whyLight', 'whyPick', 'whyFace', 'whyCeleb',
                      'whyHue', 'whyLevel', 'whyStandout',
                      'useTop', 'goProducts', 'toNeutral', 'softer', 'startAR',
                      'stronger', 'nextShade', 'compare', 'dual', 'zoom', 'whyMatch', 'retry',
