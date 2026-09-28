@@ -34,6 +34,8 @@ import { pickLesson, lessonLines, nextQuiz, onQuizAnswer, learnRecap } from './l
 import { newTaste, noteTaste, tasteRead, tasteSuggest, tasteSummary, describeLip, LIP_FAMILIES } from './lipcolor.js';
 import { TRENDS, TREND_PACK, trendsFor, trendPlan, trendLines, trendStale, trendStaleLines } from './trends.js';
 import { buildRoutine, stepLines, stepOpts, routineRecap } from './routine.js';
+import { skinCondition, skinCondTop, skinCondLines } from './skincond.js';
+import { nextDuel, duelLines, duelOpts, duelPicked } from './duel.js';
 import { findHairline, faceFeatures, classifyFace, faceLookBonus, faceReasonFor } from './faceshape.js';
 import { lineEmoji, optEmoji } from './emoji.js';
 import { initGender, guessAudience } from './gender.js';
@@ -73,6 +75,9 @@ const S = {
   taste: newTaste(),                // 唇色的喜好：冷暖、深淺、鮮豔、質地（看停留時間與自己挑的）
   trendSaid: new Set(), trend: null,   // 講過哪些流行、現在在講的那一個
   guide: null,                         // 一步一步帶你畫：{ steps, i, saved, done }
+  skinCond: null,                      // 膚況：泛紅、油光、明暗均勻（照片量的，給化妝建議用）
+  duel: null,                          // 二選一找命定色：{ d, used, i }
+  snaps: [],                           // 在鏡子前拍下的妝（最多三張）
   // 情境：使用者告訴我們的，不是量出來的（見 js/context.js 開頭）
   ctx: { mood: null, weather: null, plan: null },
   ctxAuto: null, ctxFeed: false,
@@ -558,6 +563,7 @@ async function analyse(photoCanvas, { chart = true } = {}) {
   S.hair = findHairline(photoCanvas, lm);
   S.faceF = faceFeatures(lm, photoCanvas.width, photoCanvas.height, S.hair);
   S.face = classifyFace(S.faceF);
+  S.skinCond = skinCondition(photoCanvas, lm);
   // 季節：膚色＋瞳孔＋頭髮（量得到才算）。眼白只有真的用上時才拿來算黑白分明
   S.seasonF = seasonFeatures(photoCanvas, lm, S.skin, S.hair, useWB ? illum : null);
   S.seasonAns = {};
@@ -817,7 +823,9 @@ function advLine(l) {
   if (p.look) { const lk = LOOKS.find((x) => x.id === p.look); if (lk) p.look = tf(lk, 'name'); }
   if (Array.isArray(p.names)) p.names = p.names.map((n) => tf(n, 'name')).join(t('list.sep'));
   if (p.depth) p.depth = t(p.depth);        // 追問用到的分帶名稱同樣是文案鍵
-  for (const k of ['shade', 'lip', 'eye', 'cheek']) {
+  for (const k of ['axis', 'sa', 'sb', 'side']) if (typeof p[k] === 'string') p[k] = t(p[k]);
+  for (const k of ['red', 'shine', 'uneven']) if (typeof p[k] === 'string' && p[k].startsWith('sclv.')) p[k] = t(p[k]);
+  for (const k of ['shade', 'lip', 'eye', 'cheek', 'a', 'b']) {
     const prod = typeof p[k] === 'string' && PRODUCTS.find((x) => x.id === p[k]);
     if (prod) p[k] = tf(prod, 'shade');
   }
@@ -937,6 +945,7 @@ function mountChat(where) {
     bubble.appendChild(el('span', 'emo', lineEmoji(m.l)));
     if (m.l.kind === 'told') bubble.appendChild(el('span', 'k', t('adv.kind.told')));
     bubble.appendChild(el('span', 'x', advLine(m.l)));
+    if (m.l.params?.img) { const im = el('img', 'snap'); im.src = m.l.params.img; im.alt = ''; bubble.appendChild(im); }
     // 季節的代表色：一排小色票，看一眼就知道是哪種感覺
     if (m.l.params?.swatches) {
       const sw = el('span', 'swatches');
@@ -1258,7 +1267,8 @@ function trendHint() {
 /** 推薦畫面的選項：還在問問題時只給答案＋「直接看建議」；建議給完才出現其他選項 */
 function s2Opts() {
   if (S.q2) return [...S.q2.opts, { key: 'opt.skipQs', act: 'skipQs' }];
-  return [...optsForSkin(S.ranked, S.look), ...optsForSeason(S.season), ...optsForColor(S.color),
+  return [...optsForSkin(S.ranked, S.look), ...optsForSeason(S.season), { key: 'opt.skinCond', act: 'skinCond' },
+          ...optsForColor(S.color),
           { key: 'opt.trendNow', act: 'trendNow' }, optLearn(), optQuiz()];
 }
 
@@ -1266,7 +1276,7 @@ function s2Opts() {
 function suggest2() {
   $('#s2').dataset.phase = 'suggest';
   const tip = S.audience === 'men' ? plainGroom() : plainBlush(S.face);
-  return [...plainFace(S.face), ...plainSkin(S.skin), ...plainSeason(S.season), ...trendHint(), ...colorLines(S.color), ...tip, ...levelTip(S.level, 's2'),
+  return [...plainFace(S.face), ...plainSkin(S.skin), ...plainSeason(S.season), ...skinCondTop(S.skinCond), ...trendHint(), ...colorLines(S.color), ...tip, ...levelTip(S.level, 's2'),
           { kind: 'praise', key: 'adv.ctxDone', params: { look: S.ranked[0].look.id } }];
 }
 
@@ -1278,9 +1288,10 @@ function afterAnswer2(lines) {
 }
 
 /** AR 的選項：有上一支色號時才給「換回剛才那支」 */
-const arOpts = () => (S.guide
+const arOpts = () => (S.duel ? duelOpts() : S.guide
   ? stepOpts(S.guide.steps, S.guide.i)
-  : [{ key: 'opt.guideStart', act: 'guideStart' },
+  : [{ key: 'opt.duelStart', act: 'duelStart' }, { key: 'opt.snap', act: 'snap' },
+     { key: 'opt.guideStart', act: 'guideStart' },
      ...optsForAR(S.zoom, S.mode, !!S.prevLip),
      { key: 'opt.trendNow', act: 'trendNow' },
      ...(tasteRead(S.taste).ready ? [{ key: 'opt.myTaste', act: 'myTaste' }] : []),
@@ -1496,6 +1507,44 @@ function runAct(o) {
     }
     // 整理今天試過的 → 直接帶到商品那一頁（引導的終點是「決定要不要帶走」）
     case 'wrapUp': go(5); return { stay: false };
+    // ── 膚況：三項都講，明顯的附化妝建議 ──
+    case 'skinCond': return { lines: skinCondLines(S.skinCond) };
+    // ── 二選一找命定色：左右各一支，三輪，每輪只比一件事 ──
+    case 'duelStart': {
+      if (S.guide || !S.picks) return {};
+      const d = nextDuel(PRODUCTS, S.picks.lip, new Set([S.picks.lip.id]), 0);
+      if (!d) return { lines: [{ kind: 'fact', key: 'adv.duel.none', params: {} }] };
+      S.duel = { d, used: new Set([d.a.id, d.b.id]), i: 1 };
+      duelShow(d);
+      return { lines: [{ kind: 'fact', key: 'adv.duel.start', params: {} }, ...duelLines(d, 1, 3)], opts: duelOpts() };
+    }
+    case 'duelLeft': case 'duelRight': {
+      const g = S.duel; if (!g) return {};
+      const left = o.act === 'duelLeft', win = left ? g.d.a : g.d.b;
+      // 二選一是很明確的「我比較喜歡這個」—— 用自己挑的權重記進喜好
+      noteTaste(S.taste, win, { picked: true });
+      S.tried.add(g.d.a.id); S.tried.add(g.d.b.id);
+      const picked = duelPicked(g.d, left);
+      const next = g.i < 3 ? nextDuel(PRODUCTS, win, g.used, g.d.round + 1) : null;
+      if (next) {
+        g.d = next; g.i++; g.used.add(next.b.id);
+        duelShow(next);
+        return { lines: [picked, ...duelLines(next, g.i, 3)], opts: duelOpts() };
+      }
+      duelOff();
+      switchLip(win);
+      return { lines: [picked, { kind: 'praise', key: 'adv.duel.win', params: { shade: win.id } }, ...describeLip(win)],
+               opts: [{ key: 'opt.bagYes', act: 'buyLip' }, ...arOpts()] };
+    }
+    case 'duelEnd': duelOff(); return { lines: [{ kind: 'fact', key: 'adv.duel.end', params: {} }], opts: arOpts() };
+    // ── 拍下這個妝 ──
+    case 'snap': {
+      const url = snapLook();
+      if (!url) return { lines: [{ kind: 'caution', key: 'adv.snap.fail', params: {} }] };
+      S.snaps.push(url); if (S.snaps.length > 3) S.snaps.shift();
+      paintSnaps();
+      return { lines: [{ kind: 'praise', key: 'adv.snap.done', params: { n: S.snaps.length, img: url } }] };
+    }
     case 'paintSelf': {
       enterPaint();
       return { lines: [{ kind: 'tip', key: 'adv.paint.start', params: {} }] };
@@ -1761,6 +1810,7 @@ function bestTried() {
  */
 function watchAR(lm, W) {
   if (S.step !== 4 || !lm || !S.skin) return;
+  if (S.duel || S.guide) return;          // 正在玩二選一或跟著畫的時候，不插別的話
   // 還有問題等著回答時不插別的話 —— 否則新的提示會把答案按鈕換掉，
   // 畫面上剩一個問題卻沒有能回答的按鈕，點頭搖頭也跟著失效
   if (S.yesNo) return;
@@ -2891,6 +2941,7 @@ function arLoop() {
           const o = out4.getContext('2d');
           o.clearRect(0, 0, W, H); o.drawImage(base4, 0, 0);
           if (!holdBare) renderMakeup(o, base4, smooth, cfg());   // 2D 退路也要吃「按住看素顏」
+          disp.dataset.live = '1';          // 鏡子真的畫過一幀了（拍照前要確認，不然會拍到空白畫布）
           if (S.mode === 'bare') { const bx = Math.round(W * S.splitX); dctx.drawImage(out4, 0, 0, bx, H, 0, 0, bx, H); }
           else dctx.drawImage(out4, 0, 0);
         }
@@ -3240,6 +3291,58 @@ function paintAfterRecs(meas) {
   box.appendChild(el('div', 'note', t('rec.note', { a: meas.alpha.toFixed(2) })));
 }
 
+/** 二選一：左邊是 A（主色號）、右邊是 B（雙色模式的第二支）—— 沿用雙色對比的畫面 */
+function duelShow(d) {
+  S.picks.lip = { ...d.a, _reason: [['reason.manual']], _alts: [] };
+  S.pickB = d.b; S.mode = 'dual'; S.splitOff = 0;
+  $('#before').hidden = true;
+  startApply(); mountModes(); mountPanel(); syncSheet();
+}
+function duelOff() {
+  S.duel = null; S.mode = 'full'; S.pickB = null;
+  $('#before').hidden = false;
+  startApply(); mountModes(); mountPanel(); syncSheet();
+}
+
+/**
+ * 拍下鏡子裡現在的樣子：畫面＋底下一條白邊寫今天用的色號與日期（像拍立得）。
+ * 回傳 JPEG 的 data URL；畫面還沒準備好就回 null。
+ */
+function snapLook() {
+  const src = $('#ar'); if (!src || !src.width || !S.picks || src.dataset.live !== '1') return null;
+  const W = src.width, H = src.height, bar = Math.round(H * 0.12), pad = Math.round(W * 0.04);
+  const c = el('canvas'); c.width = W; c.height = H + bar;
+  const x = c.getContext('2d');
+  x.drawImage(src, 0, 0);
+  x.fillStyle = '#fffaf9'; x.fillRect(0, H, W, bar);
+  x.fillStyle = '#453640'; x.font = `600 ${Math.round(bar * 0.26)}px sans-serif`; x.textBaseline = 'middle';
+  x.fillText('LUCID · ' + new Date().toLocaleDateString(), pad, H + bar * 0.34);
+  x.fillStyle = '#826a76'; x.font = `${Math.round(bar * 0.2)}px sans-serif`;
+  x.fillText(['lip', 'eye', 'cheek'].map((k) => tf(S.picks[k], 'shade')).join('  ·  '), pad, H + bar * 0.7);
+  // 右邊三顆色點：唇、眼、頰
+  const r = bar * 0.16;
+  ['cheek', 'eye', 'lip'].forEach((k, i) => {
+    x.beginPath(); x.arc(W - pad - r - i * r * 2.6, H + bar / 2, r, 0, Math.PI * 2);
+    x.fillStyle = disp(S.picks[k].color); x.fill();
+  });
+  try { return c.toDataURL('image/jpeg', 0.88); } catch { return null; }
+}
+
+/** 最後一頁：今天拍下的妝，每張都可以存下來 */
+function paintSnaps() {
+  const box = $('#snaps'); if (!box) return;
+  box.hidden = !S.snaps.length;
+  box.innerHTML = S.snaps.length ? `<div class="cap">${t('snap.title')}</div>` : '';
+  const row = el('div', 'row');
+  S.snaps.forEach((url, i) => {
+    const a = el('a', 'snap');
+    a.href = url; a.download = `lucid-look-${i + 1}.jpg`;
+    a.innerHTML = `<img src="${url}" alt=""><span>${t('snap.save')}</span>`;
+    row.appendChild(a);
+  });
+  box.appendChild(row);
+}
+
 /** 最上面那條橫幅：袋子裡幾件、多少錢、一鍵整組加入 —— 這一頁的重點就是這件事 */
 function paintBagBar() {
   const box = $('#bag-bar'); if (!box || !S.picks) return;
@@ -3259,7 +3362,7 @@ function paintBagBar() {
 }
 
 function paintTotal() {
-  paintBagBar();
+  paintBagBar(); paintSnaps();
   const items = S.bag.map((id) => PRODUCTS.find((p) => p.id === id)).filter(Boolean);
   const sum = items.reduce((n, p) => n + p.price, 0);
   const full = ['lip', 'eye', 'cheek'].reduce((n, k) => n + S.picks[k].price, 0);
@@ -3334,6 +3437,7 @@ function reset() {
   S.seasonF = null; S.seasonAns = {}; S.season = null;
   S.learned.clear(); S.quizDone.clear(); S.quiz = { n: 0, ok: 0 }; S.curQuiz = null;
   S.taste = newTaste(); S.trendSaid.clear(); S.trend = null; S.guide = null;
+  S.skinCond = null; S.duel = null; S.snaps = [];
   $('#rec-items').innerHTML = ''; $('#rep-grid').innerHTML = '';
   $('#rec-after').innerHTML = ''; $('#verdict').innerHTML = '';
   [...$('#stars').children].forEach((x) => x.classList.remove('lit'));

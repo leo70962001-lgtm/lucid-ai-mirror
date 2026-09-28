@@ -65,6 +65,12 @@ const LINE = [
   [/^adv\.paint\.done$/, '👏'],
   [/^adv\.paint\./, '✍️'],
   [/^adv\.askBag$/, '🛍️'],
+  [/^adv\.skin\.note$/, '🙏'],
+  [/^adv\.skin\.good$/, '✨'],
+  [/^adv\.skin\./, '🪞'],
+  [/^adv\.duel\.win$/, '💖'],
+  [/^adv\.duel\./, '🆚'],
+  [/^adv\.snap\./, '📸'],
   [/^adv\.askWrap$/, '🧾'],
   [/^adv\.arPlan$/, '🧭'],
   [/^adv\.guide\.done$/, '🎉'],
@@ -119,7 +125,7 @@ const ACT = {
   skipQs: '⏭️', buyLip: '🛍️', buyAll: '🛍️',
   colorHow: '🎨', colorOpen: '⚙️', retake: '📷', colorLater: '👌',
   whySeason: '🌈', seasonColors: '🎨', learn: '📚', quiz: '📝', quizAns: '✏️', paintSelf: '✍️', myTaste: '💭', trendNow: '🗞️', tryTrend: '💄', trendNext: '🔁',
-  recapAll: '📋', wrapUp: '🧾', guideStart: '🧭', guideNext: '👉', guidePaint: '✍️', guideSkip: '⏭️', guideEnd: '👌',
+  recapAll: '📋', wrapUp: '🧾', skinCond: '🪞', duelStart: '🆚', duelLeft: '👈', duelRight: '👉', duelEnd: '👌', snap: '📸', guideStart: '🧭', guideNext: '👉', guidePaint: '✍️', guideSkip: '⏭️', guideEnd: '👌',
   seaGold: '💛', seaSilver: '🤍', seaDunno: '🤔', seaCoral: '🧡', seaBrick: '🤎', seaSharp: '✨', seaHeavy: '😪',
 };
 const SEASON_EMO = { spring: '🌸', summer: '🌊', autumn: '🍂', winter: '❄️' };

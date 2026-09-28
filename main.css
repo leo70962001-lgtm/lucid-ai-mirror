@@ -1334,3 +1334,17 @@ body {
   box-shadow:0 5px 14px rgba(var(--primary-rgb),.3);
 }
 #bag-bar .all:hover { box-shadow:0 7px 18px rgba(var(--primary-rgb),.38); }
+
+/* 拍下的妝：對話氣泡裡的小圖、最後一頁的一排拍立得 */
+.bubble img.snap { display:block; margin-top:7px; width:120px; border-radius:10px; box-shadow:0 3px 10px rgba(var(--shadow-rgb),.2); }
+#snaps { margin:0 0 12px; }
+#snaps .cap { font:600 11px/1 inherit; color:var(--ink-3); margin:0 0 7px; }
+#snaps .row { display:flex; gap:9px; overflow-x:auto; padding-bottom:4px; }
+#snaps a.snap {
+  flex:none; display:flex; flex-direction:column; align-items:center; gap:5px; padding:6px 6px 8px;
+  border-radius:12px; background:#fff; text-decoration:none; color:var(--rose-soft);
+  box-shadow:0 0 0 1px var(--line), 0 6px 16px rgba(var(--drop-rgb),.14); transform:rotate(-1.2deg);
+}
+#snaps a.snap:nth-child(even) { transform:rotate(1.2deg); }
+#snaps a.snap img { width:96px; border-radius:7px; display:block; }
+#snaps a.snap span { font:700 10.5px/1 inherit; }
