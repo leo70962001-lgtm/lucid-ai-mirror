@@ -85,6 +85,7 @@
           <button class="zoom-btn" id="zoom-btn" type="button">放大唇部</button>
           <div class="hist" id="s4-hist"></div>
           <button class="paint-btn" id="paint-btn" type="button" data-i18n="paint.btn">✍️ 自己畫</button>
+          <div class="rec-badge" id="rec-badge" hidden>● REC <span></span></div>
         </div>
         <!-- 自己上妝：抽屜收起來、整面鏡子都能畫，工具縮成底部一條 -->
         <div class="paintbar" id="paintbar" hidden></div>
@@ -120,10 +121,32 @@
       <section class="screen" id="s5" hidden>
         <div id="s5-scroll">
 
+        <!-- 最後一頁只有兩塊：AI 推薦的妝、你自己決定的妝 —— 各自一張成品圖＋用到的商品 -->
+        <div class="duo">
+          <article class="blk" id="blk-ai">
+            <header><span class="who">AI</span><div><h3 data-i18n="blk.ai">AI 推薦的妝</h3><small id="blk-ai-name"></small></div></header>
+            <figure class="pic"><canvas id="img-ai"></canvas></figure>
+            <p class="why" id="blk-ai-why"></p>
+            <div class="items" id="items-ai"></div>
+            <button class="take" id="take-ai" type="button"></button>
+          </article>
+          <article class="blk me" id="blk-me">
+            <header><span class="who" data-i18n="blk.meTag">你</span><div><h3 data-i18n="blk.me">你自己決定的妝</h3><small id="blk-me-name"></small></div></header>
+            <figure class="pic"><canvas id="img-me"></canvas></figure>
+            <div class="clip" id="clip-me" hidden></div>
+            <div id="snaps" hidden></div>
+            <p class="why" id="blk-me-why"></p>
+            <div class="items" id="items-me"></div>
+            <button class="take" id="take-me" type="button"></button>
+          </article>
+        </div>
+        <div class="note" id="rec-total"></div>
+
+        <!-- 以前的區塊（購物清單、對話、詳細報告）：程式還會寫進去，但這一頁不再顯示 -->
+        <div id="s5-legacy" hidden>
         <!-- 這一頁的主角是商品：今天試過的那幾件排最前面，分析與報告收在下面的摺疊區 -->
         <div class="sect-title" data-i18n="sect.rec">今天試的這幾件</div>
         <div id="bag-bar"></div>
-        <div id="snaps" hidden></div>
         <div id="rec-items"></div>
         <div class="note" id="rec-total"></div>
 
@@ -147,6 +170,8 @@
           <div class="rep-grid" id="rep-grid"></div>
           <div class="note" id="rep-note"></div>
         </details>
+
+        </div>
 
         <div class="sect-title" data-i18n="sect.feedback">YOUR FEEDBACK</div>
         <div id="thanks">
