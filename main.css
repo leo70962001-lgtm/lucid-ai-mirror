@@ -1937,3 +1937,12 @@ body {
 @media (prefers-reduced-motion:reduce) {
   .frame .host .live, .fx .gift, #adv4 .msg.new, #adv2 .msg.new { animation:none; }
 }
+
+/* 第 2 步：臉的位置改由 fitFaceAbove() 依臉部點位算（下面這行只是算好之前的預設）；
+   照片縮小時兩側可能露一點底，用深色。選項只排一行、左右滑 —— 跟直播一樣，不會一路往上疊蓋到臉。 */
+#s2 > .frame { background:#1b1216; }
+#s2 > .frame canvas#shot { transition:transform .25s ease; }
+#s2 #adv2 .opts { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; margin:0 -10px; padding:2px 10px; }
+#s2 #adv2 .opts::-webkit-scrollbar { display:none; }
+#s2 #adv2 .opts button { flex:none; white-space:nowrap; }
+@media (max-width:560px) { #s2 #adv2 { max-height:36%; } #s2[data-phase="suggest"] #adv2 { max-height:26%; } }
