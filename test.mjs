@@ -12,6 +12,7 @@ import { readFileSync } from 'node:fs';
 import { lineEmoji, optEmoji } from './js/emoji.js';
 import { audienceFromPrediction, faceCropBox, GENDER_MIN_PROB } from './js/gender.js';
 import { skinCondition, skinCondTop, skinCondLines, scLevel, SC_LEVELS } from './js/skincond.js';
+import { faceFit } from './js/fit.js';
 import { nextDuel, duelSides, duelLines, duelOpts, duelPicked, DUEL_AXES } from './js/duel.js';
 import { buildRoutine, stepLines, stepOpts, routineRecap } from './js/routine.js';
 import { TRENDS, TREND_PACK, TREND_STALE_DAYS, trendsFor, trendPlan, trendPick, trendLines,
@@ -1471,6 +1472,28 @@ console.log('\n\x1b[1m36. 直播間的固定配置：主播資訊、右側按鈕
   const has3 = (k) => { const m = dict.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
   const keys = ['host.name', 'host.s2', 'host.s4', 'rail.duel', 'rail.snap', 'rail.guide', 'rail.paint', 'banner.duel', 'banner.snap', 'banner.guide'];
   ok(keys.every(has3), '文案三種語言齊全（' + keys.length + ' 句）');
+}
+
+console.log('\n\x1b[1m37. 第 2 步：對話不能蓋到臉\x1b[0m');
+{
+  // 手機直式畫面 390×640，照片 720×960；對話上緣在 400px
+  const base = { W: 720, H: 960, FW: 390, FH: 640, C: 400, TOP: 52 };
+  const place = (top, chin) => {
+    const { k, ty } = faceFit({ ...base, top, chin });
+    const s0 = Math.max(base.FW / base.W, base.FH / base.H), oy = (base.FH - base.H * s0) / 2;
+    const y = (v) => (oy + v * s0) * k + ty;
+    return { k, ty, top: y(top), chin: y(chin), bottom: y(base.H) };
+  };
+  const low = place(420, 820);      // 人站得低：下巴本來會落在對話裡
+  ok(low.chin <= base.C + 0.5 && low.top >= base.TOP - 0.5, '人站得低：照片往上移，下巴在對話上方、額頭在主播膠囊下方');
+  const near = place(80, 900);      // 臉貼很近：整張臉塞不進對話上方
+  ok(near.chin <= base.C + 0.5 && near.k < 1, '臉貼很近：照片縮小讓整張臉露出（寧可旁邊露底色）');
+  const ok1 = place(150, 400);      // 本來就在上面
+  ok(ok1.ty <= 0 && ok1.bottom >= base.FH - 0.5, '臉本來就在上面：不往下推，照片下緣仍蓋滿畫面');
+  const app = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('./main.css', import.meta.url), 'utf8');
+  ok(/if \(where === 's2'\) requestAnimationFrame\(fitFaceAbove\)/.test(app), '對話變長（換題、展開更多）時重新讓位');
+  ok(/#s2 #adv2 \.opts \{ flex-wrap:nowrap; overflow-x:auto;/.test(css), '第 2 步的選項只排一行、左右滑，不會一層層往上疊');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

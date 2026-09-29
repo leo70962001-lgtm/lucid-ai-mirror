@@ -36,6 +36,7 @@ import { TRENDS, TREND_PACK, trendsFor, trendPlan, trendLines, trendStale, trend
 import { buildRoutine, stepLines, stepOpts, routineRecap } from './routine.js';
 import { skinCondition, skinCondTop, skinCondLines } from './skincond.js';
 import { nextDuel, duelLines, duelOpts, duelPicked } from './duel.js';
+import { faceFit } from './fit.js';
 import { findHairline, faceFeatures, classifyFace, faceLookBonus, faceReasonFor } from './faceshape.js';
 import { lineEmoji, optEmoji } from './emoji.js';
 import { initGender, guessAudience } from './gender.js';
@@ -697,6 +698,36 @@ function showOnPhoto(look, animate = true) {
 /** 試妝的步驟不講庫存、價錢這類購物資訊（最後一頁才講） */
 const noShop = (lines) => lines.filter((l) => l.key !== 'adv.lowStock');
 
+/**
+ * 第 2 步：照片滿版、對話疊在下半部 —— 臉不能被對話蓋住。
+ * 每張照片臉的位置都不一樣（有人站得低、有人靠很近），固定往上推幾 % 不夠，
+ * 所以用照片裡量到的臉部點位來算：下巴放在對話區上方、額頭留在左上主播膠囊下方。
+ *   照片先照 object-fit: cover 鋪滿（置中），再用「往上移 ty、放大 k」微調：y' = y·k + ty
+ *   限制：下巴 = 對話上緣；照片下緣要蓋到畫面底（不露空白）；額頭不能被膠囊擋住。
+ *   三個條件衝突時，以「臉完整露出」為優先 —— 寧可底下露一點深色，也不要蓋到臉。
+ */
+function fitFaceAbove() {
+  if (S.step !== 2 || !S.photoLm) return;
+  const cv = $('#shot'), fr = $('#s2 > .frame'); if (!cv || !fr || !cv.width) return;
+  const F = fr.getBoundingClientRect(); if (!F.height) return;
+  const W = cv.width, H = cv.height, FW = F.width, FH = F.height;
+  const lm = S.photoLm;
+  const top = Math.min(lm[10].y, lm[109]?.y ?? 1, lm[338]?.y ?? 1) * H;   // 額頭
+  const chin = lm[152].y * H;                                             // 下巴
+  // 對話區的上緣：留言串上面 30% 是淡出的，可以稍微重疊；沒有對話時用卡片列
+  const ov = [$('#adv2'), $('#looks')].filter((e) => e && e.offsetParent && e.getBoundingClientRect().height > 4);
+  let C = FH - 20;
+  if (ov.length) {
+    const r = ov[0].getBoundingClientRect();
+    C = Math.min(C, r.top - F.top + r.height * (ov[0].id === 'adv2' ? 0.3 : 0) - 10);
+  }
+  const { k, ty } = faceFit({ W, H, FW, FH, top, chin, C, TOP: 52 });
+  cv.style.objectPosition = '50% 50%';
+  cv.style.transformOrigin = '50% 0';
+  cv.style.transform = `translateY(${Math.round(ty)}px) scale(${k.toFixed(3)})`;
+}
+addEventListener('resize', () => { if (S.step === 2) fitFaceAbove(); });
+
 /** 有季節結果時，挑色號用「這個顏色有多像你的季節」；介於兩季之間時兩邊都算 */
 const seasonFit = () => (S.season ? (p) => personFit(p, S.season) : null);
 
@@ -1006,6 +1037,7 @@ function mountChat(where) {
   }
   if (where === 's5') box.appendChild(el('div', 'foot', t('adv.note')));
   if (inSheet) syncSheet();
+  if (where === 's2') requestAnimationFrame(fitFaceAbove);   // 對話長高了 → 臉要跟著讓位
 }
 
 // ── AR 的控制抽屜 ───────────────────────────────────────
