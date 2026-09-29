@@ -1456,7 +1456,8 @@ console.log('\n\x1b[1m36. 直播間的固定配置：主播資訊、右側按鈕
   const app = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
   const css = readFileSync(new URL('./main.css', import.meta.url), 'utf8');
   const sec = (id) => html.slice(html.indexOf('id="' + id + '"'), html.indexOf('</section>', html.indexOf('id="' + id + '"')));
-  ok(sec('s4').includes('class="host"') && sec('s2').includes('class="host"'), '第 2、3 步左上都有主播資訊膠囊（AI 顧問＋LIVE）');
+  ok(sec('s4').includes('class="host"') && sec('s2').includes('class="host"'), '第 2、3 步左上都有主播資訊膠囊（AI 顧問＋狀態）');
+  ok(!html.includes('class="live"') && !/livePulse/.test(css), '主播膠囊不放 LIVE 標籤');
   ok(sec('s4').includes('id="s4-rail"') && sec('s4').includes('id="s4-fx"'), '第 3 步有右側按鈕列與特效層');
   const rail = app.slice(app.indexOf('const RAIL = ['), app.indexOf('];', app.indexOf('const RAIL = [')));
   const railActs = [...rail.matchAll(/act: '(\w+)'/g)].map((m) => m[1]);
@@ -1467,7 +1468,7 @@ console.log('\n\x1b[1m36. 直播間的固定配置：主播資訊、右側按鈕
   ok(/const HEART_ACTS = new Set\(\[[^\]]*'keepYes'[^\]]*'duelLeft'[^\]]*\]\)/.test(app) && /floatHearts\('s4'\)/.test(app), '表示喜歡的時候飄愛心');
   ok(/if \(!fx \|\| calm\(\)\) return;/.test(app), '系統設定減少動態效果時不飄愛心');
   ok(/liveBanner\('s4', '💖'/.test(app) && /liveBanner\('s4', '📸'/.test(app) && /liveBanner\('s4', '🎉'/.test(app), '命定色出爐、拍好了、跟著畫完會跳禮物式橫幅');
-  ok(/@keyframes livePulse/.test(css) && /@keyframes liveIn/.test(css), 'LIVE 會閃、新留言從左邊滑進來');
+  ok(/@keyframes liveIn/.test(css), '新留言從左邊滑進來');
   const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
   const has3 = (k) => { const m = dict.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
   const keys = ['host.name', 'host.s2', 'host.s4', 'rail.duel', 'rail.snap', 'rail.guide', 'rail.paint', 'banner.duel', 'banner.snap', 'banner.guide'];
