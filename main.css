@@ -1771,3 +1771,40 @@ body {
 /* 底部不要有「底框」：影像蓋到最底（見 liftMirror），漸層只留很淡的一層讓白字看得清楚 */
 #s4:has(.sheet[data-tab="ai"]) > .frame { background:transparent; }
 #s4 > .frame::after { height:34%; background:linear-gradient(to bottom, transparent, rgba(18,10,14,.14) 60%, rgba(18,10,14,.28)); }
+
+/* ══ 第 2 步的版面：參考第 3 步（照片滿版，對話與卡片疊在下半部）═══════════
+   照片是主角、佔滿整個畫面；對話、快速回覆、妝容卡片由下往上疊在照片上 —— 跟第 3 步的鏡子一樣。
+   對話的「樣子」仍然跟第 3 步不同：第 2 步是訊息 App 的白色氣泡（諮詢），第 3 步是直播留言（體驗）。 */
+#s2 { position:relative; overflow:hidden; justify-content:flex-end; gap:8px; padding:0 10px 10px; }
+#s2 > .frame {
+  position:absolute; inset:0; height:auto !important; min-height:0 !important; z-index:0;
+}
+#s2 > .frame canvas#shot { object-position:50% 22%; }          /* 臉往上放，嘴唇不要被對話蓋住 */
+#s2 #shot-hint { top:12px; bottom:auto; }
+/* 下半部淡淡的一層亮色漸層，白色氣泡跟照片之間才有層次 */
+#s2 > .frame::after {
+  content:""; position:absolute; left:0; right:0; bottom:0; height:62%; pointer-events:none;
+  background:linear-gradient(to bottom, transparent, rgba(255,250,248,.35) 40%, rgba(255,250,248,.78));
+}
+#s2 #adv2, #s2 #looks { position:relative; z-index:2; }
+#s2 #adv2 {
+  flex:0 1 auto !important; max-height:54%; min-height:0;
+  background:none !important; box-shadow:none !important; padding:0 !important; border-radius:0;
+}
+#s2 #adv2 .log {
+  -webkit-mask-image:linear-gradient(to bottom, transparent 0, #000 22%);
+          mask-image:linear-gradient(to bottom, transparent 0, #000 22%);
+  padding-top:18px;
+}
+#s2 #adv2 .msg.ai .bubble { box-shadow:0 0 0 1px var(--hair), 0 4px 14px rgba(60,35,45,.14); }
+#s2 #adv2 .opts button { background:rgba(255,255,255,.92); box-shadow:0 0 0 1px var(--hair), 0 3px 10px rgba(60,35,45,.1); }
+#s2 #looks { padding:0 0 2px; }
+#s2 #looks .look { background:rgba(255,253,251,.95); }
+/* 臉往上移、同時放大蓋滿（跟第 3 步鏡面上推的做法一樣），嘴唇露在對話上方 */
+#s2 > .frame canvas#shot { object-position:50% 30%; transform-origin:50% 0; transform:translateY(-13%) scale(1.13); }
+/* 疊在照片上時不能太高：問問題時對話最多 42%，給建議時（下面多了卡片）最多 30% */
+#s2 #adv2 { max-height:42%; }
+#s2[data-phase="suggest"] #adv2 { max-height:30%; }
+#s2 #looks .look { padding:7px 9px; gap:9px; align-items:center; }
+#s2 #looks .look .thumb { width:48px; height:60px; }
+#s2 #looks .look .why { display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; }
