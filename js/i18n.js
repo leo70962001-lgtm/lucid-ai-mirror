@@ -307,6 +307,17 @@ const DICT = {
                       '了解しました。この項目は考慮しません。申告のない項目は提案に影響しません。'],
 
   'adv.whyLightChart': ['判定之前先用鏡框邊的標準色卡校正：讀到 {n} 塊色塊，校正前色卡平均偏了 ΔE {raw}，校正後剩 ΔE {de} —— 不論櫃位燈光偏暖偏冷，膚色都先換算回標準光再判定。', 'Before judging, the standard colour chart by the mirror is used: {n} patches read, off by ΔE {raw} before correction and ΔE {de} after — so warm or cool store lighting is corrected before your skin is judged.', '判定の前に、鏡の横の標準カラーチャートで補正しています。{n} 色を読み取り、補正前は平均 ΔE {raw}、補正後は ΔE {de}。売場の照明が暖色でも寒色でも、標準光に換算してから判定します。'],
+  // 直播間的元素：主播資訊、右側按鈕、橫幅
+  'host.name': ['LUCID 美妝顧問', 'LUCID Beauty AI', 'LUCID ビューティAI'],
+  'host.s2': ['諮詢中', 'consulting', 'カウンセリング中'],
+  'host.s4': ['試妝中', 'trying on', '試着中'],
+  'rail.duel': ['二選一', 'Pick one', '二択'],
+  'rail.snap': ['拍照', 'Snap', '撮影'],
+  'rail.guide': ['教我畫', 'Guide me', '教えて'],
+  'rail.paint': ['自己畫', 'Paint', '自分で'],
+  'banner.duel': ['命定色出爐：{shade}', 'Your shade: {shade}', '運命の色：{shade}'],
+  'banner.snap': ['拍好了！最後一頁可以存', 'Snapped! Save it on the last page', '撮れました！最後のページで保存'],
+  'banner.guide': ['跟著畫完了，好厲害', 'All steps done — nicely done', '全ステップ完了！'],
   // 最後一頁的兩塊、自己上妝的錄影
   'blk.ai': ['AI 推薦的妝', 'The AI’s pick', 'AIのおすすめ'],
   'blk.me': ['你自己決定的妝', 'Your own choice', 'あなたが決めたメイク'],

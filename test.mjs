@@ -1449,5 +1449,29 @@ console.log('\n\x1b[1m35. 最後一頁的兩塊、自己上妝的錄影\x1b[0m')
   ok(/'btn.done5'/.test(readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8')), '評分卡拿掉之後，按鈕改成「完成」');
 }
 
+console.log('\n\x1b[1m36. 直播間的固定配置：主播資訊、右側按鈕、飄愛心、禮物橫幅\x1b[0m');
+{
+  const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('./main.css', import.meta.url), 'utf8');
+  const sec = (id) => html.slice(html.indexOf('id="' + id + '"'), html.indexOf('</section>', html.indexOf('id="' + id + '"')));
+  ok(sec('s4').includes('class="host"') && sec('s2').includes('class="host"'), '第 2、3 步左上都有主播資訊膠囊（AI 顧問＋LIVE）');
+  ok(sec('s4').includes('id="s4-rail"') && sec('s4').includes('id="s4-fx"'), '第 3 步有右側按鈕列與特效層');
+  const rail = app.slice(app.indexOf('const RAIL = ['), app.indexOf('];', app.indexOf('const RAIL = [')));
+  const railActs = [...rail.matchAll(/act: '(\w+)'/g)].map((m) => m[1]);
+  ok(railActs.join() === 'duelStart,snap,guideStart,paintSelf' && railActs.every((a) => ACTS.includes(a)), '右側按鈕：二選一、拍照、教我畫、自己畫（都是已知動作）');
+  const opts = app.slice(app.indexOf('const arOpts = () =>'), app.indexOf('/* ══ 直播間的互動元素'));
+  ok(railActs.every((a) => !opts.includes("act: '" + a + "'")), '這四個不再塞在快速回覆裡（快速回覆只留回答 AI 的選項）');
+  ok(/#s4\.busy \.rail, #s4\.painting-mode \.rail \{ display:none; \}/.test(css), '玩二選一、跟著畫、自己畫的時候右側按鈕先收起來');
+  ok(/const HEART_ACTS = new Set\(\[[^\]]*'keepYes'[^\]]*'duelLeft'[^\]]*\]\)/.test(app) && /floatHearts\('s4'\)/.test(app), '表示喜歡的時候飄愛心');
+  ok(/if \(!fx \|\| calm\(\)\) return;/.test(app), '系統設定減少動態效果時不飄愛心');
+  ok(/liveBanner\('s4', '💖'/.test(app) && /liveBanner\('s4', '📸'/.test(app) && /liveBanner\('s4', '🎉'/.test(app), '命定色出爐、拍好了、跟著畫完會跳禮物式橫幅');
+  ok(/@keyframes livePulse/.test(css) && /@keyframes liveIn/.test(css), 'LIVE 會閃、新留言從左邊滑進來');
+  const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
+  const has3 = (k) => { const m = dict.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
+  const keys = ['host.name', 'host.s2', 'host.s4', 'rail.duel', 'rail.snap', 'rail.guide', 'rail.paint', 'banner.duel', 'banner.snap', 'banner.guide'];
+  ok(keys.every(has3), '文案三種語言齊全（' + keys.length + ' 句）');
+}
+
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);
 process.exit(fail ? 1 : 0);
