@@ -1405,6 +1405,7 @@ console.log('\n\x1b[1m35. 最後一頁的兩塊、自己上妝的錄影\x1b[0m')
   ok(/S\.step !== 4 \|\| !l\.key\.startsWith\('adv\.trend\.here'\)/.test(appSrc), 'AR 裡講流行時不指「店裡哪一支」');
   ok(/const noShop = /.test(appSrc), '照片試妝不講庫存');
   const cssSrc = readFileSync(new URL('./main.css', import.meta.url), 'utf8');
+  ok(cssSrc.includes('.sheet .sheet-body { order:1;') && cssSrc.includes('.sheet .sheet-head { order:2;'), 'AR 抽屜：對話與選項在上、分頁列（AI 顧問／妝容調整／色號）在最下面');
   ok(cssSrc.includes('#panel [hidden] { display:none !important; }'), '試色面板裡藏起來的售價、庫存、加入購物車真的會藏（.spec 的 flex 不會蓋掉 hidden）');
   ok(/#adv2 \.msg\.you \{[^}]*align-self:flex-end/.test(cssSrc) && /#adv2 \.msg\.ai \.bubble[^{]*\{[^}]*background:#fff/.test(cssSrc), '第 2 步是訊息 App 的樣子（AI 白卡在左、你的回答在右），跟第 3 步的直播留言不一樣');
   ok((shown.match(/\$\{|price|take-/g) || []).length > 0 && /blk\.take/.test(appSrc), '最後一頁才有商品、價錢與整組帶走');
