@@ -1808,3 +1808,42 @@ body {
 #s2 #looks .look { padding:7px 9px; gap:9px; align-items:center; }
 #s2 #looks .look .thumb { width:48px; height:60px; }
 #s2 #looks .look .why { display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; }
+
+/* ══ 第 2 步的對話也改成直播留言的樣子（跟第 3 步一樣）═════════════
+   沒有白色氣泡：白字＋陰影直接疊在照片上；AI 在問你的那一則加半透明主題色塊；
+   你的回答是淡金色一行留言；快速回覆是半透明深色膠囊。底部改成淡淡的深色漸層，白字才讀得清楚。 */
+#s2 > .frame::after {
+  height:58%;
+  background:linear-gradient(to bottom, transparent, rgba(18,10,14,.22) 45%, rgba(18,10,14,.55));
+}
+#s2 #adv2 .msg, #s2 #adv2 .msg.ai .bubble {
+  color:#fff; font-weight:600; text-shadow:0 0 2px rgba(0,0,0,.85), 0 1px 4px rgba(0,0,0,.7);
+}
+#s2 #adv2 .msg.ai .bubble, #s2 #adv2 .msg.ai.cont .bubble {
+  background:none; box-shadow:none; padding:1px 0; border-radius:0; max-width:100%;
+}
+#s2 #adv2 .msg.ai.ask .bubble {
+  display:inline-block; padding:3px 10px; border-radius:14px; color:#fff;
+  background:linear-gradient(90deg, rgba(var(--primary-rgb),.72), rgba(var(--primary-rgb),.38));
+  box-shadow:0 0 0 1px rgba(255,255,255,.25) inset;
+}
+#s2 #adv2 .msg.ai .avatar { width:20px; height:20px; font-size:8px; line-height:20px; box-shadow:0 0 0 1.5px rgba(255,255,255,.8), 0 1px 4px rgba(0,0,0,.4); }
+#s2 #adv2 .msg.ai.cont { padding-left:26px; }
+#s2 #adv2 .msg.you {
+  align-self:flex-start; margin-left:26px; padding:0; border-radius:0; background:none; box-shadow:none;
+  color:#ffe3a3; font-weight:700;
+}
+#s2 #adv2 .msg.you::before { content:"↳ "; opacity:.7; }
+#s2 #adv2 .msg.typing .bubble { background:none; padding:4px 0; }
+#s2 #adv2 .msg.typing .bubble i { background:#fff; box-shadow:0 0 3px rgba(0,0,0,.6); }
+#s2 #adv2 .bubble .k { color:#fff; border-color:rgba(255,255,255,.5); background:rgba(255,255,255,.15); }
+#s2 #adv2 .log {
+  -webkit-mask-image:linear-gradient(to bottom, transparent 0, #000 40%);
+          mask-image:linear-gradient(to bottom, transparent 0, #000 40%);
+}
+#s2 #adv2 .opts button {
+  color:#fff; background:rgba(18,10,14,.38); border:0; box-shadow:0 0 0 1px rgba(255,255,255,.18) inset;
+  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+}
+#s2 #adv2 .opts button:hover { background:rgba(18,10,14,.55); }
+#s2 #adv2 .opts button.more { color:#fff; text-decoration:none; background:rgba(255,255,255,.2); }
