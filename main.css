@@ -1767,3 +1767,7 @@ body {
   background:linear-gradient(90deg, rgba(var(--primary-rgb),.72), rgba(var(--primary-rgb),.38));
   box-shadow:0 0 0 1px rgba(255,255,255,.25) inset;
 }
+
+/* 底部不要有「底框」：影像蓋到最底（見 liftMirror），漸層只留很淡的一層讓白字看得清楚 */
+#s4:has(.sheet[data-tab="ai"]) > .frame { background:transparent; }
+#s4 > .frame::after { height:34%; background:linear-gradient(to bottom, transparent, rgba(18,10,14,.14) 60%, rgba(18,10,14,.28)); }
