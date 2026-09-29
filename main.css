@@ -1725,3 +1725,45 @@ body {
 .sheet[data-tab="tune"] .sheet-head { border-top:1px solid var(--hair); }
 .sheet[data-tab="ai"] .sheet-head { padding:6px 4px 0; }
 .sheet[data-tab="ai"] .sheet-pane { padding-bottom:0; }
+
+/* ══ AR 最下面一排：像直播 App 的圓形圖示工具列 ═══════════════════
+   參考直播 App：最底下是一排圓形圖示，上面一排是半透明的快速回覆，再上面是留言串；
+   留言大多沒有底，只有被強調的那幾則有半透明色塊。
+   分頁改成圓形圖示（💬 AI 顧問、🎨 妝容調整），文字留給讀螢幕與滑鼠提示，不佔位置。 */
+.sheet .sheet-row { gap:10px; align-items:center; }
+.sheet .sheet-tabs { background:none; padding:0; gap:10px; }
+.sheet .sheet-tabs button {
+  width:40px; height:40px; padding:0; border-radius:50%; display:grid; place-content:center;
+  font-size:0;                                   /* 文字藏起來（仍在 DOM 裡，讀螢幕讀得到） */
+  background:rgba(255,255,255,.92); color:var(--ink-2);
+  box-shadow:0 0 0 1px var(--hair), 0 3px 10px rgba(60,35,45,.12);
+}
+.sheet .sheet-tabs button span { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+.sheet .sheet-tabs button::before { font-size:18px; line-height:1; }
+.sheet .sheet-tabs button[data-tab="ai"]::before { content:"💬"; }
+.sheet .sheet-tabs button[data-tab="tune"]::before { content:"🎨"; }
+.sheet .sheet-tabs button.on {
+  background:linear-gradient(180deg, var(--primary-1), var(--primary-2));
+  box-shadow:0 0 0 2px #fff, 0 4px 12px rgba(var(--primary-rgb),.35);
+}
+.sheet .sheet-tabs .dot { right:1px; top:1px; width:9px; height:9px; box-shadow:0 0 0 2px #fff; }
+.sheet .sheet-toggle { width:40px; height:40px; font-size:16px; border:0; background:rgba(255,255,255,.92); box-shadow:0 0 0 1px var(--hair), 0 3px 10px rgba(60,35,45,.12); }
+.sheet .sheet-shade i { width:18px; height:18px; box-shadow:0 0 0 2px #fff, 0 1px 4px rgba(0,0,0,.25); }
+
+/* AI 顧問（疊在影像上）時：圓鈕是半透明深色，跟直播底部一樣 */
+.sheet[data-tab="ai"] .sheet-tabs button,
+.sheet[data-tab="ai"] .sheet-toggle {
+  background:rgba(18,10,14,.34); color:#fff; box-shadow:0 0 0 1px rgba(255,255,255,.22) inset;
+  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+}
+.sheet[data-tab="ai"] .sheet-tabs button.on {
+  background:linear-gradient(180deg, var(--primary-1), var(--primary-2));
+  box-shadow:0 0 0 2px rgba(255,255,255,.9), 0 4px 12px rgba(var(--primary-rgb),.4);
+}
+
+/* 被強調的留言：AI 在問你的那一則加一條半透明色塊（像直播裡被標出來的留言），其他維持沒有底 */
+#adv4 .msg.ai.ask .bubble {
+  display:inline-block; padding:3px 10px; border-radius:14px; color:#fff;
+  background:linear-gradient(90deg, rgba(var(--primary-rgb),.72), rgba(var(--primary-rgb),.38));
+  box-shadow:0 0 0 1px rgba(255,255,255,.25) inset;
+}
