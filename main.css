@@ -1715,3 +1715,13 @@ body {
 #hero[hidden] { display:none !important; }
 /* 試色面板在試妝時要藏起來的購物資訊（庫存、售價、加入購物車）：.spec 本身是 flex，hidden 會被蓋掉 */
 #panel [hidden] { display:none !important; }
+
+/* ══ AR 抽屜：分頁列（AI 顧問／妝容調整／色號）放到最下面 ═════════════
+   對話與可以按的選項在上面，手指最常點的是選項 —— 分頁列不要夾在畫面跟對話中間。
+   拖曳把手在最下面沒有意義，拿掉；收合改用分頁列右邊的 ⌄。 */
+.sheet .sheet-body { order:1; border-top:0; }
+.sheet .sheet-head { order:2; padding:6px 10px 6px; }
+.sheet .sheet-grip { display:none; }
+.sheet[data-tab="tune"] .sheet-head { border-top:1px solid var(--hair); }
+.sheet[data-tab="ai"] .sheet-head { padding:6px 4px 0; }
+.sheet[data-tab="ai"] .sheet-pane { padding-bottom:0; }
