@@ -1029,7 +1029,10 @@ function liftMirror() {
     s4.style.setProperty('--mirror-scale', scale.toFixed(3));
     // AI 顧問分頁的留言是透明的（直播的樣子），臉只要稍微往上讓出嘴唇就好，推太多底下會露出一條空白
     const live = S.sheet.state === 'open' && S.sheet.tab === 'ai';
-    s4.style.setProperty('--lift', (fit ? -6 : Math.round(Math.min(h * (live ? 0.22 : 0.5), H * (live ? 0.1 : 0.22)))) + 'px');
+    const lift = fit ? -6 : Math.round(Math.min(h * (live ? 0.22 : 0.5), H * (live ? 0.1 : 0.22)));
+    s4.style.setProperty('--lift', lift + 'px');
+    // AI 顧問（直播的樣子）：往上推的同時稍微放大，影像一路蓋到最底 —— 底下不會露出一條空白（那條會變成像外框的深色底）
+    if (!fit && lift > 0) s4.style.setProperty('--mirror-scale', ((H + lift) / H).toFixed(3));
   });
 }
 addEventListener('resize', () => { if (S.step === 4) liftMirror(); });
