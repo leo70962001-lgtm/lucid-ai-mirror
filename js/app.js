@@ -1057,6 +1057,7 @@ function mountSheet() {
 
 function syncSheet() {
   const sh = $('#sheet'); if (!sh) return;
+  $('#s4')?.classList.toggle('busy', !!(S.duel || S.guide));
   const c = S.chat.s4;
   const lastAI = c ? [...c.msgs].reverse().find((m) => m.who === 'ai') : null;
   const sig = lastAI ? sigOf(lastAI.l) : '';
@@ -1095,6 +1096,7 @@ function chatAct(where, o) {
   (c.asked ||= new Set()).add(o.act);      // 問過的「為什麼」不再出現在選項裡
   chatYou(where, o.key, optEmoji(o));
   const r = runAct(o) || {};
+  if (HEART_ACTS.has(o.act) && S.step === 4) floatHearts('s4');
   if (r.stay === false) return;                 // 換頁的動作，對話在新畫面重建
   // 動作沒帶新選項回來（例如沒東西可換）時，把原本那排放回去 ——
   // chatYou 會先清空選項，不還回去的話對話就停在那裡沒得點了。
@@ -1290,12 +1292,57 @@ function afterAnswer2(lines) {
 /** AR 的選項：有上一支色號時才給「換回剛才那支」 */
 const arOpts = () => (S.duel ? duelOpts() : S.guide
   ? stepOpts(S.guide.steps, S.guide.i)
-  : [{ key: 'opt.duelStart', act: 'duelStart' }, { key: 'opt.snap', act: 'snap' },
-     { key: 'opt.guideStart', act: 'guideStart' },
-     ...optsForAR(S.zoom, S.mode, !!S.prevLip),
+  : [...optsForAR(S.zoom, S.mode, !!S.prevLip),
      { key: 'opt.trendNow', act: 'trendNow' },
      ...(tasteRead(S.taste).ready ? [{ key: 'opt.myTaste', act: 'myTaste' }] : []),
-     { key: 'opt.paintSelf', act: 'paintSelf' }, { key: 'opt.wrapUp', act: 'wrapUp' }, optLearn()]);
+     { key: 'opt.wrapUp', act: 'wrapUp' }, optLearn()]);
+
+/* ══ 直播間的互動元素 ═══════════════════════════════════════
+   參考直播 App 的固定配置：右側一排直向的互動按鈕、按喜歡時飄愛心、重要時刻跳一條禮物式橫幅。
+   右側按鈕是「做一件事」（二選一、拍照、教我畫、自己畫），底下的快速回覆只留「回答 AI」。 */
+const RAIL = [
+  { act: 'duelStart', key: 'opt.duelStart', emo: '🆚', label: 'rail.duel' },
+  { act: 'snap', key: 'opt.snap', emo: '📸', label: 'rail.snap' },
+  { act: 'guideStart', key: 'opt.guideStart', emo: '🧭', label: 'rail.guide' },
+  { act: 'paintSelf', key: 'opt.paintSelf', emo: '✍️', label: 'rail.paint' },
+];
+function mountRail() {
+  const box = $('#s4-rail'); if (!box) return;
+  box.innerHTML = '';
+  for (const r of RAIL) {
+    const b = el('button', 'rb');
+    b.type = 'button';
+    b.innerHTML = `<i>${r.emo}</i><span>${t(r.label)}</span>`;
+    b.setAttribute('aria-label', t(r.label));
+    b.onclick = (e) => { e.stopPropagation(); chatAct('s4', { key: r.key, act: r.act }); };
+    box.appendChild(b);
+  }
+}
+
+const calm = () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+/** 飄愛心：你表示喜歡的時候（留這支、二選一選了、套用流行、拍下來），右下角往上飄一串 */
+function floatHearts(where = 's4', n = 7) {
+  const fx = $('#' + where + '-fx'); if (!fx || calm()) return;
+  const cols = ['#ff7aa2', '#ff9ec0', '#ffc2d6', '#ff6f91', '#ffd1e0'];
+  for (let i = 0; i < n; i++) {
+    const h = el('span', 'hf', '♥');
+    h.style.setProperty('--x', Math.round((Math.random() - 0.5) * 70) + 'px');
+    h.style.setProperty('--s', (0.8 + Math.random() * 0.7).toFixed(2));
+    h.style.animationDelay = i * 110 + 'ms';
+    h.style.color = cols[i % cols.length];
+    fx.appendChild(h);
+    setTimeout(() => h.remove(), 2400 + i * 110);
+  }
+}
+/** 禮物式橫幅：命定色出爐、拍好了、跟著畫完 —— 從左邊滑進來，停兩秒再淡出 */
+function liveBanner(where, emo, text) {
+  const fx = $('#' + where + '-fx'); if (!fx) return;
+  fx.querySelector('.gift')?.remove();
+  const g = el('div', 'gift', `<i>${emo}</i><span>${text}</span>`);
+  fx.appendChild(g);
+  setTimeout(() => g.remove(), calm() ? 2200 : 3200);
+}
+const HEART_ACTS = new Set(['keepYes', 'keepBest', 'duelLeft', 'duelRight', 'usePref', 'tryTrend', 'snap']);
 
 /**
  * 把「在現在這支上停了多久」記進偏好。
@@ -1483,6 +1530,7 @@ function runAct(o) {
       if (next.mark) markFace(next.mark);
       const skipped = o.act === 'guideSkip' ? [{ kind: 'fact', key: 'adv.guide.skipped', params: {} }] : [];
       const tail = next.id === 'done' ? routineRecap(g.steps, g.done) : [];
+      if (next.id === 'done') liveBanner('s4', '🎉', t('banner.guide'));
       return { lines: [...skipped, ...stepLines(g.steps, g.i), ...tail], opts: stepOpts(g.steps, g.i) };
     }
     case 'guidePaint': {
@@ -1534,6 +1582,7 @@ function runAct(o) {
       }
       duelOff();
       switchLip(win);
+      liveBanner('s4', '💖', t('banner.duel', { shade: tf(win, 'shade') }));
       return { lines: [picked, { kind: 'praise', key: 'adv.duel.win', params: { shade: win.id } }, ...describeLip(win)],
                opts: arOpts() };
     }
@@ -1544,6 +1593,7 @@ function runAct(o) {
       if (!url) return { lines: [{ kind: 'caution', key: 'adv.snap.fail', params: {} }] };
       S.snaps.push(url); if (S.snaps.length > 3) S.snaps.shift();
       paintSnaps();
+      liveBanner('s4', '📸', t('banner.snap'));
       return { lines: [{ kind: 'praise', key: 'adv.snap.done', params: { n: S.snaps.length, img: url } }] };
     }
     case 'paintSelf': {
@@ -2267,6 +2317,7 @@ function enter4() {
   mountPanel();
   mountHistory();
   mountSheet();
+  mountRail();
 
   $('#zoom-btn').onclick = () => { S.zoom = !S.zoom; mountZoomBtn(); syncAROpts(); };
   $('#paint-btn').onclick = () => enterPaint();
