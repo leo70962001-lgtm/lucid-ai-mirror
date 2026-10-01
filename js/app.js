@@ -37,7 +37,7 @@ import { buildRoutine, stepLines, stepOpts, routineRecap } from './routine.js';
 import { skinCondition, skinCondTop, skinCondLines } from './skincond.js';
 import { nextDuel, duelLines, duelOpts, duelPicked } from './duel.js';
 import { faceFit } from './fit.js';
-import { pickSurprise, newCheer, cheerFor, newRapport, rapportAdd, rapportPct, aiReactFor } from './live.js';
+import { pickSurprise, newCheer, cheerFor, newRapport, rapportAdd, rapportPct, aiReactFor, levelFx } from './live.js';
 import { findHairline, faceFeatures, classifyFace, faceLookBonus, faceReasonFor } from './faceshape.js';
 import { lineEmoji, optEmoji } from './emoji.js';
 import { initGender, guessAudience } from './gender.js';
@@ -123,6 +123,7 @@ const S = {
   bag: [],
   tried: new Set(),   // 試過的唇色色號 —— 報告要講「你試了幾個」
   rapport: newRapport(),   // 跟 AI 的默契：互動幾次、幾級
+  gifts: 0,                // AI 送了還沒拆的禮物（升級、試妝滿一分鐘），回覆列會多一個「拆開禮物」
   cheer: newCheer(),  // AI 主動送的互動（回讚、鼓掌…）送過哪些
   arMs: 0, arT0: 0,   // 實際停留在 AR 的時間
   rating: 0,
@@ -1337,7 +1338,8 @@ function afterAnswer2(lines) {
 /** AR 的選項：有上一支色號時才給「換回剛才那支」 */
 const arOpts = () => (S.duel ? duelOpts() : S.guide
   ? stepOpts(S.guide.steps, S.guide.i)
-  : [...optsForAR(S.zoom, S.mode, !!S.prevLip),
+  : [...(S.gifts > 0 ? [{ key: 'opt.openGift', act: 'surprise' }] : []),
+     ...optsForAR(S.zoom, S.mode, !!S.prevLip),
      { key: 'opt.trendNow', act: 'trendNow' },
      ...(tasteRead(S.taste).ready ? [{ key: 'opt.myTaste', act: 'myTaste' }] : []),
      { key: 'opt.wrapUp', act: 'wrapUp' }, optLearn()]);
@@ -1351,8 +1353,13 @@ const RAIL = [
   { act: 'guideStart', key: 'opt.guideStart', emo: '🧭', label: 'rail.guide' },
   { act: 'paintSelf', key: 'opt.paintSelf', emo: '✍️', label: 'rail.paint' },
 ];
+let railRO = null;
 function mountRail() {
   const box = $('#s4-rail'); if (!box) return;
+  if (!railRO && globalThis.ResizeObserver) {
+    railRO = new ResizeObserver(() => { if (S.step === 4) placeRail(); });
+    for (const e of [$('#s4 > .frame'), $('#adv4'), $('#sheet')]) if (e) railRO.observe(e);
+  }
   box.innerHTML = '';
   for (const r of RAIL) {
     const b = el('button', 'rb');
@@ -1390,34 +1397,14 @@ function floatHearts(where = 's4', n = 7, glyph = '♥', from = null) {
   }
 }
 /** 禮物式橫幅：命定色出爐、拍好了、跟著畫完 —— 從左邊滑進來，停兩秒再淡出 */
-function liveBanner(where, emo, text) {
+function liveBanner(where, emo, text, cls = '') {
   const fx = $('#' + where + '-fx'); if (!fx) return;
   fx.querySelector('.gift')?.remove();
-  const g = el('div', 'gift', `<i>${emo}</i><span>${text}</span>`);
+  const g = el('div', 'gift' + (cls ? ' ' + cls : ''), `<i>${emo}</i><span>${text}</span>`);
   fx.appendChild(g);
   setTimeout(() => g.remove(), calm() ? 2200 : 3200);
 }
 const HEART_ACTS = new Set(['keepYes', 'keepBest', 'duelLeft', 'duelRight', 'usePref', 'tryTrend', 'snap']);
-
-/* ── 右下角：驚喜禮物 ─────────────────────────────────────
-   像送禮物一樣拆開，換上一支沒試過、跟季節合得來、跟剛才不同色系的顏色。
-   AI 也會主動送（試妝滿一分鐘）：那時這顆會發亮、掛紅點，等你來拆。 */
-let giftBusy = false;
-function mountSocial() {
-  const box = $('#s4-social'); if (!box) return;
-  box.innerHTML = '';
-  const b = el('button', 'rb gift', `<i>🎁</i><span>${t('rail.gift')}</span>`);
-  b.type = 'button';
-  b.setAttribute('aria-label', t('rail.gift'));
-  b.onclick = (e) => {
-    e.stopPropagation();
-    if (giftBusy || !S.picks?.lip) return;
-    giftBusy = true;
-    b.classList.remove('glow');
-    giftPop(() => { giftBusy = false; chatAct('s4', { key: 'opt.surprise', act: 'surprise' }); });
-  };
-  box.appendChild(b);
-}
 
 /* ── AI 回應你時的特效（參考直播 App：主播回覆留言、對留言回表情、粉絲團等級、全螢幕彩帶） ── */
 /** AI 在打字：主播頭像一圈圈發亮，狀態從「試妝中」變「回覆中…」 */
@@ -1430,6 +1417,7 @@ function hostTalking(where, on) {
 /** 主播膠囊上的默契等級＋進度條 */
 function paintRapport() {
   for (const h of document.querySelectorAll('.frame .host')) {
+    for (let i = 0; i <= 4; i++) h.classList.toggle('lv' + i, S.rapport.lv === i);   // 頭像外圈、等級字跟著等級換顏色
     let rp = h.querySelector('.rp');
     if (!rp) { rp = el('em', 'rp'); h.querySelector('small')?.appendChild(rp); }
     rp.textContent = '💞 Lv' + S.rapport.lv;
@@ -1442,17 +1430,58 @@ function paintRapport() {
 function bumpRapport(where) {
   const r = rapportAdd(S.rapport);
   paintRapport();
-  if (!r.up) return;
-  // 升級：彩帶＋橫幅＋頭像亮一下
-  confetti(where);
-  liveBanner(where, '💞', t('rapport.up', { lv: r.lv, name: t('rapport.lv' + r.lv) }));
+  if (r.up) levelUp(where, r.lv);
+}
+/**
+ * 升級：越高級越隆重（規則在 js/live.js 的 LEVEL_FX）。
+ * 特效之外，AI 也講一句這一級的回饋；有禮物就在回覆列放「🎁 拆開禮物」（第 2 步送的，留到試妝時拆）。
+ */
+function levelUp(where, lv) {
+  const fx = levelFx(lv);
+  liveBanner(where, fx.emo, t('rapport.up', { lv, name: t('rapport.lv' + lv) }), 'lv' + lv);
   const h = $('#' + where + ' .host');
   if (h) { h.classList.remove('lvup'); void h.offsetWidth; h.classList.add('lvup'); }
+  confetti(where, fx.confetti, lv);
+  if (fx.badge) lvBadge(where, lv, fx.rays);
+  for (let i = 0; i < fx.fireworks; i++) setTimeout(() => firework(where, lv), 450 + i * 360);
+  S.gifts += fx.gift;
+  setTimeout(() => {
+    const c = S.chat[where];
+    let opts = c?.opts || [];
+    if (where === 's4' && S.gifts > 0 && !opts.some((o) => o.act === 'surprise')) opts = [{ key: 'opt.openGift', act: 'surprise' }, ...opts];
+    chatSay(where, [{ kind: 'praise', key: 'adv.lvup.' + lv, params: {} }], opts);
+  }, 700);
+}
+/** 中間的等級徽章（Lv2 起）；Lv4 後面還有一圈轉動的光芒 */
+function lvBadge(where, lv, rays) {
+  const fx = $('#' + where + '-fx'); if (!fx || calm()) return;
+  const b = el('div', 'lvbadge lv' + lv, (rays ? '<i class="rays"></i>' : '') + `<b>Lv${lv}</b><span>${t('rapport.lv' + lv)}</span>`);
+  fx.appendChild(b);
+  setTimeout(() => b.remove(), rays ? 3300 : 2500);
+}
+/** 煙火（Lv3 起）：畫面上半部隨機一點，炸開一圈亮點 */
+function firework(where, lv) {
+  const fx = $('#' + where + '-fx'); if (!fx || calm()) return;
+  const W = fx.clientWidth, H = fx.clientHeight;
+  const x = Math.round(W * (0.18 + Math.random() * 0.64)), y = Math.round(H * (0.12 + Math.random() * 0.3));
+  const cols = lv >= 4 ? ['#ff6f91', '#ffd166', '#9ad0ff', '#c3a6ff', '#7ee0b5'] : ['#ffd166', '#ffe9a8', '#ffb347'];
+  const col = cols[Math.floor(Math.random() * cols.length)];
+  for (let i = 0; i < 16; i++) {
+    const s = el('i', 'fw');
+    s.style.left = x + 'px'; s.style.top = y + 'px';
+    s.style.background = col; s.style.color = col;
+    s.style.setProperty('--a', i * 22.5 + 'deg');
+    s.style.setProperty('--d', Math.round(46 + Math.random() * 34) + 'px');
+    fx.appendChild(s);
+    setTimeout(() => s.remove(), 1300);
+  }
 }
 /** 全螢幕彩帶：默契升級、命定色出爐、跟著畫完 */
-function confetti(where, n = 28) {
+function confetti(where, n = 28, lv = 0) {
   const fx = $('#' + where + '-fx'); if (!fx || calm()) return;
-  const cols = ['#ff6f91', '#ffd166', '#9ad0ff', '#c3a6ff', '#7ee0b5', '#ffffff'];
+  // 等級的顏色：Lv1 粉、Lv2 紫、Lv3 金，其他（含 Lv4）彩虹
+  const cols = { 1: ['#ff6f91', '#ff9ec0', '#ffd1e0', '#ffffff'], 2: ['#c3a6ff', '#9b7bff', '#e4d8ff', '#ff9ec0'],
+                 3: ['#ffd166', '#ffb347', '#fff1c2', '#ffffff'] }[lv] || ['#ff6f91', '#ffd166', '#9ad0ff', '#c3a6ff', '#7ee0b5', '#ffffff'];
   const fall = fx.clientHeight + 30;
   for (let i = 0; i < n; i++) {
     const p = el('i', 'cf');
@@ -1484,32 +1513,39 @@ function giftPop(done) {
 }
 
 /**
- * 右側兩組按鈕的位置：互動那組（表情、驚喜、按讚）貼在留言區右邊、快速回覆上面；
- * 功能那組（二選一、拍照…）在它上面。畫面矮的時候功能那組先縮小、再矮就收掉字，兩組才不會疊在一起。
+ * 鏡面上浮著的東西不能疊在一起：
+ *   右側按鈕列（二選一、拍照…）的底不能壓到留言；放不下就往上挪，再放不下先縮小、再收掉字。
+ *   左上的模式切換、撤銷排在主播膠囊下面 —— 膠囊多了默契等級之後變高，固定的 top 會疊到。
  */
 function placeRail() {
-  const fr = $('#s4 > .frame'), soc = $('#s4-social'), rail = $('#s4-rail'), sh = $('#sheet');
-  if (!fr || !soc || !rail || S.step !== 4) return;
+  const fr = $('#s4 > .frame'), rail = $('#s4-rail'), sh = $('#sheet');
+  if (!fr || !rail || S.step !== 4) return;
   const F = fr.getBoundingClientRect(); if (!F.height) return;
+  placeTopLeft();
   let floor = sh && !sh.hidden ? sh.getBoundingClientRect().top : F.bottom;
   if (S.sheet.state === 'open' && S.sheet.tab === 'ai') {
-    const o = $('#adv4 .opts'), tabs = sh?.querySelector('.sheet-tabs');
-    const r = (o && o.offsetParent ? o : tabs)?.getBoundingClientRect();
+    const a = $('#adv4'), r = a && !a.hidden ? a.getBoundingClientRect() : null;
     if (r && r.height) floor = r.top;
   }
   floor = Math.min(floor, F.bottom);
-  soc.style.bottom = Math.max(8, Math.round(F.bottom - floor + 8)) + 'px';
   rail.classList.remove('tight', 'tighter');
   rail.style.top = rail.style.bottom = rail.style.transform = '';
-  const sTop = soc.getBoundingClientRect().top;
-  if (rail.getBoundingClientRect().bottom > sTop - 10) {
-    rail.style.top = 'auto'; rail.style.transform = 'none';
-    rail.style.bottom = Math.round(F.bottom - sTop + 12) + 'px';
-    const b = $('#before'), roof = (b && b.offsetParent ? b.getBoundingClientRect().bottom : F.top + 50) + 6;
-    // 先縮小圓鈕（字留著），還是放不下才把字也收掉
-    if (rail.getBoundingClientRect().top < roof) rail.classList.add('tight');
-    if (rail.getBoundingClientRect().top < roof) rail.classList.add('tighter');
-  }
+  // 上界：右上的素顏小窗；下界：留言區。放得下就照原本的位置，放不下先貼齊上界，再不行先縮小、再收掉字
+  const pip = $('#before'), roof = (pip && pip.offsetParent ? pip.getBoundingClientRect().bottom : F.top + 50) + 6;
+  const fits = () => { const r = rail.getBoundingClientRect(); return r.top >= roof - 1 && r.bottom <= floor - 7; };
+  if (fits()) return;
+  rail.style.transform = 'none'; rail.style.bottom = 'auto';
+  rail.style.top = Math.round(roof - F.top) + 'px';
+  if (fits()) return;
+  rail.classList.add('tight');
+  if (!fits()) rail.classList.add('tighter');
+}
+function placeTopLeft() {
+  const host = $('#s4 .host'), seg = $('#s4-mode'), hist = $('#s4-hist');
+  if (!host || !seg || host.offsetParent !== seg.offsetParent) return;
+  const top = host.offsetTop + host.offsetHeight + 6;
+  seg.style.top = top + 'px';
+  if (hist && hist.offsetParent === seg.offsetParent) hist.style.top = top + (seg.hidden ? 0 : seg.offsetHeight + 6) + 'px';
 }
 addEventListener('resize', () => { if (S.step === 4) placeRail(); });
 
@@ -1535,7 +1571,7 @@ function nextCheer() {
   st.setAttribute('role', 'status');
   fx.appendChild(st);
   if (c.burst) setTimeout(() => { if (st.isConnected) floatHearts('s4', 5, c.burst, st.querySelector('.big')); }, 260);
-  if (c.gift) $('#s4-social .gift')?.classList.add('glow');      // 禮物等你去拆：右下角的 🎁 會發亮
+  if (c.gift) { S.gifts++; syncAROpts(); }      // 禮物等你去拆：回覆列第一個就是「🎁 拆開禮物」
   setTimeout(() => st.classList.add('out'), 2700);
   setTimeout(() => { st.remove(); nextCheer(); }, 3100);
 }
@@ -1958,6 +1994,8 @@ function runAct(o) {
     case 'keepNo': return runAct({ act: 'nextShade' });
     // 驚喜禮物：換上一支沒試過、跟季節合得來、跟剛才不同色系的
     case 'surprise': {
+      S.gifts = Math.max(0, S.gifts - 1);
+      giftPop(() => {});
       const next = pickSurprise(PRODUCTS, { currentId: S.picks.lip.id, tried: S.tried, fit: seasonFit() });
       if (!next) return {};
       const prev = switchLip(next, 'reason.surprise');
@@ -2542,7 +2580,6 @@ function enter4() {
   mountHistory();
   mountSheet();
   mountRail();
-  mountSocial();
   paintRapport();
 
   $('#zoom-btn').onclick = () => { S.zoom = !S.zoom; mountZoomBtn(); syncAROpts(); };
@@ -3875,7 +3912,7 @@ function reset() {
   S.hist = []; S.redo = [];
   clearBrush();
   S.tried.clear(); S.arMs = 0; S.arT0 = 0;
-  S.rapport = newRapport();
+  S.rapport = newRapport(); S.gifts = 0;
   S.cheer = newCheer(); cheerQ.length = 0;
   S.pref = newPref(); S.said.clear(); S.prevLip = null;
   S.amount0 = null; S.asked3.clear(); S.shadeT0 = 0; S.lastAct = 0;

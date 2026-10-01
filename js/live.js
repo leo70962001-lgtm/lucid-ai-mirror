@@ -1,5 +1,5 @@
 /**
- * 直播間的互動：驚喜禮物、AI 送的貼紙、默契等級、AI 對你留言的反應。
+ * 直播間的互動：驚喜色號、AI 送的貼紙、默契等級（每級特效不同）、AI 對你留言的反應。
  * 這裡只放不碰畫面的判斷（好測），畫面與動畫在 app.js。
  */
 import { lipFamily } from './lipcolor.js';
@@ -99,3 +99,20 @@ const REACT_BY_ACT = {
   guideStart: '👏', guideNext: '👏', guidePaint: '✍️', paintSelf: '✍️', duelStart: '🆚',
 };
 export const aiReactFor = (act) => (/^why/.test(act || '') ? '💡' : REACT_BY_ACT[act] || '👍');
+
+/**
+ * 每一級升級的特效與回饋 —— 越高級越隆重，一眼看得出差別：
+ *   Lv1 聊得來：粉紅彩帶＋橫幅
+ *   Lv2 有默契：紫色，加中間的等級徽章；送一份禮物
+ *   Lv3 好默契：金色，徽章＋煙火；再送一份禮物
+ *   Lv4 美妝知己：彩虹，徽章＋光芒＋大量彩帶＋煙火
+ * 禮物＝回覆列多一個「🎁 拆開禮物」，點了換上一支驚喜色號。
+ */
+export const LEVEL_FX = [
+  null,
+  { emo: '💞', confetti: 24, badge: false, fireworks: 0, rays: false, gift: 0 },
+  { emo: '💜', confetti: 36, badge: true, fireworks: 0, rays: false, gift: 1 },
+  { emo: '💛', confetti: 48, badge: true, fireworks: 3, rays: false, gift: 1 },
+  { emo: '💎', confetti: 80, badge: true, fireworks: 5, rays: true, gift: 0 },
+];
+export const levelFx = (lv) => LEVEL_FX[Math.max(1, Math.min(LEVEL_FX.length - 1, lv))];
