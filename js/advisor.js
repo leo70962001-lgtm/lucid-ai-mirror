@@ -592,7 +592,8 @@ export const ACTS = ['recapAll', 'wrapUp', 'skinCond', 'duelStart', 'duelLeft', 
                      'colorHow', 'colorOpen', 'retake', 'colorLater',
                      'whySeason', 'seasonColors', 'learn', 'quiz', 'quizAns', 'paintSelf', 'myTaste', 'trendNow', 'tryTrend', 'trendNext',
                      'guideStart', 'guideNext', 'guidePaint', 'guideSkip', 'guideEnd',
-                     'seaGold', 'seaSilver', 'seaDunno', 'seaCoral', 'seaBrick', 'seaSharp', 'seaHeavy'];
+                     'seaGold', 'seaSilver', 'seaDunno', 'seaCoral', 'seaBrick', 'seaSharp', 'seaHeavy',
+                     'surprise', 'reactHmm'];
 
 // ── 反過來問：AI 也會提問 ───────────────────────────────
 // 只問「答案會真的改變接下來做什麼」的問題。問完沒有後續的問題不要問 ——

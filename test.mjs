@@ -13,6 +13,7 @@ import { lineEmoji, optEmoji } from './js/emoji.js';
 import { audienceFromPrediction, faceCropBox, GENDER_MIN_PROB } from './js/gender.js';
 import { skinCondition, skinCondTop, skinCondLines, scLevel, SC_LEVELS } from './js/skincond.js';
 import { faceFit } from './js/fit.js';
+import { likeTap, comboMilestone, pickSurprise } from './js/live.js';
 import { nextDuel, duelSides, duelLines, duelOpts, duelPicked, DUEL_AXES } from './js/duel.js';
 import { buildRoutine, stepLines, stepOpts, routineRecap } from './js/routine.js';
 import { TRENDS, TREND_PACK, TREND_STALE_DAYS, trendsFor, trendPlan, trendPick, trendLines,
@@ -1495,6 +1496,49 @@ console.log('\n\x1b[1m37. 第 2 步：對話不能蓋到臉\x1b[0m');
   const css = readFileSync(new URL('./main.css', import.meta.url), 'utf8');
   ok(/if \(where === 's2'\) requestAnimationFrame\(fitFaceAbove\)/.test(app), '對話變長（換題、展開更多）時重新讓位');
   ok(/#s2 #adv2 \.opts \{ flex-wrap:nowrap; overflow-x:auto;/.test(css), '第 2 步的選項只排一行、左右滑，不會一層層往上疊');
+}
+
+console.log('\n\x1b[1m38. AR 右下角的直播互動：按讚連擊、表情、驚喜禮物\x1b[0m');
+{
+  const st = {};
+  likeTap(st, 1000); likeTap(st, 1400); likeTap(st, 1900);
+  ok(st.total === 3 && st.combo === 3, '0.7 秒內連按：總數 3、連擊 ×3');
+  likeTap(st, 4000);
+  ok(st.total === 4 && st.combo === 1, '停一下再按：連擊從 1 重來，總數照加');
+  ok(comboMilestone(10) && comboMilestone(20) && !comboMilestone(9) && !comboMilestone(15), '連擊到 10、20… 才跳橫幅，不洗版');
+
+  const lips = PRODUCTS.filter((p) => p.cat === 'lip' && p.stock > 0);
+  const cur = lips[0];
+  const seen = new Set();
+  for (let i = 0; i < 30; i++) {
+    const r = i / 30;
+    const p = pickSurprise(PRODUCTS, { currentId: cur.id, tried: new Set([cur.id]), rnd: () => r });
+    if (p) seen.add(p.id);
+  }
+  const picks = [...seen].map((id) => PRODUCTS.find((p) => p.id === id));
+  ok(picks.length >= 2 && picks.length <= 3, '驚喜色號在前三名裡隨機（拆了 30 次出現 ' + picks.length + ' 支）');
+  ok(picks.every((p) => p.cat === 'lip' && p.stock > 0 && p.id !== cur.id), '驚喜一定是有庫存、不是現在這支的唇彩');
+  const tried = new Set(lips.slice(0, -1).map((p) => p.id));
+  const last = pickSurprise(PRODUCTS, { currentId: cur.id, tried, rnd: () => 0 });
+  ok(last && !tried.has(last.id), '還有沒試過的就挑沒試過的');
+  const fitOnly = (p) => (p.id === lips[3].id ? 5 : 0);
+  ok(pickSurprise(PRODUCTS, { currentId: cur.id, fit: fitOnly, rnd: () => 0 }).id === lips[3].id, '跟季節最合的排最前面');
+
+  const app = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('./main.css', import.meta.url), 'utf8');
+  ok(html.includes('id="s4-social"') && /btn\('react'[\s\S]*btn\('gift'[\s\S]*btn\('like'/.test(app), '右下角三顆：表情、驚喜、按讚');
+  ok(/if \(first\) \{[\s\S]{0,200}noteTaste\(S\.taste, p, \{ picked: true \}\)[\s\S]{0,120}act: 'keepYes'/.test(app), '同一支第一次按讚才在留言講話、記進喜好；連擊只飄愛心');
+  ok(['surprise', 'reactHmm'].every((a) => ACTS.includes(a) && optEmoji({ act: a })), '新動作都是已知動作、都有符號');
+  ok(/#s4\.busy \.social, #s4\.painting-mode \.social/.test(css) && /#s4 #adv4 \.log \{ padding-right:54px; \}/.test(css),
+     '玩二選一、跟著畫、自己畫時收起來；留言讓出右邊一欄，字不會跑到按鈕底下');
+  ok(/\.rail\.tight[\s\S]*\.rail\.tighter \.rb span \{ display:none; \}/.test(css), '畫面矮時上面那組先縮小、再矮才收掉字');
+  ok(/if \(!fx \|\| calm\(\)\) \{ done\(\); return; \}/.test(app), '減少動態效果時不播拆禮物動畫，直接換色');
+  const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
+  const has3 = (k) => { const m = dict.split(/\r?\n/).findIndex((l) => l.trimStart().startsWith("'" + k + "':")); if (m < 0) return false; const seg = dict.split(/\r?\n/).slice(m, m + 3).join(' '); return (seg.match(/', '|',\s+'/g) || []).length >= 2; };
+  const keys = ['rail.like', 'rail.react', 'rail.gift', 'react.clap', 'react.hmm', 'react.no', 'opt.likeIt', 'opt.reactHmm', 'opt.surprise', 'reason.surprise', 'banner.surprise', 'banner.combo', 'adv.surprise', 'adv.react.hmm'];
+  ok(keys.every(has3), '文案三種語言齊全（' + keys.length + ' 句）');
+  ok(lineEmoji({ key: 'adv.surprise', kind: 'praise' }) === '🎁' && lineEmoji({ key: 'adv.react.hmm', kind: 'ask' }) === '🤔', '驚喜、猶豫的留言有自己的符號');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);
