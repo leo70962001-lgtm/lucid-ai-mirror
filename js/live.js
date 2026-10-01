@@ -1,19 +1,8 @@
 /**
- * 直播間右下角的互動：按讚（連擊）、表情、驚喜禮物。
+ * 直播間的互動：驚喜禮物、AI 送的貼紙、默契等級、AI 對你留言的反應。
  * 這裡只放不碰畫面的判斷（好測），畫面與動畫在 app.js。
  */
 import { lipFamily } from './lipcolor.js';
-
-/** 按一下讚：總數 +1；上一下在 gap 毫秒內就接著算連擊，不然從 1 重來 */
-export function likeTap(st, now, gap = 700) {
-  st.total = (st.total || 0) + 1;
-  st.combo = st.last && now - st.last <= gap ? (st.combo || 1) + 1 : 1;
-  st.last = now;
-  return st;
-}
-
-/** 連擊到整十（10、20…）的那一下跳橫幅 —— 每一下都跳就變成洗版 */
-export const comboMilestone = (combo) => combo >= 10 && combo % 10 === 0;
 
 /**
  * 驚喜色號：有庫存、沒試過、跟季節合得來，最好跟現在這支是不同色系（才有「驚喜」）。
@@ -80,3 +69,33 @@ export function cheerFor(st, ev, now) {
   if (ev.type === 'fit') st.fitN++;
   return c;
 }
+
+/* ── 默契等級（參考直播 App 的粉絲團等級） ─────────────────────
+   每跟 AI 互動一次（點一個回覆、拆禮物…）默契 +1；到 3、8、15、25 升一級，
+   升級時跳彩帶與橫幅。主播資訊膠囊上看得到等級與進度條。 */
+export const RAPPORT_LV = [3, 8, 15, 25];
+export const newRapport = () => ({ pts: 0, lv: 0 });
+/** 互動一次：回傳現在幾級、這一下有沒有升級、離下一級的進度（0–1） */
+export function rapportAdd(st, n = 1) {
+  st.pts += n;
+  const lv = RAPPORT_LV.filter((x) => st.pts >= x).length;
+  const up = lv > st.lv;
+  st.lv = lv;
+  return { lv, up, pct: rapportPct(st) };
+}
+export function rapportPct(st) {
+  const lo = st.lv ? RAPPORT_LV[st.lv - 1] : 0, hi = RAPPORT_LV[st.lv];
+  return hi ? (st.pts - lo) / (hi - lo) : 1;
+}
+
+/* ── AI 對你那則留言的反應 ─────────────────────────────────
+   直播主看到留言會回個表情；這裡 AI 讀到你的選擇，就在你那則留言尾端蓋一個章：
+   表示喜歡 → 💗、調濃淡 → 👌、問為什麼 → 💡、換一支 → 👍…… */
+const REACT_BY_ACT = {
+  keepYes: '💗', keepBest: '💗', usePref: '💗', tryTrend: '💗', duelLeft: '💗', duelRight: '💗',
+  softer: '👌', stronger: '👌', revert: '👌', prefSoft: '👌', prefBold: '👌',
+  snap: '📸', surprise: '🎁', compare: '👀', dual: '👀', zoom: '👀',
+  learn: '📚', quiz: '📚', quizAns: '📚', trendNow: '📚', seasonColors: '📚',
+  guideStart: '👏', guideNext: '👏', guidePaint: '✍️', paintSelf: '✍️', duelStart: '🆚',
+};
+export const aiReactFor = (act) => (/^why/.test(act || '') ? '💡' : REACT_BY_ACT[act] || '👍');
