@@ -13,7 +13,7 @@ import { lineEmoji, optEmoji } from './js/emoji.js';
 import { audienceFromPrediction, faceCropBox, GENDER_MIN_PROB } from './js/gender.js';
 import { skinCondition, skinCondTop, skinCondLines, scLevel, SC_LEVELS } from './js/skincond.js';
 import { faceFit } from './js/fit.js';
-import { likeTap, comboMilestone, pickSurprise } from './js/live.js';
+import { likeTap, comboMilestone, pickSurprise, newCheer, cheerFor, CHEER_GAP_MS, GIFT_AR_MS, FIT_MAX } from './js/live.js';
 import { nextDuel, duelSides, duelLines, duelOpts, duelPicked, DUEL_AXES } from './js/duel.js';
 import { buildRoutine, stepLines, stepOpts, routineRecap } from './js/routine.js';
 import { TRENDS, TREND_PACK, TREND_STALE_DAYS, trendsFor, trendPlan, trendPick, trendLines,
@@ -1539,6 +1539,39 @@ console.log('\n\x1b[1m38. AR 右下角的直播互動：按讚連擊、表情、
   const keys = ['rail.like', 'rail.react', 'rail.gift', 'react.clap', 'react.hmm', 'react.no', 'opt.likeIt', 'opt.reactHmm', 'opt.surprise', 'reason.surprise', 'banner.surprise', 'banner.combo', 'adv.surprise', 'adv.react.hmm'];
   ok(keys.every(has3), '文案三種語言齊全（' + keys.length + ' 句）');
   ok(lineEmoji({ key: 'adv.surprise', kind: 'praise' }) === '🎁' && lineEmoji({ key: 'adv.react.hmm', kind: 'ask' }) === '🤔', '驚喜、猶豫的留言有自己的符號');
+}
+
+console.log('\n\x1b[1m39. AI 主動送的互動：回讚、鼓掌、命中、禮物\x1b[0m');
+{
+  const st = newCheer();
+  ok(cheerFor(st, { type: 'like', id: 'L1' }, 0)?.emo === '💗', '你按讚 → AI 回讚 💗');
+  ok(cheerFor(st, { type: 'like', id: 'L1' }, 100) === null && cheerFor(st, { type: 'like', id: 'L2' }, 200), '同一支只回一次，換一支再按讚會再回');
+  ok(cheerFor(st, { type: 'tried', n: 2 }, 300) === null, '試 2 支還不鼓掌');
+  ok(cheerFor(st, { type: 'tried', n: 4 }, 400)?.id === 'tried:3', '二選一一次跳過 3 支也照樣鼓掌（到了或超過就算）');
+  ok(cheerFor(st, { type: 'tried', n: 5 }, 500) === null && cheerFor(st, { type: 'tried', n: 6 }, 600)?.id === 'tried:6', '3、6、10 支各鼓掌一次');
+  ok(cheerFor(st, { type: 'adjust' }, 700) && cheerFor(st, { type: 'adjust' }, 800) === null, '第一次調濃淡才讚');
+
+  const t2 = newCheer();
+  ok(cheerFor(t2, { type: 'fit', id: 'L1', fit: 0.9, dwellMs: 1000 }, 0) === null, '跟季節合但才看 1 秒：還不送');
+  ok(cheerFor(t2, { type: 'fit', id: 'L1', fit: 0.5, dwellMs: 9000 }, 0) === null, '看很久但跟季節不合：不送「命中」');
+  ok(cheerFor(t2, { type: 'fit', id: 'L1', fit: 0.9, dwellMs: 5000 }, 0)?.emo === '🎯', '跟季節合、停下來看了 4 秒以上 → 🎯 色彩命中');
+  ok(cheerFor(t2, { type: 'fit', id: 'L2', fit: 0.9, dwellMs: 5000 }, 1000) === null, '計時觸發的兩次之間至少隔 ' + CHEER_GAP_MS / 1000 + ' 秒');
+  ok(cheerFor(t2, { type: 'fit', id: 'L2', fit: 0.9, dwellMs: 5000 }, CHEER_GAP_MS + 1) && FIT_MAX === 2
+     && cheerFor(t2, { type: 'fit', id: 'L3', fit: 0.9, dwellMs: 5000 }, CHEER_GAP_MS * 3) === null, '「命中」一場最多兩次，不會一直誇');
+  const t3 = newCheer();
+  ok(cheerFor(t3, { type: 'time', arMs: GIFT_AR_MS - 1 }, 0) === null && cheerFor(t3, { type: 'time', arMs: GIFT_AR_MS }, 0)?.gift === true,
+     '試妝滿一分鐘，AI 送一份禮物（右下角 🎁 發亮等你拆）');
+  ok(cheerFor(t3, { type: 'time', arMs: GIFT_AR_MS * 3 }, CHEER_GAP_MS * 9) === null, '禮物一場只送一次');
+
+  const app = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  ok(/setTimeout\(\(\) => cheer\(\{ type: 'like', id: p\.id \}\), 900\)/.test(app), '回讚慢半拍（0.9 秒）才像在回應你');
+  ok(/beginStroke\(\);\n\s+cheer\(\{ type: 'paint' \}\);/.test(app) && /o\.act === 'guideNext'/.test(app), '自己畫第一筆、跟著畫完一步也會讚');
+  ok(/if \(cheerQ\.length >= 2\) cheerQ\.shift\(\);/.test(app), '貼紙一次一張、最多排兩張');
+  const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
+  const lines = dict.split(/\r?\n/).filter((l) => l.trimStart().startsWith("'cheer."));
+  ok(lines.length === 8 && lines.every((l) => (l.match(/', '/g) || []).length >= 2), '貼紙文案 8 句、三種語言齊全');
+  const banned = ['漂亮', '好看', '美', '瘦', 'pretty', 'beautiful', 'gorgeous', 'きれい', '可愛'];
+  ok(!lines.some((l) => banned.some((w) => l.includes(w))), '只讚做了什麼、選了什麼，不評價長相');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

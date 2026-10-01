@@ -37,7 +37,7 @@ import { buildRoutine, stepLines, stepOpts, routineRecap } from './routine.js';
 import { skinCondition, skinCondTop, skinCondLines } from './skincond.js';
 import { nextDuel, duelLines, duelOpts, duelPicked } from './duel.js';
 import { faceFit } from './fit.js';
-import { likeTap, comboMilestone, pickSurprise } from './live.js';
+import { likeTap, comboMilestone, pickSurprise, newCheer, cheerFor } from './live.js';
 import { findHairline, faceFeatures, classifyFace, faceLookBonus, faceReasonFor } from './faceshape.js';
 import { lineEmoji, optEmoji } from './emoji.js';
 import { initGender, guessAudience } from './gender.js';
@@ -123,6 +123,7 @@ const S = {
   bag: [],
   tried: new Set(),   // 試過的唇色色號 —— 報告要講「你試了幾個」
   like: { total: 0, combo: 0, last: 0, liked: new Set() },   // 右下角按讚：總數、連擊、按過讚的色號
+  cheer: newCheer(),  // AI 主動送的互動（回讚、鼓掌…）送過哪些
   arMs: 0, arT0: 0,   // 實際停留在 AR 的時間
   rating: 0,
   tags: new Set(),
@@ -1133,6 +1134,7 @@ function chatAct(where, o) {
   chatYou(where, o.key, optEmoji(o));
   const r = runAct(o) || {};
   if (HEART_ACTS.has(o.act) && S.step === 4) floatHearts('s4');
+  if (S.step === 4) cheerAfter(o);
   if (r.stay === false) return;                 // 換頁的動作，對話在新畫面重建
   // 動作沒帶新選項回來（例如沒東西可換）時，把原本那排放回去 ——
   // chatYou 會先清空選項，不還回去的話對話就停在那裡沒得點了。
@@ -1360,10 +1362,10 @@ const calm = () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').m
  * 飄愛心：你表示喜歡的時候（留這支、二選一選了、套用流行、拍下來、按讚），往上飄一串。
  * 有按讚鈕就從按讚鈕飄出來（直播 App 的樣子）；glyph 換成表情符號就是「飄表情」。
  */
-function floatHearts(where = 's4', n = 7, glyph = '♥') {
+function floatHearts(where = 's4', n = 7, glyph = '♥', from = null) {
   const fx = $('#' + where + '-fx'); if (!fx || calm()) return;
   const cols = ['#ff7aa2', '#ff9ec0', '#ffc2d6', '#ff6f91', '#ffd1e0'];
-  const lb = $('#' + where + '-social .like i');
+  const lb = from || $('#' + where + '-social .like i');
   let at = null;
   if (lb && lb.offsetParent) {
     const a = fx.getBoundingClientRect(), b = lb.getBoundingClientRect();
@@ -1429,6 +1431,7 @@ function mountSocial() {
     btn('gift', '🎁', 'rail.gift', () => {
       if (giftBusy || !S.picks?.lip) return;
       giftBusy = true;
+      box.querySelector('.gift')?.classList.remove('glow');
       tray.hidden = true;
       giftPop(() => { giftBusy = false; chatAct('s4', { key: 'opt.surprise', act: 'surprise' }); });
     }),
@@ -1457,6 +1460,7 @@ function likeNow(glyph = '♥') {
     S.like.liked.add(p.id);
     noteTaste(S.taste, p, { picked: true });       // 按讚＝明說喜歡：記進冷暖、深淺、鮮豔、質地的喜好
     chatAct('s4', { key: 'opt.likeIt', act: 'keepYes' });   // keepYes 本身會飄愛心
+    setTimeout(() => cheer({ type: 'like', id: p.id }), 900);   // 主播回讚：慢半拍才像在回應你
     if (glyph !== '♥') floatHearts('s4', 4, glyph);
   } else {
     floatHearts('s4', glyph === '♥' ? 3 : 4, glyph);
@@ -1517,6 +1521,44 @@ function placeRail() {
 }
 addEventListener('resize', () => { if (S.step === 4) placeRail(); });
 
+/* ── AI 送的貼紙 ───────────────────────────────────────────
+   右側跳出「AI 送出 👏」貼紙＋一串表情往上飄（規則在 js/live.js 的 cheerFor）。
+   一次只放一張，排隊最多兩張 —— 同時好幾張就看不清楚了。 */
+const cheerQ = [];
+let cheerOn = false;
+function cheer(ev) {
+  if (S.step !== 4) return;
+  const c = cheerFor(S.cheer, ev, performance.now());
+  if (!c) return;
+  if (ev.type === 'fit' && S.season) c.params = { season: t('season.' + S.season.season) };
+  if (cheerQ.length >= 2) cheerQ.shift();
+  cheerQ.push(c);
+  if (!cheerOn) nextCheer();
+}
+function nextCheer() {
+  const c = cheerQ.shift(), fx = $('#s4-fx');
+  if (!c || !fx || S.step !== 4) { cheerOn = false; return; }
+  cheerOn = true;
+  const st = el('div', 'cheer', `<b class="by"><i>AI</i>${t('cheer.by')}</b><i class="big">${c.emo}</i><span>${t(c.key, c.params || {})}</span>`);
+  st.setAttribute('role', 'status');
+  fx.appendChild(st);
+  if (c.burst) setTimeout(() => { if (st.isConnected) floatHearts('s4', 5, c.burst, st.querySelector('.big')); }, 260);
+  if (c.gift) $('#s4-social .gift')?.classList.add('glow');      // 禮物等你去拆：右下角的 🎁 會發亮
+  setTimeout(() => st.classList.add('out'), 2700);
+  setTimeout(() => { st.remove(); nextCheer(); }, 3100);
+}
+/** 動作之後：第一次調濃淡、跟著畫完一步 */
+function cheerAfter(o) {
+  if (o.act === 'softer' || o.act === 'stronger') cheer({ type: 'adjust' });
+  if (o.act === 'guideNext' && S.guide && S.guide.steps[S.guide.i]?.id !== 'done') cheer({ type: 'guide', n: S.guide.done.size });
+}
+/** 每一幀看一下：試妝滿一分鐘送禮物；停在一支跟季節合的色號上看了一陣子，送「命中」 */
+function cheerTick(now) {
+  if (S.duel || S.guide) return;
+  cheer({ type: 'time', arMs: S.arMs + (S.arT0 ? now - S.arT0 : 0) });
+  if (S.season && S.picks?.lip) cheer({ type: 'fit', id: S.picks.lip.id, fit: personFit(S.picks.lip, S.season), dwellMs: now - (S.shadeT0 || now) });
+}
+
 /**
  * 把「在現在這支上停了多久」記進偏好。
  * 停留時間是使用者沒說出口的評價：真的喜歡才會停下來看。
@@ -1538,6 +1580,7 @@ function switchLip(next, reason) {
   S.picks.lip = { ...next, _reason: [[reason || 'reason.manual']], _alts: [] };
   noteTaste(S.taste, next, { picked: true });
   S.tried.add(next.id);
+  if (S.step === 4) { const n = S.tried.size; setTimeout(() => cheer({ type: 'tried', n }), 1400); }
   startApply(); paintPanel(); updateCallout();
   if (S.step === 3) renderStep3();
   return prev;
@@ -2052,6 +2095,7 @@ function bestTried() {
  */
 function watchAR(lm, W) {
   if (S.step !== 4 || !lm || !S.skin) return;
+  cheerTick(performance.now());
   if (S.duel || S.guide) return;          // 正在玩二選一或跟著畫的時候，不插別的話
   // 還有問題等著回答時不插別的話 —— 否則新的提示會把答案按鈕換掉，
   // 畫面上剩一個問題卻沒有能回答的按鈕，點頭搖頭也跟著失效
@@ -2527,7 +2571,7 @@ function enter4() {
   if (DEBUG) globalThis.__LUCID_AR__ = { hasBrush, screenToUV, clearBrush, renderGL, toPixels, syncMakeup, lm: () => smooth,
                                          pressureLevel, applyPressure, press: () => ({ seen: pressSeen, sens: S.brush.press }),
                                          markFace, drawMark, tapRegion, feedGesture,
-                                         watchAR, faceInfo, skin: () => S.skin, chart: () => S.chartFit, face: () => ({ hair: S.hair, f: S.faceF, cls: S.face }),
+                                         watchAR, faceInfo, state: () => S, skin: () => S.skin, chart: () => S.chartFit, face: () => ({ hair: S.hair, f: S.faceF, cls: S.face }),
                                          yesNo: () => S.yesNo, gest: () => S.gesture };
   resetRefs();                     // 回到即時畫面：亮度基準改從鏡頭重新量
   startApply();
@@ -3085,6 +3129,7 @@ function bindMirror(frame) {
       frame.classList.add('painting');
       lastPt = null;
       beginStroke();
+      cheer({ type: 'paint' });
       strokeTo(e);
       frame.onpointermove = strokeTo;
       return;
@@ -3841,6 +3886,7 @@ function reset() {
   clearBrush();
   S.tried.clear(); S.arMs = 0; S.arT0 = 0;
   S.like = { total: 0, combo: 0, last: 0, liked: new Set() };
+  S.cheer = newCheer(); cheerQ.length = 0;
   S.pref = newPref(); S.said.clear(); S.prevLip = null;
   S.amount0 = null; S.asked3.clear(); S.shadeT0 = 0; S.lastAct = 0;
   S.audience = 'any'; S.asked2.clear(); S.q2 = null; S.audGuess = null; S.audChosen = false; S.level = null;
