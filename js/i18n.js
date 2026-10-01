@@ -318,6 +318,15 @@ const DICT = {
   'banner.duel': ['命定色出爐：{shade}', 'Your shade: {shade}', '運命の色：{shade}'],
   'banner.snap': ['拍好了！最後一頁可以存', 'Snapped! Save it on the last page', '撮れました！最後のページで保存'],
   'banner.guide': ['跟著畫完了，好厲害', 'All steps done — nicely done', '全ステップ完了！'],
+  // AI 送的貼紙（只讚做了什麼、選了什麼，不評價長相）
+  'cheer.by': ['送出', 'sent', 'から'],
+  'cheer.likeBack': ['AI 也按讚！記住你喜歡這種顏色了', 'Liked it too! Noted your taste', 'AIもいいね！好みを覚えました'],
+  'cheer.tried': ['試了 {n} 支！越比越知道自己要什麼', '{n} shades tried! Comparing is how you find yours', '{n}本目！比べるほど好みが見えてきます'],
+  'cheer.fit': ['色彩命中！這支在你的{season}色盤裡', 'Color match! This one sits in your {season} palette', 'カラー的中！{season}のパレットの色です'],
+  'cheer.adjust': ['會調濃淡了 —— 上妝最關鍵的一招', 'You found the intensity dial — the key skill', '濃さの調整、これが一番のコツ'],
+  'cheer.guide': ['第 {n} 步完成，跟上了！', 'Step {n} done — keep going!', 'ステップ{n}完了、その調子！'],
+  'cheer.paint': ['第一筆畫好了！慢慢疊，顏色會更自然', 'First stroke down! Build it up slowly', '最初のひと筆！少しずつ重ねると自然に'],
+  'cheer.gift': ['送你一份驚喜禮物，點右下角 🎁 拆開', 'A surprise for you — tap 🎁 to open', 'サプライズをどうぞ。右下の 🎁 で開封'],
   // 右下角的按讚、表情、驚喜
   'rail.like': ['按讚', 'Like', 'いいね'],
   'rail.react': ['表情', 'React', 'リアクション'],
