@@ -10,6 +10,7 @@
 
 // 句子：依文案鍵比對，先比對到的先用（越具體的放越前面）
 const LINE = [
+  [/^adv\.lvup\./, '💞'],
   [/^adv\.surprise$/, '🎁'],
   [/^adv\.hi\./, '👋'],
   [/^adv\.p\.face(Est|Unsure)$/, '🙏'],

@@ -1942,29 +1942,10 @@ body {
 #s2 #adv2 .opts button { flex:none; white-space:nowrap; }
 @media (max-width:560px) { #s2 #adv2 { max-height:36%; } #s2[data-phase="suggest"] #adv2 { max-height:26%; } }
 
-/* ── 右下角：驚喜禮物 ──
-   位置由 placeRail() 算：貼在留言區右邊、快速回覆上面；留言往左讓出一欄，字不會跑到按鈕底下。 */
-.social {
-  position:absolute; right:10px; bottom:120px; z-index:6;
-  display:flex; flex-direction:column; align-items:center; gap:8px;
-}
-.social .rb { position:relative; display:flex; flex-direction:column; align-items:center; gap:3px; padding:0; border:0; background:none; cursor:pointer; }
-.social .rb i {
-  width:40px; height:40px; border-radius:50%; display:grid; place-content:center; font-size:18px; font-style:normal;
-  background:rgba(18,10,14,.34); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
-  box-shadow:0 0 0 1px rgba(255,255,255,.22) inset; transition:transform .15s, background .2s;
-}
-.social .rb:active i { transform:scale(.86); }
-.social .rb span { font:700 9.5px/1 inherit; color:#fff; text-shadow:0 0 2px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.6); font-variant-numeric:tabular-nums; }
-.social .gift i { background:linear-gradient(135deg, rgba(255,196,120,.55), rgba(255,111,145,.5)); animation:giftNudge 4s ease-in-out infinite; }
-@keyframes giftNudge { 0%,86%,100% { transform:none; } 90% { transform:rotate(-12deg) scale(1.06); } 94% { transform:rotate(10deg) scale(1.06); } }
-#s4.busy .social, #s4.painting-mode .social, #s4:has(.sheet[data-tab="tune"]) .social { display:none; }
-#s4 #adv4 .log { padding-right:54px; }
 /* 畫面矮：功能那組先縮小圓鈕，再矮就連字也收掉 */
 .rail.tight { gap:4px; }
 .rail.tight .rb i { width:34px; height:34px; font-size:15px; }
 .rail.tighter .rb span { display:none; }
-@media (max-width:560px) { .social { right:6px; gap:6px; } .social .rb i { width:38px; height:38px; } }
 /* 飄表情（不是愛心時不上色） */
 .fx .hf.emo { font-size:24px; text-shadow:none; }
 /* 拆禮物：禮物盒跳出來、晃兩下、炸開一圈亮片 */
@@ -1994,7 +1975,6 @@ body {
   100% { opacity:0; transform:rotate(var(--a)) translateY(-110px) scale(1.1); }
 }
 @media (prefers-reduced-motion:reduce) {
-  .social .gift i { animation:none; }
 }
 
 /* ── AI 送的貼紙：右側跳出「AI 送出 👏」＋一句話，表情往上飄 ── */
@@ -2026,18 +2006,8 @@ body {
 @keyframes cheerOut { to { opacity:0; transform:translateY(-16px) scale(.95); } }
 @keyframes cheerBig { 0% { transform:scale(0) rotate(-25deg); } 60% { transform:scale(1.25) rotate(8deg); } 100% { transform:none; } }
 @media (max-width:560px) { .fx .cheer { right:52px; } .fx .cheer .big { font-size:40px; } .fx .cheer span { font-size:11.5px; } }
-/* AI 送了禮物：右下角的 🎁 發亮、掛一個小紅點，等你去拆 */
-.social .gift.glow i { animation:giftGlow 1.2s ease-in-out infinite; }
-.social .gift.glow::after {
-  content:'1'; position:absolute; top:-3px; right:-3px; min-width:15px; height:15px; border-radius:8px; display:grid; place-content:center;
-  font:800 9px/1 inherit; color:#fff; background:#ff3b5c; box-shadow:0 0 0 2px rgba(255,255,255,.9);
-}
-@keyframes giftGlow {
-  0%,100% { box-shadow:0 0 0 1px rgba(255,255,255,.3) inset, 0 0 0 0 rgba(255,200,120,.7); transform:none; }
-  50% { box-shadow:0 0 0 1px rgba(255,255,255,.3) inset, 0 0 0 8px rgba(255,200,120,0); transform:scale(1.08); }
-}
 @media (prefers-reduced-motion:reduce) {
-  .fx .cheer, .fx .cheer.out, .fx .cheer .big, .social .gift.glow i { animation:none; }
+  .fx .cheer, .fx .cheer.out, .fx .cheer .big { animation:none; }
 }
 
 /* ── AI 回應你時的特效 ── */
@@ -2063,7 +2033,7 @@ body {
 .frame .host.talking small > span { color:#ffd1e0; }
 /* 默契等級：膠囊上的小字＋進度條 */
 .frame .host .rp { font-style:normal; font-weight:800; font-size:9px; color:#ffd1e0; margin-left:2px; }
-.frame .host .bar { display:block; height:3px; margin-top:3px; border-radius:2px; background:rgba(255,255,255,.25); overflow:hidden; text-decoration:none; }
+.frame .host .bar { position:absolute; left:40px; right:12px; bottom:3px; display:block; height:2px; border-radius:2px; background:rgba(255,255,255,.25); overflow:hidden; text-decoration:none; }
 .frame .host .bar i { display:block; height:100%; width:0; border-radius:2px; background:linear-gradient(90deg, #ff9ec0, #ffd166); transition:width .5s cubic-bezier(.2,.8,.2,1); }
 .frame .host.lvup { animation:hostLvUp 1.2s ease-out; }
 @keyframes hostLvUp {
@@ -2082,4 +2052,68 @@ body {
 }
 @media (prefers-reduced-motion:reduce) {
   .msg.you .stamp.pop, .frame .host.talking .av::after, .frame .host.lvup { animation:none; }
+}
+
+/* ── 默契等級：每一級看得出差別 ── */
+/* 主播頭像外圈與等級字：Lv1 粉、Lv2 紫、Lv3 金、Lv4 彩虹 */
+.frame .host.lv1 .av { box-shadow:0 0 0 2px #ff9ec0; }
+.frame .host.lv2 .av { box-shadow:0 0 0 2px #c3a6ff, 0 0 8px rgba(195,166,255,.8); }
+.frame .host.lv3 .av { box-shadow:0 0 0 2px #ffd166, 0 0 10px rgba(255,209,102,.9); }
+.frame .host.lv4 .av { box-shadow:0 0 0 2px #fff, 0 0 0 4px #ffd166, 0 0 14px rgba(255,111,145,.9); }
+.frame .host.lv2 .rp { color:#d9c8ff; }
+.frame .host.lv3 .rp { color:#ffe08a; }
+.frame .host.lv4 .rp { background:linear-gradient(90deg, #ff9ec0, #ffd166, #9ad0ff); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.frame .host.lv2 .bar i { background:linear-gradient(90deg, #c3a6ff, #ff9ec0); }
+.frame .host.lv3 .bar i { background:linear-gradient(90deg, #ffd166, #ffb347); }
+/* 升級橫幅的顏色 */
+.fx .gift.lv2 { background:linear-gradient(90deg, rgba(155,123,255,.95), rgba(195,166,255,.5)); box-shadow:0 6px 18px rgba(155,123,255,.4), 0 0 0 1px rgba(255,255,255,.3) inset; }
+.fx .gift.lv3 { background:linear-gradient(90deg, rgba(240,170,40,.96), rgba(255,209,102,.55)); box-shadow:0 6px 20px rgba(240,170,40,.45), 0 0 0 1px rgba(255,255,255,.35) inset; }
+.fx .gift.lv4 { background:linear-gradient(90deg, #ff6f91, #ffb347, #ffd166, #7ee0b5, #9ad0ff, #c3a6ff); background-size:200% 100%;
+  box-shadow:0 8px 24px rgba(255,111,145,.45), 0 0 0 1px rgba(255,255,255,.45) inset; animation:giftIn 3.2s cubic-bezier(.2,.8,.2,1) forwards, rainbowSlide 2s linear infinite; }
+@keyframes rainbowSlide { to { background-position:200% 0; } }
+/* 中間的等級徽章（Lv2 起） */
+.fx .lvbadge {
+  position:absolute; left:50%; top:34%; width:112px; height:112px; margin:-56px 0 0 -56px; border-radius:50%;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff; overflow:visible;
+  box-shadow:0 0 0 3px rgba(255,255,255,.9), 0 12px 30px rgba(0,0,0,.3);
+  animation:badgeIn 2.5s cubic-bezier(.2,1.4,.4,1) forwards;
+}
+.fx .lvbadge.lv2 { background:radial-gradient(circle at 35% 30%, #e4d8ff, #9b7bff 70%); }
+.fx .lvbadge.lv3 { background:radial-gradient(circle at 35% 30%, #fff1c2, #f0aa28 70%); }
+.fx .lvbadge.lv4 { background:radial-gradient(circle at 35% 30%, #fff, #ff9ec0 45%, #c3a6ff 80%); animation-duration:3.3s; }
+.fx .lvbadge b { position:relative; font:900 italic 32px/1 var(--display, inherit); text-shadow:0 2px 8px rgba(0,0,0,.25); }
+.fx .lvbadge span { position:relative; margin-top:4px; font-weight:800; font-size:11.5px; text-shadow:0 1px 4px rgba(0,0,0,.3); }
+/* 一道光從徽章上掃過 */
+.fx .lvbadge::after {
+  content:''; position:absolute; inset:0; border-radius:50%;
+  background:linear-gradient(115deg, transparent 35%, rgba(255,255,255,.75) 50%, transparent 65%) no-repeat;
+  background-size:250% 100%; background-position:150% 0; animation:badgeShine 1s ease-out .5s forwards;
+}
+.fx .lvbadge .rays {
+  position:absolute; left:50%; top:50%; width:300px; height:300px; margin:-150px 0 0 -150px; border-radius:50%; z-index:-1;
+  background:repeating-conic-gradient(rgba(255,230,160,.55) 0 10deg, transparent 10deg 30deg);
+  -webkit-mask:radial-gradient(circle, #000 25%, transparent 70%); mask:radial-gradient(circle, #000 25%, transparent 70%);
+  animation:raysSpin 6s linear infinite;
+}
+@keyframes badgeIn {
+  0% { transform:scale(0) rotate(-30deg); opacity:0; }
+  18% { transform:scale(1.18) rotate(6deg); opacity:1; }
+  28% { transform:scale(1) rotate(0); }
+  82% { transform:scale(1); opacity:1; }
+  100% { transform:scale(.6) translateY(-40px); opacity:0; }
+}
+@keyframes badgeShine { to { background-position:-50% 0; } }
+@keyframes raysSpin { to { transform:rotate(360deg); } }
+/* 煙火（Lv3 起） */
+.fx .fw {
+  position:absolute; width:5px; height:5px; margin:-2px 0 0 -2px; border-radius:50%; opacity:0;
+  box-shadow:0 0 6px 1px currentColor; animation:fwBurst 1.15s cubic-bezier(.1,.7,.3,1) forwards;
+}
+@keyframes fwBurst {
+  0% { opacity:1; transform:rotate(var(--a)) translateY(0) scale(1.2); }
+  70% { opacity:1; }
+  100% { opacity:0; transform:rotate(var(--a)) translateY(calc(var(--d) * -1)) scale(.3); }
+}
+@media (prefers-reduced-motion:reduce) {
+  .fx .gift.lv4, .fx .lvbadge, .fx .lvbadge::after, .fx .lvbadge .rays { animation:none; }
 }

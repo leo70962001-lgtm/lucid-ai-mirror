@@ -326,8 +326,13 @@ const DICT = {
   'cheer.adjust': ['會調濃淡了 —— 上妝最關鍵的一招', 'You found the intensity dial — the key skill', '濃さの調整、これが一番のコツ'],
   'cheer.guide': ['第 {n} 步完成，跟上了！', 'Step {n} done — keep going!', 'ステップ{n}完了、その調子！'],
   'cheer.paint': ['第一筆畫好了！慢慢疊，顏色會更自然', 'First stroke down! Build it up slowly', '最初のひと筆！少しずつ重ねると自然に'],
-  'cheer.gift': ['送你一份驚喜禮物，點右下角 🎁 拆開', 'A surprise for you — tap 🎁 to open', 'サプライズをどうぞ。右下の 🎁 で開封'],
-  // 右下角的驚喜；AI 回應你時的特效
+  'cheer.gift': ['送你一份驚喜禮物，點下面的「🎁 拆開禮物」', 'A surprise for you — tap “🎁 Open gift” below', 'サプライズをどうぞ。下の「🎁 開ける」から'],
+  // 驚喜禮物、AI 回應你時的特效
+  'opt.openGift': ['拆開禮物', 'Open gift', 'プレゼントを開ける'],
+  'adv.lvup.1': ['默契 Lv1「聊得來」！你的回答我都記下了，接下來照這個方向挑。', 'Rapport Lv1 “Getting along”! I’ve noted your answers and will pick in that direction.', '相性 Lv1「話が合う」！答えを覚えたので、この方向で選びます。'],
+  'adv.lvup.2': ['默契 Lv2「有默契」！送你一份驚喜禮物 —— 試妝時點「🎁 拆開禮物」，換上一支你還沒試過的顏色。', 'Rapport Lv2 “In sync”! Here’s a surprise gift — tap “🎁 Open gift” while trying on for a shade you haven’t tried.', '相性 Lv2「息が合う」！サプライズをどうぞ —— 試着中に「🎁 開ける」でまだ試していない色に。'],
+  'adv.lvup.3': ['默契 Lv3「好默契」！再送一份禮物，你喜歡的方向我也抓得更準了。', 'Rapport Lv3 “Great team”! Another gift — and I’ve got a clearer read on what you like.', '相性 Lv3「名コンビ」！もう一つプレゼント。好みもかなり掴めてきました。'],
+  'adv.lvup.4': ['默契 Lv4「美妝知己」！今天的每個選擇我都記住了，收尾時給你一份專屬總結。', 'Rapport Lv4 “Beauty bestie”! I remember every choice today — you’ll get a personal summary at the end.', '相性 Lv4「コスメ友」！今日の選択はすべて覚えました。最後にあなた専用のまとめを。'],
   'chat.replyYou': ['回覆 @你', 'replying @you', '@あなたへ'],
   'host.typing': ['回覆中…', 'replying…', '返信中…'],
   'rapport.up': ['默契升級 Lv{lv}：{name}！', 'Rapport up — Lv{lv}: {name}!', '相性レベルアップ Lv{lv}：{name}！'],
@@ -336,7 +341,6 @@ const DICT = {
   'rapport.lv2': ['有默契', 'In sync', '息が合う'],
   'rapport.lv3': ['好默契', 'Great team', '名コンビ'],
   'rapport.lv4': ['美妝知己', 'Beauty bestie', 'コスメ友'],
-  'rail.gift': ['驚喜', 'Surprise', 'サプライズ'],
   'opt.surprise': ['送我一支驚喜色', 'Surprise me', 'サプライズで選んで'],
   'reason.surprise': ['驚喜禮物', 'Surprise pick', 'サプライズ'],
   'banner.surprise': ['驚喜色號：{shade}', 'Surprise shade: {shade}', 'サプライズ：{shade}'],

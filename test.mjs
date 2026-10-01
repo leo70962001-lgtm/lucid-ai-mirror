@@ -13,7 +13,7 @@ import { lineEmoji, optEmoji } from './js/emoji.js';
 import { audienceFromPrediction, faceCropBox, GENDER_MIN_PROB } from './js/gender.js';
 import { skinCondition, skinCondTop, skinCondLines, scLevel, SC_LEVELS } from './js/skincond.js';
 import { faceFit } from './js/fit.js';
-import { pickSurprise, newCheer, cheerFor, CHEER_GAP_MS, GIFT_AR_MS, FIT_MAX, newRapport, rapportAdd, RAPPORT_LV, aiReactFor } from './js/live.js';
+import { pickSurprise, newCheer, cheerFor, CHEER_GAP_MS, GIFT_AR_MS, FIT_MAX, newRapport, rapportAdd, RAPPORT_LV, aiReactFor, LEVEL_FX, levelFx } from './js/live.js';
 import { nextDuel, duelSides, duelLines, duelOpts, duelPicked, DUEL_AXES } from './js/duel.js';
 import { buildRoutine, stepLines, stepOpts, routineRecap } from './js/routine.js';
 import { TRENDS, TREND_PACK, TREND_STALE_DAYS, trendsFor, trendPlan, trendPick, trendLines,
@@ -1498,7 +1498,7 @@ console.log('\n\x1b[1m37. 第 2 步：對話不能蓋到臉\x1b[0m');
   ok(/#s2 #adv2 \.opts \{ flex-wrap:nowrap; overflow-x:auto;/.test(css), '第 2 步的選項只排一行、左右滑，不會一層層往上疊');
 }
 
-console.log('\n\x1b[1m38. AR 右下角：驚喜禮物（按讚、表情依使用者要求拿掉）\x1b[0m');
+console.log('\n\x1b[1m38. 驚喜禮物：從回覆列拆（右下角的按鈕依使用者要求拿掉）\x1b[0m');
 {
   const lips = PRODUCTS.filter((p) => p.cat === 'lip' && p.stock > 0);
   const cur = lips[0];
@@ -1520,16 +1520,16 @@ console.log('\n\x1b[1m38. AR 右下角：驚喜禮物（按讚、表情依使用
   const app = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
   const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
   const css = readFileSync(new URL('./main.css', import.meta.url), 'utf8');
-  const social = app.slice(app.indexOf('function mountSocial()'), app.indexOf('/* ── AI 回應你時的特效'));
-  ok(html.includes('id="s4-social"') && social.includes("'rb gift'") && !/like|react|tray/.test(social), '右下角只留 🎁 驚喜（按讚、表情拿掉了）');
+  ok(!html.includes('s4-social') && !/mountSocial|giftBusy/.test(app) && !/\.social/.test(css), '右下角的按鈕都拿掉了（按讚、表情、驚喜）');
+  ok(/\.\.\.\(S\.gifts > 0 \? \[\{ key: 'opt\.openGift', act: 'surprise' \}\] : \[\]\)/.test(app), 'AI 送了禮物 → 回覆列第一個是「🎁 拆開禮物」');
+  ok(/case 'surprise': \{\n\s+S\.gifts = Math\.max\(0, S\.gifts - 1\);\n\s+giftPop/.test(app), '拆一份少一份，拆的時候跳禮物盒動畫');
   ok(!/likeNow|paintLike|reactHmm/.test(app) && !ACTS.includes('reactHmm'), '按讚、表情的程式與動作都清掉了');
   ok(ACTS.includes('surprise') && optEmoji({ act: 'surprise' }) === '🎁', '驚喜是已知動作、有符號');
-  ok(/#s4\.busy \.social, #s4\.painting-mode \.social/.test(css) && /#s4 #adv4 \.log \{ padding-right:54px; \}/.test(css),
-     '玩二選一、跟著畫、自己畫時收起來；留言讓出右邊一欄');
+  ok(/if \(c\.gift\) \{ S\.gifts\+\+; syncAROpts\(\); \}/.test(app), '試妝滿一分鐘的禮物也放進回覆列');
   ok(/\.rail\.tight[\s\S]*\.rail\.tighter \.rb span \{ display:none; \}/.test(css), '畫面矮時上面那組先縮小、再矮才收掉字');
   ok(/if \(!fx \|\| calm\(\)\) \{ done\(\); return; \}/.test(app), '減少動態效果時不播拆禮物動畫，直接換色');
   const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
-  ok(!/'(rail\.like|rail\.react|react\.clap|opt\.likeIt|banner\.combo|adv\.react\.hmm)':/.test(dict), '拿掉的按鈕文案也清掉了');
+  ok(!/'(rail\.like|rail\.react|rail\.gift|react\.clap|opt\.likeIt|banner\.combo|adv\.react\.hmm)':/.test(dict), '拿掉的按鈕文案也清掉了');
 }
 
 console.log('\n\x1b[1m39. AI 主動送的互動：回讚、鼓掌、命中、禮物\x1b[0m');
@@ -1582,16 +1582,41 @@ console.log('\n\x1b[1m40. 你跟 AI 互動時，AI 給的反饋特效\x1b[0m');
   ok(/if \(prevWho === 'you' && \(where === 's2' \|\| where === 's4'\)\) bubble\.appendChild\(el\('span', 're', t\('chat\.replyYou'\)\)\)/.test(app),
      'AI 接著你的留言回話時掛「回覆 @你」');
   ok(/hostTalking\(where, !!pendingAt\)/.test(app) && /\.frame \.host\.talking \.av::after/.test(css), 'AI 打字時主播頭像一圈圈發亮、狀態變「回覆中…」');
-  ok(/if \(where === 's2' \|\| where === 's4'\) bumpRapport\(where\);/.test(app) && /confetti\(where\);\n\s+liveBanner\(where, '💞'/.test(app),
-     '每次互動默契 +1，升級時彩帶＋橫幅');
+  ok(/if \(where === 's2' \|\| where === 's4'\) bumpRapport\(where\);/.test(app) && /if \(r\.up\) levelUp\(where, r\.lv\);/.test(app),
+     '每次互動默契 +1，升級時放升級特效');
   ok(html.includes('id="s2-fx"'), '第 2 步也有特效層（在諮詢時升級也看得到）');
   ok((app.match(/confetti\('s4'\)/g) || []).length >= 2, '命定色出爐、跟著畫完也放彩帶');
-  ok(/\.msg\.you \.stamp\.pop, \.frame \.host\.talking \.av::after, \.frame \.host\.lvup \{ animation:none; \}/.test(css) && /if \(!fx \|\| calm\(\)\) return;\n\s+const cols = \['#ff6f91'/.test(app),
+  ok(/\.msg\.you \.stamp\.pop, \.frame \.host\.talking \.av::after, \.frame \.host\.lvup \{ animation:none; \}/.test(css) && /function confetti\(where, n = 28, lv = 0\) \{\n\s+const fx = \$\('#' \+ where \+ '-fx'\); if \(!fx \|\| calm\(\)\) return;/.test(app),
      '減少動態效果時：不蓋章動畫、不發亮、不放彩帶');
   const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
   const has3 = (k) => { const m = dict.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
   const keys = ['chat.replyYou', 'host.typing', 'rapport.up', 'rapport.lv0', 'rapport.lv1', 'rapport.lv2', 'rapport.lv3', 'rapport.lv4'];
   ok(keys.every(has3), '文案三種語言齊全（' + keys.length + ' 句）');
+}
+
+console.log('\n\x1b[1m41. 升級特效：每一級看得出差別＋AI 的升級回饋\x1b[0m');
+{
+  ok(LEVEL_FX.length === 5 && new Set(LEVEL_FX.slice(1).map((f) => f.emo)).size === 4, '四個等級各有自己的符號（💞💜💛💎）');
+  ok([1, 2, 3].every((i) => LEVEL_FX[i + 1].confetti > LEVEL_FX[i].confetti), '越高級彩帶越多');
+  ok(!LEVEL_FX[1].badge && LEVEL_FX[2].badge && LEVEL_FX[3].fireworks > 0 && LEVEL_FX[4].rays && LEVEL_FX[4].fireworks > LEVEL_FX[3].fireworks,
+     'Lv1 彩帶 → Lv2 加徽章 → Lv3 加煙火 → Lv4 加光芒、更多煙火');
+  ok(LEVEL_FX[2].gift === 1 && LEVEL_FX[3].gift === 1, 'Lv2、Lv3 各送一份禮物');
+  ok(levelFx(0) === LEVEL_FX[1] && levelFx(9) === LEVEL_FX[4], '等級超出範圍也不會壞');
+  const app = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('./main.css', import.meta.url), 'utf8');
+  ok(/liveBanner\(where, fx\.emo, t\('rapport\.up'[\s\S]{0,60}'lv' \+ lv\)/.test(app) && /\.fx \.gift\.lv2/.test(css) && /\.fx \.gift\.lv3/.test(css) && /\.fx \.gift\.lv4/.test(css),
+     '升級橫幅依等級換顏色（粉、紫、金、彩虹）');
+  ok(/\.frame \.host\.lv1 \.av/.test(css) && /\.frame \.host\.lv4 \.av/.test(css), '主播頭像外圈依等級換顏色，平常也看得出幾級');
+  ok(/key: 'adv\.lvup\.' \+ lv/.test(app), '升級時 AI 講一句這一級的回饋');
+  ok(/\.frame \.host \.bar \{ position:absolute;/.test(css), '進度條疊在膠囊底緣，不把膠囊撐高');
+  ok(/function placeTopLeft\(\)/.test(app) && /seg\.style\.top = top \+ 'px'/.test(app), '模式切換、撤銷排在主播膠囊下面，不會疊在一起');
+  ok(/r\.top >= roof - 1 && r\.bottom <= floor - 7/.test(app) && /railRO\.observe\(e\)/.test(app), '右側按鈕列夾在素顏小窗與留言之間，大小一變就重排');
+  const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
+  const has3 = (k) => { const m = dict.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
+  const keys = ['opt.openGift', 'adv.lvup.1', 'adv.lvup.2', 'adv.lvup.3', 'adv.lvup.4'];
+  ok(keys.every(has3), '文案三種語言齊全（' + keys.length + ' 句）');
+  const lv = dict.split(/\r?\n/).filter((l) => l.includes("'adv.lvup."));
+  ok(!lv.some((l) => ['漂亮', '好看', '美麗', 'pretty', 'beautiful', 'きれい'].some((w) => l.includes(w))), '升級回饋只講互動與選擇，不評價長相');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);
