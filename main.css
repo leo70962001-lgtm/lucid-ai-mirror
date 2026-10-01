@@ -1942,7 +1942,7 @@ body {
 #s2 #adv2 .opts button { flex:none; white-space:nowrap; }
 @media (max-width:560px) { #s2 #adv2 { max-height:36%; } #s2[data-phase="suggest"] #adv2 { max-height:26%; } }
 
-/* ── 右下角：按讚、表情、驚喜（直播 App 最常按的三顆） ──
+/* ── 右下角：驚喜禮物 ──
    位置由 placeRail() 算：貼在留言區右邊、快速回覆上面；留言往左讓出一欄，字不會跑到按鈕底下。 */
 .social {
   position:absolute; right:10px; bottom:120px; z-index:6;
@@ -1956,37 +1956,15 @@ body {
 }
 .social .rb:active i { transform:scale(.86); }
 .social .rb span { font:700 9.5px/1 inherit; color:#fff; text-shadow:0 0 2px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.6); font-variant-numeric:tabular-nums; }
-.social .like i { font-size:22px; color:#fff; }
-.social .like.on i { background:linear-gradient(135deg, #ff6f91, #ff9ec0); box-shadow:0 0 0 1px rgba(255,255,255,.45) inset, 0 4px 12px rgba(255,111,145,.45); }
 .social .gift i { background:linear-gradient(135deg, rgba(255,196,120,.55), rgba(255,111,145,.5)); animation:giftNudge 4s ease-in-out infinite; }
 @keyframes giftNudge { 0%,86%,100% { transform:none; } 90% { transform:rotate(-12deg) scale(1.06); } 94% { transform:rotate(10deg) scale(1.06); } }
-/* 連擊：按讚鈕左邊跳出「×N」 */
-.social .combo {
-  position:absolute; right:100%; top:6px; margin-right:6px; white-space:nowrap; pointer-events:none;
-  font:900 italic 17px/1 var(--display, inherit); color:#fff;
-  -webkit-text-stroke:.6px rgba(255,80,130,.9); text-shadow:0 2px 6px rgba(255,80,130,.55);
-}
-.social .combo.pop { animation:comboPop .35s cubic-bezier(.2,1.6,.4,1); }
-@keyframes comboPop { from { transform:scale(1.7); opacity:.4; } to { transform:none; opacity:1; } }
-/* 表情列：從按鈕往左展開 */
-.social .tray {
-  position:absolute; right:calc(100% + 8px); bottom:auto; top:0; display:flex; gap:6px; padding:5px;
-  border-radius:26px; background:rgba(28,14,20,.82); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
-  box-shadow:0 0 0 1px rgba(255,255,255,.2) inset; animation:trayIn .18s ease-out;
-}
-.social .tray[hidden] { display:none; }
-.social .tray button { display:flex; flex-direction:column; align-items:center; gap:2px; padding:3px 5px; border:0; background:none; cursor:pointer; }
-.social .tray i { font-size:22px; font-style:normal; line-height:1; transition:transform .12s; }
-.social .tray button:active i { transform:scale(1.3); }
-.social .tray span { font:700 9px/1 inherit; color:#fff; }
-@keyframes trayIn { from { opacity:0; transform:translateX(8px) scale(.9); } to { opacity:1; transform:none; } }
 #s4.busy .social, #s4.painting-mode .social, #s4:has(.sheet[data-tab="tune"]) .social { display:none; }
 #s4 #adv4 .log { padding-right:54px; }
 /* 畫面矮：功能那組先縮小圓鈕，再矮就連字也收掉 */
 .rail.tight { gap:4px; }
 .rail.tight .rb i { width:34px; height:34px; font-size:15px; }
 .rail.tighter .rb span { display:none; }
-@media (max-width:560px) { .social { right:6px; gap:6px; } .social .rb i { width:38px; height:38px; } .social .like i { font-size:20px; } }
+@media (max-width:560px) { .social { right:6px; gap:6px; } .social .rb i { width:38px; height:38px; } }
 /* 飄表情（不是愛心時不上色） */
 .fx .hf.emo { font-size:24px; text-shadow:none; }
 /* 拆禮物：禮物盒跳出來、晃兩下、炸開一圈亮片 */
@@ -2016,7 +1994,7 @@ body {
   100% { opacity:0; transform:rotate(var(--a)) translateY(-110px) scale(1.1); }
 }
 @media (prefers-reduced-motion:reduce) {
-  .social .gift i, .social .combo.pop, .social .tray { animation:none; }
+  .social .gift i { animation:none; }
 }
 
 /* ── AI 送的貼紙：右側跳出「AI 送出 👏」＋一句話，表情往上飄 ── */
@@ -2060,4 +2038,48 @@ body {
 }
 @media (prefers-reduced-motion:reduce) {
   .fx .cheer, .fx .cheer.out, .fx .cheer .big, .social .gift.glow i { animation:none; }
+}
+
+/* ── AI 回應你時的特效 ── */
+/* 你那則留言尾端：AI 蓋的章 */
+.msg.you .stamp {
+  display:inline-grid; place-content:center; width:20px; height:20px; margin-left:6px; vertical-align:-4px;
+  border-radius:50%; font-size:12px; font-style:normal; background:rgba(255,255,255,.92); box-shadow:0 2px 6px rgba(0,0,0,.25);
+}
+.msg.you .stamp.pop { animation:stampIn .5s cubic-bezier(.2,1.8,.4,1) .45s both; }
+@keyframes stampIn { 0% { transform:scale(0) rotate(-40deg); opacity:0; } 100% { transform:none; opacity:1; } }
+/* AI 接著你的留言回話：掛「回覆 @你」 */
+.msg.ai .bubble .re {
+  display:inline-block; margin-right:5px; padding:1px 6px; border-radius:8px; vertical-align:1px;
+  font:800 9.5px/1.4 inherit; color:#fff; background:linear-gradient(90deg, #ff6f91, #ff9ec0); text-shadow:none;
+}
+/* 主播頭像：AI 在打字時一圈圈發亮 */
+.frame .host .av { position:relative; }
+.frame .host.talking .av::after {
+  content:''; position:absolute; inset:-2px; border-radius:50%; border:2px solid rgba(255,158,192,.95);
+  animation:hostTalk 1.1s ease-out infinite;
+}
+@keyframes hostTalk { from { transform:scale(1); opacity:1; } to { transform:scale(1.6); opacity:0; } }
+.frame .host.talking small > span { color:#ffd1e0; }
+/* 默契等級：膠囊上的小字＋進度條 */
+.frame .host .rp { font-style:normal; font-weight:800; font-size:9px; color:#ffd1e0; margin-left:2px; }
+.frame .host .bar { display:block; height:3px; margin-top:3px; border-radius:2px; background:rgba(255,255,255,.25); overflow:hidden; text-decoration:none; }
+.frame .host .bar i { display:block; height:100%; width:0; border-radius:2px; background:linear-gradient(90deg, #ff9ec0, #ffd166); transition:width .5s cubic-bezier(.2,.8,.2,1); }
+.frame .host.lvup { animation:hostLvUp 1.2s ease-out; }
+@keyframes hostLvUp {
+  0% { box-shadow:0 0 0 1px rgba(255,255,255,.18) inset, 0 0 0 0 rgba(255,209,102,.9); }
+  100% { box-shadow:0 0 0 1px rgba(255,255,255,.18) inset, 0 0 0 16px rgba(255,209,102,0); }
+}
+/* 全螢幕彩帶 */
+.fx .cf {
+  position:absolute; top:-14px; width:7px; height:11px; border-radius:2px; opacity:0;
+  animation-name:cfFall; animation-timing-function:cubic-bezier(.3,.6,.6,1); animation-fill-mode:forwards;
+}
+@keyframes cfFall {
+  0% { opacity:1; transform:translate(0, 0) rotate(0); }
+  85% { opacity:1; }
+  100% { opacity:0; transform:translate(var(--dx), var(--fall)) rotate(var(--r)); }
+}
+@media (prefers-reduced-motion:reduce) {
+  .msg.you .stamp.pop, .frame .host.talking .av::after, .frame .host.lvup { animation:none; }
 }

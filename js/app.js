@@ -37,7 +37,7 @@ import { buildRoutine, stepLines, stepOpts, routineRecap } from './routine.js';
 import { skinCondition, skinCondTop, skinCondLines } from './skincond.js';
 import { nextDuel, duelLines, duelOpts, duelPicked } from './duel.js';
 import { faceFit } from './fit.js';
-import { likeTap, comboMilestone, pickSurprise, newCheer, cheerFor } from './live.js';
+import { pickSurprise, newCheer, cheerFor, newRapport, rapportAdd, rapportPct, aiReactFor } from './live.js';
 import { findHairline, faceFeatures, classifyFace, faceLookBonus, faceReasonFor } from './faceshape.js';
 import { lineEmoji, optEmoji } from './emoji.js';
 import { initGender, guessAudience } from './gender.js';
@@ -122,7 +122,7 @@ const S = {
   brush: { tool: 'lip', size: 34, flow: 55, press: 65 },   // 手動上妝的虛擬刷具（press = 筆壓靈敏度）
   bag: [],
   tried: new Set(),   // 試過的唇色色號 —— 報告要講「你試了幾個」
-  like: { total: 0, combo: 0, last: 0, liked: new Set() },   // 右下角按讚：總數、連擊、按過讚的色號
+  rapport: newRapport(),   // 跟 AI 的默契：互動幾次、幾級
   cheer: newCheer(),  // AI 主動送的互動（回讚、鼓掌…）送過哪些
   arMs: 0, arT0: 0,   // 實際停留在 AR 的時間
   rating: 0,
@@ -946,7 +946,7 @@ function chatYou(where, key, emo = '') {
   const text = (emo ? emo + ' ' : '') + t(key);
   // 連按同一個選項時，不要把同一句「你：…」一直疊上去
   const last = c.msgs[c.msgs.length - 1];
-  if (!(last && last.who === 'you' && last.text === text)) c.msgs.push({ who: 'you', text });
+  if (!(last && last.who === 'you' && last.text === text)) c.msgs.push({ who: 'you', text, key });
   c.opts = [];
   mountChat(where);
 }
@@ -974,6 +974,8 @@ function mountChat(where) {
     if (m.who === 'ai' && m.revealAt > now) { pendingAt = m.revealAt; break; }
     if (m.who === 'you') {
       const row = el('div', 'msg you', m.text);
+      // AI 讀到你的留言，在尾端蓋一個章（直播主回表情）；只有第一次出現時跳一下
+      if (m.react) { const s = el('i', 'stamp' + (m.reacted ? '' : ' pop'), m.react); row.appendChild(s); m.reacted = true; }
       if (!m.shown) { row.classList.add('new'); m.shown = true; fresh = true; }
       log.appendChild(row); prevWho = 'you'; continue;
     }
@@ -982,6 +984,7 @@ function mountChat(where) {
     const bubble = el('div', 'bubble');
     // 句子開頭的表情符號已經看得出是哪一類（建議 💡、提問 💬、例子 🌟…），種類標籤不再每句都掛。
     // 只留「你說的」：那句話的依據是客人自己的回答、不是量測 —— 這個差別要一直看得到。
+    if (prevWho === 'you' && (where === 's2' || where === 's4')) bubble.appendChild(el('span', 're', t('chat.replyYou')));   // 主播回覆留言的樣子
     bubble.appendChild(el('span', 'emo', lineEmoji(m.l)));
     if (m.l.kind === 'told') bubble.appendChild(el('span', 'k', t('adv.kind.told')));
     bubble.appendChild(el('span', 'x', advLine(m.l)));
@@ -1005,6 +1008,7 @@ function mountChat(where) {
     c.timer = setTimeout(() => { if (S.chat[where] === c) mountChat(where); }, Math.max(30, pendingAt - now));
   }
   box.appendChild(log);
+  hostTalking(where, !!pendingAt);
   // 新訊息或「輸入中」出現時捲到底；使用者正在往上看舊訊息、又沒有新訊息時，留在原位
   log.onscroll = () => log.classList.toggle('more', log.scrollTop > 4);
   const toBottom = fresh || pendingAt || atBottom;
@@ -1106,7 +1110,6 @@ function syncSheet() {
   $('#sheet-peek').textContent = lastAI ? lineEmoji(lastAI.l) + ' ' + advLine(lastAI.l) : '';
   liftMirror();
   requestAnimationFrame(placeRail);
-  paintLike();
   const p = S.picks?.lip;
   if (p) {
     // 商品資訊就放在鏡子旁邊：看到喜歡的當下就能加入，不用等到最後一頁
@@ -1134,6 +1137,10 @@ function chatAct(where, o) {
   chatYou(where, o.key, optEmoji(o));
   const r = runAct(o) || {};
   if (HEART_ACTS.has(o.act) && S.step === 4) floatHearts('s4');
+  // AI 讀到了：在你那則留言蓋章；默契 +1，升級時放彩帶
+  const mine = [...c.msgs].reverse().find((m) => m.who === 'you');
+  if (mine && !mine.react) mine.react = aiReactFor(o.act);
+  if (where === 's2' || where === 's4') bumpRapport(where);
   if (S.step === 4) cheerAfter(o);
   if (r.stay === false) return;                 // 換頁的動作，對話在新畫面重建
   // 動作沒帶新選項回來（例如沒東西可換）時，把原本那排放回去 ——
@@ -1365,7 +1372,7 @@ const calm = () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').m
 function floatHearts(where = 's4', n = 7, glyph = '♥', from = null) {
   const fx = $('#' + where + '-fx'); if (!fx || calm()) return;
   const cols = ['#ff7aa2', '#ff9ec0', '#ffc2d6', '#ff6f91', '#ffd1e0'];
-  const lb = from || $('#' + where + '-social .like i');
+  const lb = from;
   let at = null;
   if (lb && lb.offsetParent) {
     const a = fx.getBoundingClientRect(), b = lb.getBoundingClientRect();
@@ -1392,88 +1399,73 @@ function liveBanner(where, emo, text) {
 }
 const HEART_ACTS = new Set(['keepYes', 'keepBest', 'duelLeft', 'duelRight', 'usePref', 'tryTrend', 'snap']);
 
-/* ── 右下角：按讚、表情、驚喜（直播 App 最常按的三顆） ─────────────
-   按讚：每一下飄愛心、數字加一，連按會出現「×N」連擊；同一支第一次按讚才在留言講話並記進喜好，
-         之後的連擊只飄愛心 —— 不然留言會被洗版。
-   表情：👏 讚（＝按讚）、🤔 猶豫（AI 給比較的方法）、🙅 不要（換下一支）。
-   驚喜：像送禮物一樣拆開，換上一支沒試過、跟季節合得來、跟剛才不同色系的顏色。 */
-const REACTS = [
-  { emo: '👏', label: 'react.clap', run: () => likeNow('👏') },
-  { emo: '🤔', label: 'react.hmm', run: () => chatAct('s4', { key: 'opt.reactHmm', act: 'reactHmm' }) },
-  { emo: '🙅', label: 'react.no', run: () => chatAct('s4', { key: 'opt.keepNo', act: 'keepNo' }) },
-];
-let giftBusy = false, comboT = 0;
+/* ── 右下角：驚喜禮物 ─────────────────────────────────────
+   像送禮物一樣拆開，換上一支沒試過、跟季節合得來、跟剛才不同色系的顏色。
+   AI 也會主動送（試妝滿一分鐘）：那時這顆會發亮、掛紅點，等你來拆。 */
+let giftBusy = false;
 function mountSocial() {
   const box = $('#s4-social'); if (!box) return;
   box.innerHTML = '';
-  const tray = el('div', 'tray');
-  tray.hidden = true;
-  for (const r of REACTS) {
-    const b = el('button', '', `<i>${r.emo}</i><span>${t(r.label)}</span>`);
-    b.type = 'button';
-    b.onclick = (e) => {
-      e.stopPropagation();
-      tray.hidden = true;
-      if (r.emo !== '👏') floatHearts('s4', 4, r.emo);
-      r.run();
-    };
-    tray.appendChild(b);
-  }
-  const btn = (cls, icon, label, fn) => {
-    const b = el('button', 'rb ' + cls, `<i>${icon}</i><span>${t(label)}</span>`);
-    b.type = 'button';
-    b.setAttribute('aria-label', t(label));
-    b.onclick = (e) => { e.stopPropagation(); fn(b); };
-    return b;
+  const b = el('button', 'rb gift', `<i>🎁</i><span>${t('rail.gift')}</span>`);
+  b.type = 'button';
+  b.setAttribute('aria-label', t('rail.gift'));
+  b.onclick = (e) => {
+    e.stopPropagation();
+    if (giftBusy || !S.picks?.lip) return;
+    giftBusy = true;
+    b.classList.remove('glow');
+    giftPop(() => { giftBusy = false; chatAct('s4', { key: 'opt.surprise', act: 'surprise' }); });
   };
-  box.append(tray,
-    btn('react', '😊', 'rail.react', () => { tray.hidden = !tray.hidden; }),
-    btn('gift', '🎁', 'rail.gift', () => {
-      if (giftBusy || !S.picks?.lip) return;
-      giftBusy = true;
-      box.querySelector('.gift')?.classList.remove('glow');
-      tray.hidden = true;
-      giftPop(() => { giftBusy = false; chatAct('s4', { key: 'opt.surprise', act: 'surprise' }); });
-    }),
-    btn('like', '♥', 'rail.like', () => { tray.hidden = true; likeNow(); }));
-  box.querySelector('.like').appendChild(el('b', 'combo'));
-  paintLike();
-}
-// 點表情列以外的地方就收起來
-document.addEventListener('pointerdown', (e) => {
-  const tray = $('#s4-social .tray');
-  if (tray && !tray.hidden && !e.target.closest?.('#s4-social')) tray.hidden = true;
-});
-
-/** 按讚鈕：數字（還沒按過顯示「按讚」）、這支按過讚就變成實心粉紅 */
-function paintLike() {
-  const b = $('#s4-social .like'); if (!b) return;
-  b.querySelector('span').textContent = S.like.total ? String(S.like.total) : t('rail.like');
-  b.classList.toggle('on', !!S.picks?.lip && S.like.liked.has(S.picks.lip.id));
+  box.appendChild(b);
 }
 
-function likeNow(glyph = '♥') {
-  const p = S.picks?.lip; if (!p) return;
-  likeTap(S.like, performance.now());
-  const first = !S.like.liked.has(p.id);
-  if (first) {
-    S.like.liked.add(p.id);
-    noteTaste(S.taste, p, { picked: true });       // 按讚＝明說喜歡：記進冷暖、深淺、鮮豔、質地的喜好
-    chatAct('s4', { key: 'opt.likeIt', act: 'keepYes' });   // keepYes 本身會飄愛心
-    setTimeout(() => cheer({ type: 'like', id: p.id }), 900);   // 主播回讚：慢半拍才像在回應你
-    if (glyph !== '♥') floatHearts('s4', 4, glyph);
-  } else {
-    floatHearts('s4', glyph === '♥' ? 3 : 4, glyph);
+/* ── AI 回應你時的特效（參考直播 App：主播回覆留言、對留言回表情、粉絲團等級、全螢幕彩帶） ── */
+/** AI 在打字：主播頭像一圈圈發亮，狀態從「試妝中」變「回覆中…」 */
+function hostTalking(where, on) {
+  const h = $('#' + where + ' .host'); if (!h) return;
+  h.classList.toggle('talking', on);
+  const st = h.querySelector('small > span');
+  if (st) st.textContent = t(on ? 'host.typing' : 'host.' + where);
+}
+/** 主播膠囊上的默契等級＋進度條 */
+function paintRapport() {
+  for (const h of document.querySelectorAll('.frame .host')) {
+    let rp = h.querySelector('.rp');
+    if (!rp) { rp = el('em', 'rp'); h.querySelector('small')?.appendChild(rp); }
+    rp.textContent = '💞 Lv' + S.rapport.lv;
+    rp.title = t('rapport.lv' + S.rapport.lv);
+    let bar = h.querySelector('.bar');
+    if (!bar) { bar = el('u', 'bar', '<i></i>'); h.querySelector('div')?.appendChild(bar); }
+    bar.firstChild.style.width = Math.round(rapportPct(S.rapport) * 100) + '%';
   }
-  paintLike();
-  const c = $('#s4-social .like .combo');
-  if (c && S.like.combo > 1) {
-    c.textContent = '×' + S.like.combo;
-    c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop');
-    clearTimeout(comboT);
-    comboT = setTimeout(() => { c.textContent = ''; }, 1200);
+}
+function bumpRapport(where) {
+  const r = rapportAdd(S.rapport);
+  paintRapport();
+  if (!r.up) return;
+  // 升級：彩帶＋橫幅＋頭像亮一下
+  confetti(where);
+  liveBanner(where, '💞', t('rapport.up', { lv: r.lv, name: t('rapport.lv' + r.lv) }));
+  const h = $('#' + where + ' .host');
+  if (h) { h.classList.remove('lvup'); void h.offsetWidth; h.classList.add('lvup'); }
+}
+/** 全螢幕彩帶：默契升級、命定色出爐、跟著畫完 */
+function confetti(where, n = 28) {
+  const fx = $('#' + where + '-fx'); if (!fx || calm()) return;
+  const cols = ['#ff6f91', '#ffd166', '#9ad0ff', '#c3a6ff', '#7ee0b5', '#ffffff'];
+  const fall = fx.clientHeight + 30;
+  for (let i = 0; i < n; i++) {
+    const p = el('i', 'cf');
+    p.style.left = (Math.random() * 100).toFixed(1) + '%';
+    p.style.background = cols[i % cols.length];
+    p.style.setProperty('--r', Math.round(Math.random() * 720 - 360) + 'deg');
+    p.style.setProperty('--dx', Math.round((Math.random() - 0.5) * 90) + 'px');
+    p.style.setProperty('--fall', fall + 'px');
+    p.style.animationDelay = Math.round(Math.random() * 450) + 'ms';
+    p.style.animationDuration = (1.7 + Math.random() * 0.9).toFixed(2) + 's';
+    fx.appendChild(p);
+    setTimeout(() => p.remove(), 3400);
   }
-  if (comboMilestone(S.like.combo)) liveBanner('s4', '💗', t('banner.combo', { n: S.like.combo }));
 }
 
 /** 拆禮物：中間跳出一個禮物盒、晃兩下、炸開一圈亮片，然後才換色 */
@@ -1549,6 +1541,7 @@ function nextCheer() {
 }
 /** 動作之後：第一次調濃淡、跟著畫完一步 */
 function cheerAfter(o) {
+  if (o.act === 'keepYes' && S.picks?.lip) setTimeout(() => cheer({ type: 'like', id: S.picks.lip.id }), 900);   // 主播回讚：慢半拍才像在回應你
   if (o.act === 'softer' || o.act === 'stronger') cheer({ type: 'adjust' });
   if (o.act === 'guideNext' && S.guide && S.guide.steps[S.guide.i]?.id !== 'done') cheer({ type: 'guide', n: S.guide.done.size });
 }
@@ -1746,7 +1739,7 @@ function runAct(o) {
       if (next.mark) markFace(next.mark);
       const skipped = o.act === 'guideSkip' ? [{ kind: 'fact', key: 'adv.guide.skipped', params: {} }] : [];
       const tail = next.id === 'done' ? routineRecap(g.steps, g.done) : [];
-      if (next.id === 'done') liveBanner('s4', '🎉', t('banner.guide'));
+      if (next.id === 'done') { liveBanner('s4', '🎉', t('banner.guide')); confetti('s4'); }
       return { lines: [...skipped, ...stepLines(g.steps, g.i), ...tail], opts: stepOpts(g.steps, g.i) };
     }
     case 'guidePaint': {
@@ -1799,6 +1792,7 @@ function runAct(o) {
       duelOff();
       switchLip(win);
       liveBanner('s4', '💖', t('banner.duel', { shade: tf(win, 'shade') }));
+      confetti('s4');
       return { lines: [picked, { kind: 'praise', key: 'adv.duel.win', params: { shade: win.id } }, ...describeLip(win)],
                opts: arOpts() };
     }
@@ -1975,11 +1969,6 @@ function runAct(o) {
                          'adv.season.shadeFit', 'adv.season.shadeOff', 'adv.lip.desc', ...LIP_FAMILIES.map((f) => 'lipfam.' + f + '.say')],
                opts: arOpts() };
     }
-    // 表情「猶豫」：不替人決定，給比較的方法
-    case 'reactHmm':
-      return { lines: [{ kind: 'ask', key: 'adv.react.hmm', params: { shade: tf(S.picks.lip, 'shade') } }],
-               opts: [{ key: 'opt.duelStart', act: 'duelStart' }, { key: 'opt.compare', act: 'compare' },
-                      { key: 'opt.keepYes', act: 'keepYes' }, { key: 'opt.keepNo', act: 'keepNo' }] };
     // 把今天試過的放進購物袋：唇彩一件，或三件（缺貨的跳過）
     case 'buyLip': case 'buyAll': {
       const cats = o.act === 'buyLip' ? ['lip'] : ['lip', 'eye', 'cheek'];
@@ -2554,6 +2543,7 @@ function enter4() {
   mountSheet();
   mountRail();
   mountSocial();
+  paintRapport();
 
   $('#zoom-btn').onclick = () => { S.zoom = !S.zoom; mountZoomBtn(); syncAROpts(); };
   $('#paint-btn').onclick = () => enterPaint();
@@ -3885,7 +3875,7 @@ function reset() {
   S.hist = []; S.redo = [];
   clearBrush();
   S.tried.clear(); S.arMs = 0; S.arT0 = 0;
-  S.like = { total: 0, combo: 0, last: 0, liked: new Set() };
+  S.rapport = newRapport();
   S.cheer = newCheer(); cheerQ.length = 0;
   S.pref = newPref(); S.said.clear(); S.prevLip = null;
   S.amount0 = null; S.asked3.clear(); S.shadeT0 = 0; S.lastAct = 0;
