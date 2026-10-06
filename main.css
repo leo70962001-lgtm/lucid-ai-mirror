@@ -2031,15 +2031,6 @@ body {
 }
 @keyframes hostTalk { from { transform:scale(1); opacity:1; } to { transform:scale(1.6); opacity:0; } }
 .frame .host.talking small > span { color:#ffd1e0; }
-/* 默契等級：膠囊上的小字＋進度條 */
-.frame .host .rp { font-style:normal; font-weight:800; font-size:9px; color:#ffd1e0; margin-left:2px; }
-.frame .host .bar { position:absolute; left:40px; right:12px; bottom:3px; display:block; height:2px; border-radius:2px; background:rgba(255,255,255,.25); overflow:hidden; text-decoration:none; }
-.frame .host .bar i { display:block; height:100%; width:0; border-radius:2px; background:linear-gradient(90deg, #ff9ec0, #ffd166); transition:width .5s cubic-bezier(.2,.8,.2,1); }
-.frame .host.lvup { animation:hostLvUp 1.2s ease-out; }
-@keyframes hostLvUp {
-  0% { box-shadow:0 0 0 1px rgba(255,255,255,.18) inset, 0 0 0 0 rgba(255,209,102,.9); }
-  100% { box-shadow:0 0 0 1px rgba(255,255,255,.18) inset, 0 0 0 16px rgba(255,209,102,0); }
-}
 /* 全螢幕彩帶 */
 .fx .cf {
   position:absolute; top:-14px; width:7px; height:11px; border-radius:2px; opacity:0;
@@ -2051,69 +2042,6 @@ body {
   100% { opacity:0; transform:translate(var(--dx), var(--fall)) rotate(var(--r)); }
 }
 @media (prefers-reduced-motion:reduce) {
-  .msg.you .stamp.pop, .frame .host.talking .av::after, .frame .host.lvup { animation:none; }
+  .msg.you .stamp.pop, .frame .host.talking .av::after { animation:none; }
 }
 
-/* ── 默契等級：每一級看得出差別 ── */
-/* 主播頭像外圈與等級字：Lv1 粉、Lv2 紫、Lv3 金、Lv4 彩虹 */
-.frame .host.lv1 .av { box-shadow:0 0 0 2px #ff9ec0; }
-.frame .host.lv2 .av { box-shadow:0 0 0 2px #c3a6ff, 0 0 8px rgba(195,166,255,.8); }
-.frame .host.lv3 .av { box-shadow:0 0 0 2px #ffd166, 0 0 10px rgba(255,209,102,.9); }
-.frame .host.lv4 .av { box-shadow:0 0 0 2px #fff, 0 0 0 4px #ffd166, 0 0 14px rgba(255,111,145,.9); }
-.frame .host.lv2 .rp { color:#d9c8ff; }
-.frame .host.lv3 .rp { color:#ffe08a; }
-.frame .host.lv4 .rp { background:linear-gradient(90deg, #ff9ec0, #ffd166, #9ad0ff); -webkit-background-clip:text; background-clip:text; color:transparent; }
-.frame .host.lv2 .bar i { background:linear-gradient(90deg, #c3a6ff, #ff9ec0); }
-.frame .host.lv3 .bar i { background:linear-gradient(90deg, #ffd166, #ffb347); }
-/* 升級橫幅的顏色 */
-.fx .gift.lv2 { background:linear-gradient(90deg, rgba(155,123,255,.95), rgba(195,166,255,.5)); box-shadow:0 6px 18px rgba(155,123,255,.4), 0 0 0 1px rgba(255,255,255,.3) inset; }
-.fx .gift.lv3 { background:linear-gradient(90deg, rgba(240,170,40,.96), rgba(255,209,102,.55)); box-shadow:0 6px 20px rgba(240,170,40,.45), 0 0 0 1px rgba(255,255,255,.35) inset; }
-.fx .gift.lv4 { background:linear-gradient(90deg, #ff6f91, #ffb347, #ffd166, #7ee0b5, #9ad0ff, #c3a6ff); background-size:200% 100%;
-  box-shadow:0 8px 24px rgba(255,111,145,.45), 0 0 0 1px rgba(255,255,255,.45) inset; animation:giftIn 3.2s cubic-bezier(.2,.8,.2,1) forwards, rainbowSlide 2s linear infinite; }
-@keyframes rainbowSlide { to { background-position:200% 0; } }
-/* 中間的等級徽章（Lv2 起） */
-.fx .lvbadge {
-  position:absolute; left:50%; top:34%; width:112px; height:112px; margin:-56px 0 0 -56px; border-radius:50%;
-  display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff; overflow:visible;
-  box-shadow:0 0 0 3px rgba(255,255,255,.9), 0 12px 30px rgba(0,0,0,.3);
-  animation:badgeIn 2.5s cubic-bezier(.2,1.4,.4,1) forwards;
-}
-.fx .lvbadge.lv2 { background:radial-gradient(circle at 35% 30%, #e4d8ff, #9b7bff 70%); }
-.fx .lvbadge.lv3 { background:radial-gradient(circle at 35% 30%, #fff1c2, #f0aa28 70%); }
-.fx .lvbadge.lv4 { background:radial-gradient(circle at 35% 30%, #fff, #ff9ec0 45%, #c3a6ff 80%); animation-duration:3.3s; }
-.fx .lvbadge b { position:relative; font:900 italic 32px/1 var(--display, inherit); text-shadow:0 2px 8px rgba(0,0,0,.25); }
-.fx .lvbadge span { position:relative; margin-top:4px; font-weight:800; font-size:11.5px; text-shadow:0 1px 4px rgba(0,0,0,.3); }
-/* 一道光從徽章上掃過 */
-.fx .lvbadge::after {
-  content:''; position:absolute; inset:0; border-radius:50%;
-  background:linear-gradient(115deg, transparent 35%, rgba(255,255,255,.75) 50%, transparent 65%) no-repeat;
-  background-size:250% 100%; background-position:150% 0; animation:badgeShine 1s ease-out .5s forwards;
-}
-.fx .lvbadge .rays {
-  position:absolute; left:50%; top:50%; width:300px; height:300px; margin:-150px 0 0 -150px; border-radius:50%; z-index:-1;
-  background:repeating-conic-gradient(rgba(255,230,160,.55) 0 10deg, transparent 10deg 30deg);
-  -webkit-mask:radial-gradient(circle, #000 25%, transparent 70%); mask:radial-gradient(circle, #000 25%, transparent 70%);
-  animation:raysSpin 6s linear infinite;
-}
-@keyframes badgeIn {
-  0% { transform:scale(0) rotate(-30deg); opacity:0; }
-  18% { transform:scale(1.18) rotate(6deg); opacity:1; }
-  28% { transform:scale(1) rotate(0); }
-  82% { transform:scale(1); opacity:1; }
-  100% { transform:scale(.6) translateY(-40px); opacity:0; }
-}
-@keyframes badgeShine { to { background-position:-50% 0; } }
-@keyframes raysSpin { to { transform:rotate(360deg); } }
-/* 煙火（Lv3 起） */
-.fx .fw {
-  position:absolute; width:5px; height:5px; margin:-2px 0 0 -2px; border-radius:50%; opacity:0;
-  box-shadow:0 0 6px 1px currentColor; animation:fwBurst 1.15s cubic-bezier(.1,.7,.3,1) forwards;
-}
-@keyframes fwBurst {
-  0% { opacity:1; transform:rotate(var(--a)) translateY(0) scale(1.2); }
-  70% { opacity:1; }
-  100% { opacity:0; transform:rotate(var(--a)) translateY(calc(var(--d) * -1)) scale(.3); }
-}
-@media (prefers-reduced-motion:reduce) {
-  .fx .gift.lv4, .fx .lvbadge, .fx .lvbadge::after, .fx .lvbadge .rays { animation:none; }
-}
