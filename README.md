@@ -2502,6 +2502,23 @@ AR 抽屜裡往上翻到最頂、再用畫面上的模式鈕觸發重畫，位�
 - 參數集中在 `LIP_FX`（立體強度、各質地的高光、水潤感的各層），驗收時可以在 `?debug` 用 `__LUCID_AR__.lipFx` 即時調。
 - 驗收：`test.mjs` 第 42 組；瀏覽器在第 2 步照片上直接渲染比對（平塗 vs 新版，水光 #512 蜜桃汽水、霧面 #307 冷調正紅）。
 
+## 唇妝的質感：唇紋、絲絨霧面、水膜填平
+
+立體與水潤之後，再往「質感」走：真人的唇不是光滑的塑膠，表面有一條條直紋；霧面與水光最大的差別，就在紋路看不看得到。
+
+參考：唇紋研究（[Distribution and Uniqueness in the Pattern of Lip Prints](https://pmc.ncbi.nlm.nih.gov/articles/PMC10918305/)，每片唇約 25–30 條、上唇多分叉、下唇多半截直紋）、
+[US11000107B2](https://patents.google.com/patent/US11000107B2/en)（霧面／水潤／亮面的質感與覆蓋率，覆蓋率高會蓋掉唇紋）、
+[Girlactik：Matte vs Glossy](https://www.girlactik.com/blogs/news/matte-vs-glossy-lipstick)（霧面會卡紋、水光會填平）、
+[Snap Lens Studio Makeup](https://developers.snap.com/lens-studio/references/templates/face/makeup)、
+[Tokuyoshi & Kaplanyan：Specular Antialiasing](https://www.jp.square-enix.com/tech/library/pdf/ImprovedGeometricSpecularAA.pdf)（低解析度不出現白點）。
+
+- **唇紋圖**（`lipDetail()`，1024²，約 50 ms 烤一次）：紋路方向跟唇緣垂直（中間直、往嘴角斜）；約 28 條、間距有點亂、深淺不一、有些只長到一半；上唇淡一點；靠唇緣、口縫、嘴角淡掉。
+- **霧面（絲絨）**：唇紋看得最清楚（疊到法線上，凹槽照不到光）；顏料卡進紋路深一點；表面有低頻的乾燥斑駁；沒有亮點，只有斜面上一層絨光；明暗比水光柔。
+- **水光**：水膜把唇紋填平到剩 15%，反光幾乎不被切碎 —— 跟霧面一眼就分得出來。
+- **唇緣**：上唇唇峰那一圈有一道微微隆起的細光，唇形更清楚。
+- **低解析度**：一條紋在畫面上不到 2 像素就自動淡掉（只會變雜訊白點）；反光總和不超過 1，不爆白。
+- 參數在 `LIP_FX.texture`；`?debug` 下設 `__LUCID_AR__.lipFx.texture.forceVis = 1` 可以在低解析度照片上強制看唇紋。驗收：`test.mjs` 第 43 組。
+
 ## 驚喜禮物：AI 送的，從回覆列拆
 
 右下角的按鈕全部拿掉（按讚、表情、驚喜都依使用者要求移除，鏡面上不要堆疊）。禮物改成 AI 送的：試妝滿一分鐘送一份（默契等級依使用者要求拿掉）。

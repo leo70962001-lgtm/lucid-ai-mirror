@@ -6,7 +6,7 @@
 import { classifySkin, rgbToLab, deltaE, wbGain, applyGain, estimateCCT, rankLooks } from './js/analysis.js';
 import { LOOKS, PRODUCTS, resolveLook, toneLabel } from './js/products.js';
 import { PATCHES, fitDisplay, correctRgb, xyzToLab, simulateDisplay, SRGB_PANEL } from './js/calib.js';
-import { pressureLevel, applyPressure, lipShape, lipHeight, lipOcclusion, LIP_FX } from './js/makeup-gl.js';
+import { pressureLevel, applyPressure, lipShape, lipHeight, lipOcclusion, lipDetail, LIP_FX } from './js/makeup-gl.js';
 import { FACE_SHAPES, PROTOTYPES, CELEBS, classifyFace, faceLookBonus, faceReasonFor } from './js/faceshape.js';
 import { readFileSync } from 'node:fs';
 import { lineEmoji, optEmoji } from './js/emoji.js';
@@ -1621,8 +1621,55 @@ console.log('\n\x1b[1m42. 唇妝的立體感與水潤感\x1b[0m');
   ok(/float spot = smoothstep\(0\.60, 0\.97, hs\);/.test(gl), '主要的亮是唇最飽滿處的一片柔光（像映著一盞大燈），不是一顆顆白點');
   ok(/N\.x \* mix\(1\.0, 0\.35, f\.r\)|Ns\.x \* mix\(1\.0, 0\.35, f\.r\)/.test(gl), '水光的反光往左右拉長（唇左右平、上下彎）');
   ok(/vec3 juicy = /.test(gl) && /mix\(mix\(1\.0, 0\.8, matteW\), 1\.1, f\.r\)/.test(gl), '水光：果凍般中間透亮、邊緣深；霧面：細小明暗壓平（粉霧）');
-  ok(/spec \*= 1\.0 - 0\.45 \* \(1\.0 - f\.r\) \* \(1\.0 - lines\);/.test(gl), '唇紋只切碎霧面、珠光的光；水膜是連續的');
+  ok(/spec \*= 1\.0 - \(1\.0 - dt\.r\) \* uLineVis \* mix\(0\.7, 0\.15, f\.r\);/.test(gl), '唇紋只切碎霧面、珠光的光；水膜幾乎不切');
   ok(/LIP_FX\.light\[0\] - 0\.45 \* yaw/.test(gl), '頭左右轉時，高光往另一邊滑');
+}
+
+console.log('\n\x1b[1m43. 唇妝的質感：唇紋、絲絨霧面、水膜填平\x1b[0m');
+{
+  const d = lipDetail();
+  const [x0, y0, x1, y1] = d.box;
+  // 下唇中段橫切一條：數凹槽（r 明顯低於 1 的段落）
+  let best = null;
+  for (let y = y0; y <= y1; y++) {
+    let lo = 0, n = 0, inG = false;
+    for (let x = x0; x <= x1; x++) {
+      const k = (y * d.size + x) * 4;
+      if (d.data[k + 3] !== 128) { inG = false; continue; }
+      n++;
+      const g = d.data[k] < 215;
+      if (g && !inG) lo++;
+      inG = g;
+    }
+    if (n > (best?.n || 0) * 0.98 && lo > (best?.lo || 0)) best = { y, lo, n };
+  }
+  ok(best && best.lo >= 18 && best.lo <= 34, '下唇橫向約 ' + best?.lo + ' 條唇紋（唇紋研究：每片唇約 25–30 條）');
+  const up = [], lo = [];
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const k = (y * d.size + x) * 4;
+    if (d.data[k + 3] === 255) up.push(255 - d.data[k]); else if (d.data[k + 3] === 128) lo.push(255 - d.data[k]);
+  }
+  const avg = (a) => a.reduce((p, c) => p + c, 0) / a.length;
+  ok(avg(up) < avg(lo), '上唇的紋比下唇淡（約六成）');
+  const edge = [], midT = [];
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const k = (y * d.size + x) * 4; if (!d.data[k + 3]) continue;
+    const t = d.data[k + 2] / 255;
+    (t < 0.04 || t > 0.95 ? edge : t > 0.3 && t < 0.7 ? midT : []).push(255 - d.data[k]);
+  }
+  ok(avg(edge) < avg(midT) * 0.4, '唇紋靠唇緣、口縫淡掉（不會在唇線上切出鋸齒）');
+  const gs = [];
+  for (let x = x0; x <= x1; x++) { const k = (((y0 + y1) >> 1) * d.size + x) * 4; if (d.data[k + 3]) gs.push(d.data[k + 1]); }
+  const jumps = gs.slice(1).map((v, i) => Math.abs(v - gs[i]));
+  ok(avg(jumps) < 20, '霧面的斑駁是平滑的低頻雜訊（相鄰格平均差 ' + avg(jumps).toFixed(1) + '），不是一格一格的亂點');
+
+  const tx = LIP_FX.texture;
+  ok(tx.fill <= 0.2 && tx.settle >= 0.1 && tx.settle <= 0.15, '水光把唇紋填到剩兩成以下；霧面顏料卡進紋路深 10–15%');
+  const gl = readFileSync(new URL('./js/makeup-gl.js', import.meta.url), 'utf8');
+  ok(/sm\(2\.0, 4\.0, lipPx \/ tx\.lines\)/.test(gl), '一條紋在畫面上不到 2 像素就淡掉（低解析度不會變成雜訊白點）');
+  ok(/lipSpec = min\(spec, 1\.0\);/.test(gl), '反光疊起來也不超過 1，不會爆白');
+  ok(/uVelvet\.x \* pow\(1\.0 - Ns\.z, 2\.0\)/.test(gl) && /uVol \* mix\(1\.0, uVelvet\.y, matteW\)/.test(gl), '絲絨霧面：沒有亮點，只有斜面上的柔光；明暗比水光柔');
+  ok(/float ridge = step\(0\.75, dt\.a\)/.test(gl), '上唇唇緣有一道微微隆起的細光（唇形更清楚）');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);
