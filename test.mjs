@@ -6,14 +6,14 @@
 import { classifySkin, rgbToLab, deltaE, wbGain, applyGain, estimateCCT, rankLooks } from './js/analysis.js';
 import { LOOKS, PRODUCTS, resolveLook, toneLabel } from './js/products.js';
 import { PATCHES, fitDisplay, correctRgb, xyzToLab, simulateDisplay, SRGB_PANEL } from './js/calib.js';
-import { pressureLevel, applyPressure } from './js/makeup-gl.js';
+import { pressureLevel, applyPressure, lipShape, lipHeight, lipOcclusion, LIP_FX } from './js/makeup-gl.js';
 import { FACE_SHAPES, PROTOTYPES, CELEBS, classifyFace, faceLookBonus, faceReasonFor } from './js/faceshape.js';
 import { readFileSync } from 'node:fs';
 import { lineEmoji, optEmoji } from './js/emoji.js';
 import { audienceFromPrediction, faceCropBox, GENDER_MIN_PROB } from './js/gender.js';
 import { skinCondition, skinCondTop, skinCondLines, scLevel, SC_LEVELS } from './js/skincond.js';
 import { faceFit } from './js/fit.js';
-import { pickSurprise, newCheer, cheerFor, CHEER_GAP_MS, GIFT_AR_MS, FIT_MAX, newRapport, rapportAdd, RAPPORT_LV, aiReactFor, LEVEL_FX, levelFx } from './js/live.js';
+import { pickSurprise, newCheer, cheerFor, CHEER_GAP_MS, GIFT_AR_MS, FIT_MAX, aiReactFor } from './js/live.js';
 import { nextDuel, duelSides, duelLines, duelOpts, duelPicked, DUEL_AXES } from './js/duel.js';
 import { buildRoutine, stepLines, stepOpts, routineRecap } from './js/routine.js';
 import { TRENDS, TREND_PACK, TREND_STALE_DAYS, trendsFor, trendPlan, trendPick, trendLines,
@@ -1521,7 +1521,7 @@ console.log('\n\x1b[1m38. 驚喜禮物：從回覆列拆（右下角的按鈕依
   const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
   const css = readFileSync(new URL('./main.css', import.meta.url), 'utf8');
   ok(!html.includes('s4-social') && !/mountSocial|giftBusy/.test(app) && !/\.social/.test(css), '右下角的按鈕都拿掉了（按讚、表情、驚喜）');
-  ok(/\.\.\.\(S\.gifts > 0 \? \[\{ key: 'opt\.openGift', act: 'surprise' \}\] : \[\]\)/.test(app), 'AI 送了禮物 → 回覆列第一個是「🎁 拆開禮物」');
+  ok(/\.\.\.\(S\.gifts > 0 \? \[\{ key: 'opt\.openGift', act: 'surprise' \}\] : \[\]\)/.test(app), 'AI 送了禮物（試妝滿一分鐘）→ 回覆列第一個是「🎁 拆開禮物」');
   ok(/case 'surprise': \{\n\s+S\.gifts = Math\.max\(0, S\.gifts - 1\);\n\s+giftPop/.test(app), '拆一份少一份，拆的時候跳禮物盒動畫');
   ok(!/likeNow|paintLike|reactHmm/.test(app) && !ACTS.includes('reactHmm'), '按讚、表情的程式與動作都清掉了');
   ok(ACTS.includes('surprise') && optEmoji({ act: 'surprise' }) === '🎁', '驚喜是已知動作、有符號');
@@ -1565,58 +1565,64 @@ console.log('\n\x1b[1m39. AI 主動送的互動：回讚、鼓掌、命中、禮
   ok(!lines.some((l) => banned.some((w) => l.includes(w))), '只讚做了什麼、選了什麼，不評價長相');
 }
 
-console.log('\n\x1b[1m40. 你跟 AI 互動時，AI 給的反饋特效\x1b[0m');
+console.log('\n\x1b[1m40. 你跟 AI 互動時，AI 給的反饋特效（等級依使用者要求拿掉）\x1b[0m');
 {
-  const st = newRapport();
-  const ups = [];
-  for (let i = 1; i <= 26; i++) { const r = rapportAdd(st); if (r.up) ups.push(i); }
-  ok(ups.join() === RAPPORT_LV.join() && st.lv === 4, '默契：互動 3、8、15、25 次各升一級（粉絲團等級的做法）');
-  const s2 = newRapport(); rapportAdd(s2); rapportAdd(s2);
-  ok(Math.abs(rapportAdd(newRapport()).pct - 1 / 3) < 1e-9 && rapportAdd(s2).pct === 0, '進度條：升級那一下歸零重新累積');
   ok(aiReactFor('keepYes') === '💗' && aiReactFor('softer') === '👌' && aiReactFor('whyTone') === '💡' && aiReactFor('nextShade') === '👍',
      'AI 對你的留言回表情：喜歡 💗、調濃淡 👌、問為什麼 💡、其他 👍');
   const app = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
-  const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
   const css = readFileSync(new URL('./main.css', import.meta.url), 'utf8');
+  const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
   ok(/if \(mine && !mine\.react\) mine\.react = aiReactFor\(o\.act\);/.test(app) && /el\('i', 'stamp'/.test(app), '你點了回覆 → AI 在你那則留言尾端蓋章');
   ok(/if \(prevWho === 'you' && \(where === 's2' \|\| where === 's4'\)\) bubble\.appendChild\(el\('span', 're', t\('chat\.replyYou'\)\)\)/.test(app),
      'AI 接著你的留言回話時掛「回覆 @你」');
   ok(/hostTalking\(where, !!pendingAt\)/.test(app) && /\.frame \.host\.talking \.av::after/.test(css), 'AI 打字時主播頭像一圈圈發亮、狀態變「回覆中…」');
-  ok(/if \(where === 's2' \|\| where === 's4'\) bumpRapport\(where\);/.test(app) && /if \(r\.up\) levelUp\(where, r\.lv\);/.test(app),
-     '每次互動默契 +1，升級時放升級特效');
-  ok(html.includes('id="s2-fx"'), '第 2 步也有特效層（在諮詢時升級也看得到）');
-  ok((app.match(/confetti\('s4'\)/g) || []).length >= 2, '命定色出爐、跟著畫完也放彩帶');
-  ok(/\.msg\.you \.stamp\.pop, \.frame \.host\.talking \.av::after, \.frame \.host\.lvup \{ animation:none; \}/.test(css) && /function confetti\(where, n = 28, lv = 0\) \{\n\s+const fx = \$\('#' \+ where \+ '-fx'\); if \(!fx \|\| calm\(\)\) return;/.test(app),
+  ok(!/rapport|levelUp|lvBadge|firework/.test(app) && !/lvbadge|host \.rp|host \.bar/.test(css) && !/'rapport\.|'adv\.lvup\./.test(dict),
+     '默契等級整個拿掉（程式、樣式、文案）');
+  ok((app.match(/confetti\('s4'\)/g) || []).length >= 2, '命定色出爐、跟著畫完放彩帶');
+  ok(/\.msg\.you \.stamp\.pop, \.frame \.host\.talking \.av::after \{ animation:none; \}/.test(css) && /function confetti\(where, n = 28\) \{\n\s+const fx = \$\('#' \+ where \+ '-fx'\); if \(!fx \|\| calm\(\)\) return;/.test(app),
      '減少動態效果時：不蓋章動畫、不發亮、不放彩帶');
-  const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
+  ok(/function placeTopLeft\(\)/.test(app) && /seg\.style\.top = top \+ 'px'/.test(app), '模式切換、撤銷排在主播膠囊下面，不會疊在一起');
+  ok(/r\.top >= roof - 1 && r\.bottom <= floor - 7/.test(app) && /railRO\.observe\(e\)/.test(app), '右側按鈕列夾在素顏小窗與留言之間，大小一變就重排');
   const has3 = (k) => { const m = dict.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
-  const keys = ['chat.replyYou', 'host.typing', 'rapport.up', 'rapport.lv0', 'rapport.lv1', 'rapport.lv2', 'rapport.lv3', 'rapport.lv4'];
+  const keys = ['chat.replyYou', 'host.typing', 'opt.openGift'];
   ok(keys.every(has3), '文案三種語言齊全（' + keys.length + ' 句）');
 }
 
-console.log('\n\x1b[1m41. 升級特效：每一級看得出差別＋AI 的升級回饋\x1b[0m');
+console.log('\n\x1b[1m42. 唇妝的立體感與水潤感\x1b[0m');
 {
-  ok(LEVEL_FX.length === 5 && new Set(LEVEL_FX.slice(1).map((f) => f.emo)).size === 4, '四個等級各有自己的符號（💞💜💛💎）');
-  ok([1, 2, 3].every((i) => LEVEL_FX[i + 1].confetti > LEVEL_FX[i].confetti), '越高級彩帶越多');
-  ok(!LEVEL_FX[1].badge && LEVEL_FX[2].badge && LEVEL_FX[3].fireworks > 0 && LEVEL_FX[4].rays && LEVEL_FX[4].fireworks > LEVEL_FX[3].fireworks,
-     'Lv1 彩帶 → Lv2 加徽章 → Lv3 加煙火 → Lv4 加光芒、更多煙火');
-  ok(LEVEL_FX[2].gift === 1 && LEVEL_FX[3].gift === 1, 'Lv2、Lv3 各送一份禮物');
-  ok(levelFx(0) === LEVEL_FX[1] && levelFx(9) === LEVEL_FX[4], '等級超出範圍也不會壞');
-  const app = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
-  const css = readFileSync(new URL('./main.css', import.meta.url), 'utf8');
-  ok(/liveBanner\(where, fx\.emo, t\('rapport\.up'[\s\S]{0,60}'lv' \+ lv\)/.test(app) && /\.fx \.gift\.lv2/.test(css) && /\.fx \.gift\.lv3/.test(css) && /\.fx \.gift\.lv4/.test(css),
-     '升級橫幅依等級換顏色（粉、紫、金、彩虹）');
-  ok(/\.frame \.host\.lv1 \.av/.test(css) && /\.frame \.host\.lv4 \.av/.test(css), '主播頭像外圈依等級換顏色，平常也看得出幾級');
-  ok(/key: 'adv\.lvup\.' \+ lv/.test(app), '升級時 AI 講一句這一級的回饋');
-  ok(/\.frame \.host \.bar \{ position:absolute;/.test(css), '進度條疊在膠囊底緣，不把膠囊撐高');
-  ok(/function placeTopLeft\(\)/.test(app) && /seg\.style\.top = top \+ 'px'/.test(app), '模式切換、撤銷排在主播膠囊下面，不會疊在一起');
-  ok(/r\.top >= roof - 1 && r\.bottom <= floor - 7/.test(app) && /railRO\.observe\(e\)/.test(app), '右側按鈕列夾在素顏小窗與留言之間，大小一變就重排');
-  const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
-  const has3 = (k) => { const m = dict.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
-  const keys = ['opt.openGift', 'adv.lvup.1', 'adv.lvup.2', 'adv.lvup.3', 'adv.lvup.4'];
-  ok(keys.every(has3), '文案三種語言齊全（' + keys.length + ' 句）');
-  const lv = dict.split(/\r?\n/).filter((l) => l.includes("'adv.lvup."));
-  ok(!lv.some((l) => ['漂亮', '好看', '美麗', 'pretty', 'beautiful', 'きれい'].some((w) => l.includes(w))), '升級回饋只講互動與選擇，不評價長相');
+  // 唇形：下唇最飽滿、上唇兩個唇峰（人中凹）、往嘴角收薄、口縫圓滑地捲進去
+  const peak = (up) => Math.max(...Array.from({ length: 101 }, (_, i) => lipHeight(up, i / 100, 0.3)));
+  ok(peak(false) > peak(true), '下唇比上唇飽滿（最高點在下唇）');
+  const tPeak = [...Array(101).keys()].map((i) => i / 100).reduce((a, t) => (lipHeight(false, t, 0) > lipHeight(false, a, 0) ? t : a), 0);
+  ok(tPeak > 0.5 && tPeak < 0.8, '下唇最飽滿處偏向口縫（t=' + tPeak.toFixed(2) + '，0 外緣 → 1 口縫）');
+  ok(lipHeight(true, 0.3, 0) < lipHeight(true, 0.3, 0.25), '上唇中央有人中凹：兩邊的唇峰比中間高');
+  ok(lipHeight(true, 0.5, 0.95) < lipHeight(true, 0.5, 0.2) * 0.5, '往嘴角收薄');
+  ok(lipHeight(false, 1, 0) > 0.4 && lipHeight(true, 1, 0) > 0.3, '口縫處還留著高度 —— 不會在下唇上緣冒出一條硬亮線');
+  ok(lipOcclusion(0.98, 0) < lipOcclusion(0.5, 0) && lipOcclusion(0.5, 0.95) < lipOcclusion(0.5, 0), '口縫、嘴角比較暗');
+
+  const ls = lipShape();
+  let n = 0, gap = 0;
+  const [x0, y0, x1, y1] = ls.box;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const k = (y * ls.size + x) * 4;
+    if (ls.data[k + 2]) n++; else if (ls.data[k] > 60) gap++;
+  }
+  ok(n > 2000, '唇形圖蓋住整個唇（' + n + ' 格）');
+  ok(gap > 50, '上下唇之間的縫也延伸了高度（' + gap + ' 格），斜率不會在那裡突然斷掉');
+  ok(ls.mean > 0.6 && ls.mean < 1.2, '平均受光約 1（' + ls.mean.toFixed(2) + '）：立體只改變哪裡亮哪裡暗，不改變整支唇的平均顏色');
+
+  ok(LIP_FX.matte.spec <= 0.03 && LIP_FX.matte.shin < LIP_FX.shimmer.shin && LIP_FX.shimmer.shin < LIP_FX.gloss.shin,
+     '霧面幾乎沒有高光；銳利度 霧面 < 珠光 < 水光');
+  ok(LIP_FX.wet.spot > 0 && LIP_FX.wet.film > 0 && LIP_FX.wet.glow > 0, '水潤感有三層：飽滿處的柔光、整片水膜、果凍透亮');
+
+  const gl = readFileSync(new URL('./js/makeup-gl.js', import.meta.url), 'utf8');
+  ok(/float film = clamp\(a \* 3\.0, 0\.0, 1\.0\);\n\s+lin \*= mix\(1\.0, lipShade, film\);\n\s+lin \+= \(uCCMInv \* vec3\(lipSpec\)\) \/ uGain \* film;/.test(gl),
+     '立體與水膜不乘顏料覆蓋率：水光唇釉是透的，但反光不弱');
+  ok(/float spot = smoothstep\(0\.60, 0\.97, hs\);/.test(gl), '主要的亮是唇最飽滿處的一片柔光（像映著一盞大燈），不是一顆顆白點');
+  ok(/N\.x \* mix\(1\.0, 0\.35, f\.r\)|Ns\.x \* mix\(1\.0, 0\.35, f\.r\)/.test(gl), '水光的反光往左右拉長（唇左右平、上下彎）');
+  ok(/vec3 juicy = /.test(gl) && /mix\(mix\(1\.0, 0\.8, matteW\), 1\.1, f\.r\)/.test(gl), '水光：果凍般中間透亮、邊緣深；霧面：細小明暗壓平（粉霧）');
+  ok(/spec \*= 1\.0 - 0\.45 \* \(1\.0 - f\.r\) \* \(1\.0 - lines\);/.test(gl), '唇紋只切碎霧面、珠光的光；水膜是連續的');
+  ok(/LIP_FX\.light\[0\] - 0\.45 \* yaw/.test(gl), '頭左右轉時，高光往另一邊滑');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

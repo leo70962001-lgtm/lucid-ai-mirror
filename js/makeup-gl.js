@@ -166,6 +166,130 @@ function pathPts(x, pts) {
   x.closePath();
 }
 
+// ── 唇的立體：在 UV 空間烤一張「唇形圖」 ──────────────────────
+// 舊版的唇只有「顏色＋相機原本的明暗」：正面打光時真人的唇本來就很平，上了色就是一片平塗。
+// 化妝師畫立體唇靠的是光影的位置：上唇上半部（唇峰）與下唇中央偏上受光、口縫與嘴角是陰影、
+// 下唇下緣往內收。這裡用標準臉模型的唇輪廓，烤一張唇形圖：
+//   r = 高度（唇最飽滿處 = 1；下唇比上唇飽滿，上唇中央有人中凹）
+//   g = 遮蔽（口縫、嘴角、唇緣比較暗）
+//   b = 是不是唇
+//   a = 左右位置（0 左嘴角 … 1 右嘴角）：水潤的光集中在唇中央，往嘴角淡掉
+// 著色器用高度算法線，做受光與高光 —— 圖畫在臉的 UV 上，所以頭一轉、嘴一動，立體跟著唇走。
+const LIP_UP_OUT = [61,185,40,39,37,0,267,269,270,409,291];
+const LIP_UP_IN  = [78,191,80,81,82,13,312,311,310,415,308];
+const LIP_LO_OUT = [61,146,91,181,84,17,314,405,321,375,291];
+const LIP_LO_IN  = [78,95,88,178,87,14,317,402,318,324,308];
+const SHAPE = 512;
+/** 立體的強度與各質地的高光（強度、銳利度）。數值依據見 README「唇妝的立體感與水感」 */
+export const LIP_FX = {
+  volume: 0.7,                        // 0 = 平塗，1 = 全部用烤出來的光影
+  light: [0, 0.6, 0.8],               // 光從正前上方（之後依頭的左右轉動偏移）
+  matte:   { spec: 0.02, shin: 4 },    // 霧面：幾乎沒有高光，只有很散的絨光
+  gloss:   { spec: 0.55, shin: 70 },  // 水光：橫向拉長的亮光帶＋整片水膜的柔光（見著色器「水潤感」）
+  // 水潤感的各層：band 光帶（較寬）、film 整片水膜、env 映著上方的環境光、rim 斜面反光、glow 果凍透亮
+  // spot 唇最飽滿處那片柔和的亮（像映著一盞大燈）、hot 亮片中心更亮的芯、film 整片水膜、env 映著上方的環境光、rim 斜面反光、glow 果凍透亮
+  wet: { spot: 0.45, hot: 0.30, film: 0.24, env: 0.10, rim: 0.06, glow: 0.5 },
+  shimmer: { spec: 0.30, shin: 28 },   // 珠光：中等的光澤＋細閃
+};
+const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+function polyHit(x, y, pg) {
+  let r = false;
+  for (let i = 0, j = pg.length - 1; i < pg.length; j = i++) {
+    const [xi, yi] = pg[i], [xj, yj] = pg[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) r = !r;
+  }
+  return r;
+}
+function lineDist(x, y, pts) {
+  let best = Infinity;
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, ay] = pts[i - 1], [bx, by] = pts[i];
+    const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy || 1;
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L));
+    best = Math.min(best, Math.hypot(x - ax - t * dx, y - ay - t * dy));
+  }
+  return best;
+}
+/** 唇的高度剖面：t = 0 在外緣、1 在口縫；u = −1..1 由左嘴角到右嘴角 */
+export function lipHeight(upper, t, u) {
+  const side = Math.max(0, 1 - Math.abs(u) ** 2.2) ** 0.6;          // 往嘴角收薄
+  if (upper) {
+    const h = 0.78 * Math.sin(Math.PI * 0.85 * t ** 0.87) * side;   // 最飽滿處在中段；到口縫還留一半高度（唇是捲進去的，不是一刀切）
+    return h * (1 - 0.18 * Math.exp(-((u / 0.13) ** 2)) * (1 - t));  // 人中凹：唇峰中間低一點，兩邊的峰才會亮
+  }
+  return Math.sin(Math.PI * 0.82 * t ** 1.3) * side;                // 下唇最飽滿，最高點偏向口縫；口縫處圓滑地捲進去，不會出現一條硬亮線
+}
+/** 遮蔽：口縫、嘴角、唇緣 */
+export function lipOcclusion(t, u) {
+  return (0.55 + 0.45 * sm(0, 0.35, 1 - t)) * (0.6 + 0.4 * sm(0, 0.35, 1 - Math.abs(u))) * (0.9 + 0.1 * sm(0, 0.12, t));
+}
+let lipShapeCache = null;
+/** 烤唇形圖（只依標準臉模型，算一次就好）。回傳 RGBA 像素與大小 */
+export function lipShape(size = SHAPE) {
+  if (lipShapeCache && lipShapeCache.size === size) return lipShapeCache;
+  const P = (i) => [FACE_MESH.uv[i * 2] * size, FACE_MESH.uv[i * 2 + 1] * size];
+  const upOut = LIP_UP_OUT.map(P), upIn = LIP_UP_IN.map(P), loOut = LIP_LO_OUT.map(P), loIn = LIP_LO_IN.map(P);
+  const upPoly = upOut.concat(upIn.slice().reverse()), loPoly = loOut.concat(loIn.slice().reverse());
+  const all = upOut.concat(loOut);
+  const x0 = Math.floor(Math.min(...all.map((p) => p[0]))) - 3, x1 = Math.ceil(Math.max(...all.map((p) => p[0]))) + 3;
+  const y0 = Math.floor(Math.min(...all.map((p) => p[1]))) - 3, y1 = Math.ceil(Math.max(...all.map((p) => p[1]))) + 3;
+  const cx = (upOut[0][0] + upOut[upOut.length - 1][0]) / 2, hw = Math.abs(upOut[upOut.length - 1][0] - upOut[0][0]) / 2;
+  const H = new Float32Array(size * size), G = new Float32Array(size * size).fill(1), M = new Uint8Array(size * size);
+  const U = new Float32Array(size * size).fill(0.5);
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const px = x + 0.5, py = y + 0.5;
+    const up = polyHit(px, py, upPoly), lo = !up && polyHit(px, py, loPoly);
+    if (!up && !lo) continue;
+    const dO = lineDist(px, py, up ? upOut : loOut), dS = lineDist(px, py, up ? upIn : loIn);
+    const t = dO / (dO + dS + 1e-6), u = Math.max(-1, Math.min(1, (px - cx) / hw));
+    const k = y * size + x;
+    H[k] = lipHeight(up, t, u); G[k] = lipOcclusion(t, u); M[k] = 1; U[k] = (u + 1) / 2;
+  }
+  // 唇外面往外延伸幾格高度：標準臉模型的上下唇之間有一條縫，圖在那裡會突然掉到 0，
+  // 著色器算斜率時會把它當成一道陡坡 —— 下唇上緣就冒出一條硬硬的白線
+  for (let it = 0; it < 8; it++) {
+    const Hn = H.slice(), Gn = G.slice(), filled = M.slice();
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const k = y * size + x; if (M[k]) continue;
+      let h = 0, g = 0, c = 0;
+      for (const d of [-1, 1, -size, size]) if (M[k + d]) { h += H[k + d]; g += G[k + d]; c++; }
+      if (c) { Hn[k] = h / c; Gn[k] = g / c; filled[k] = 2; }
+    }
+    H.set(Hn); G.set(Gn); for (let k = 0; k < M.length; k++) if (filled[k] === 2) M[k] = 2;
+  }
+  for (let k = 0; k < M.length; k++) if (M[k] === 2) M[k] = 0;
+  // 輕輕模糊高度與遮蔽：多邊形的折角不會變成法線上的稜線
+  const blur = (A) => {
+    for (const [dx, dy] of [[1, 0], [0, 1]]) {
+      const B = A.slice();
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+        let a = 0;
+        for (let r = -2; r <= 2; r++) a += B[(y + dy * r) * size + x + dx * r];
+        A[y * size + x] = a / 5;
+      }
+    }
+  };
+  blur(H); blur(G);
+  const data = new Uint8ClampedArray(size * size * 4);
+  for (let k = 0; k < size * size; k++) {
+    data[k * 4] = H[k] * 255; data[k * 4 + 1] = G[k] * 255; data[k * 4 + 2] = M[k] * 255; data[k * 4 + 3] = U[k] * 255;
+  }
+  // 平均受光：讓立體只改變「哪裡亮哪裡暗」，不改變整支唇的平均顏色（色準由量測台把關）
+  const [lx, ly, lz] = LIP_FX.light, ln = Math.hypot(lx, ly, lz);
+  let sum = 0, n = 0;
+  for (let y = y0 + 1; y < y1; y++) for (let x = x0 + 1; x < x1; x++) {
+    const k = y * size + x; if (!M[k]) continue;
+    const hx = (H[k + 1] - H[k - 1]) * 1.5, hy = (H[k + size] - H[k - size]) * 1.5;   // 著色器在 ±1.5 格取樣
+    const nx = -hx * NORMAL_K, ny = hy * NORMAL_K, nz = 1, nn = Math.hypot(nx, ny, nz);
+    const lam = (nx * lx + ny * ly + nz * lz) / nn / (lz / ln) / ln;
+    sum += Math.min(1.2, Math.max(0.55, 0.35 + 0.65 * lam)) * (0.6 + 0.4 * G[k]); n++;
+  }
+  lipShapeCache = { data, size, mean: n ? sum / n : 1, box: [x0, y0, x1, y1] };
+  return lipShapeCache;
+}
+// 高度 → 法線的放大倍數（著色器裡用一樣的數字）：唇厚大約 13 個貼圖格，斜面最陡處約傾斜 40°
+const NORMAL_K = 5.0;
+
 // ── 在 UV 空間畫妝 ───────────────────────────────────────
 // 產出兩張貼圖：
 //   blend —— rgb 為色相、a 為覆蓋率，在著色器裡與膚色相乘
@@ -430,6 +554,7 @@ const VS = `attribute vec2 aPos; attribute vec2 aUV;
 //   3. 妝 = 商品反射率 × s —— 底色換成商品，明暗與紋理原樣保留
 //   4. 依覆蓋率（由質地決定，見 COVERAGE）與原本的反射率混合，除回增益、編回 sRGB
 //   5. 水光：受光面加一層光源色的鏡面反射；珠光：光澤 + 固定在 UV 上的細閃
+//   6. 唇另外用唇形圖做立體：法線決定受光與高光，平均亮度不變（見 lipShape）
 // 混合全部在著色器裡做，不交給 GL 的 alpha blending —— 那是在 sRGB 裡混，
 // 而光的疊加必須在線性空間算。
 const FS = `#ifdef GL_FRAGMENT_PRECISION_HIGH
@@ -443,6 +568,12 @@ const FS = `#ifdef GL_FRAGMENT_PRECISION_HIGH
   uniform vec3 uGain;            // 相機線性值 → 反射率（眼白白平衡）
   uniform mat3 uCCM, uCCMInv;    // 色卡校正矩陣與反矩陣（沒有色卡時是單位矩陣）
   uniform float uYLip, uYSkin;   // 唇與皮膚的平均反射率亮度：明暗 s 的基準
+  uniform sampler2D uShape;      // 唇形圖：r 高度、g 遮蔽、b 是不是唇
+  uniform float uTexel, uVol, uShadeMean, uNK;
+  uniform vec3 uLight;           // 光的方向（臉的座標：x 右、y 上、z 朝向鏡頭）
+  uniform vec3 uSpecI, uShin;    // 高光強度與銳利度：x 霧面、y 水光、z 珠光
+  uniform vec4 uWet;             // 水潤感：x 飽滿處的柔光、y 中心的芯、z 水膜、w 環境光
+  uniform vec2 uWet2;            // x 斜面反光、y 果凍透亮
   vec3 toLin(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
   vec3 toSrgb(vec3 v) { v = clamp(v, 0.0, 1.0); return mix(v * 12.92, 1.055 * pow(v, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, v)); }
   void main(){
@@ -469,13 +600,70 @@ const FS = `#ifdef GL_FRAGMENT_PRECISION_HIGH
     float s   = Y / max(mix(uYSkin, uYLip, f.b), 1e-4);
     vec3 P    = toLin(m.rgb);
     vec3 made = P * s;
-    // 水光：透明上光層在受光面反射出光源的顏色（反射率空間裡就是白）
-    made += vec3(f.r * 0.30 * smoothstep(1.05, 1.65, s));
+    vec4 sh = texture2D(uShape, vUV);
+    float lipShade = 1.0, lipSpec = 0.0;      // 唇的立體與水膜：疊在上色之後，不跟著顏料的覆蓋率變淡
+    if (f.b > 0.5 && sh.b > 0.5) {
+      // ── 唇：用唇形圖做立體與高光 ──
+      float hx = texture2D(uShape, vUV + vec2(uTexel, 0.0)).r - texture2D(uShape, vUV - vec2(uTexel, 0.0)).r;
+      float hy = texture2D(uShape, vUV + vec2(0.0, uTexel)).r - texture2D(uShape, vUV - vec2(0.0, uTexel)).r;
+      vec3 N = normalize(vec3(-hx * uNK, hy * uNK, 1.0));       // 貼圖的 v 向下，臉的 y 向上，所以 y 不反號
+      vec3 L = normalize(uLight);
+      float matteW = (1.0 - f.r) * (1.0 - f.g);
+      // 相機的明暗：霧面把細小的明暗壓平一點（粉霧感），水光反而拉開一點（濕的表面對比高）
+      made = P * pow(max(s, 1e-4), mix(mix(1.0, 0.8, matteW), 1.1, f.r));
+      float lam = dot(N, L) / L.z;                             // 平面 = 1
+      float shade = clamp(0.35 + 0.65 * lam, 0.55, 1.2) * (0.6 + 0.4 * sh.g) / uShadeMean;
+      lipShade = mix(1.0, shade, uVol);
+      // ── 水潤感：不是加幾個白點，而是整片唇上蓋了一層透明的水膜 ──
+      // 1. 果凍感：水膜下的顏色像透光 —— 唇最飽滿處透亮、更飽和，唇緣與口縫比較深（漸層的深淺）
+      float Yl = dot(made, vec3(0.2126, 0.7152, 0.0722));
+      vec3 juicy = max(mix(vec3(Yl), made, 1.22), 0.0) * (1.0 - 0.5 * uWet2.y + uWet2.y * 1.1 * sh.r);
+      made = mix(made, juicy, f.r);
+      // 霧面：稍微淡、稍微灰（粉霧）
+      made = mix(made, mix(vec3(Yl), made, 0.94) * 1.03, matteW);
+      // 2. 水膜的反光。唇左右方向很平、上下方向很彎，所以反光是「橫向拉長的光帶」，不是圓點
+      //    （各向異性：算高光時把法線的左右分量壓扁）
+      float hx4 = texture2D(uShape, vUV + vec2(4.0 * uTexel, 0.0)).r - texture2D(uShape, vUV - vec2(4.0 * uTexel, 0.0)).r;
+      float hy4 = texture2D(uShape, vUV + vec2(0.0, 4.0 * uTexel)).r - texture2D(uShape, vUV - vec2(0.0, 4.0 * uTexel)).r;
+      vec3 Ns = normalize(vec3(-hx4 * uNK * 0.375, hy4 * uNK * 0.375, 1.0));
+      vec3 Na = normalize(vec3(Ns.x * mix(1.0, 0.35, f.r), Ns.y, Ns.z));
+      float mid = 1.0 - smoothstep(0.3, 0.95, abs(sh.a * 2.0 - 1.0));   // 唇中央 1 → 嘴角 0
+      vec3 Hh = normalize(L + vec3(0.0, 0.0, 1.0));
+      float nh = max(dot(N, Hh), 0.0), nha = max(dot(Na, Hh), 0.0);
+      // 主要的亮：真實的燈是一片（窗、燈箱），不是一個點 —— 反光是落在唇最飽滿處的一片柔和橢圓，
+      // 不是沿著斜坡的一條細線。用高度圖找「最飽滿處」，往光的方向挪一點：下唇中央偏上一大片、上唇兩個唇峰各一小片
+      float hs = texture2D(uShape, vUV + vec2(-uLight.x * 6.0, 5.0) * uTexel).r;
+      float spot = smoothstep(0.60, 0.97, hs);
+      float hot  = smoothstep(0.86, 1.0, hs);
+      float core = pow(nha, uShin.y);                         // 跟著法線的細光（頭轉的時候會滑動）
+      float film  = pow(nha, 10.0);                           // 水膜：寬而柔，整片唇都帶著光澤
+      float env   = smoothstep(-0.2, 0.9, Na.y);              // 朝上的斜面映著上方的環境光（天花板、窗）
+      float fres  = pow(1.0 - Na.z, 3.0) * sh.g * sh.g;       // 斜面反光（口縫、嘴角被遮住的地方不算，免得變成一條白線）
+      float wet = (uWet.x * spot + uWet.y * hot + uSpecI.y * 0.35 * core) * mid + uWet.z * film * (0.5 + 0.5 * mid) + (uWet.w * env + uWet2.x * fres) * sh.g;
+      float spec = f.r * wet
+                 + matteW * (uSpecI.x * pow(nh, uShin.x) + 0.03 * pow(1.0 - N.z, 2.0))   // 霧面：只有很淡的絨光
+                 + f.g * uSpecI.z * pow(nh, uShin.z);
+      // 唇紋：細細的直紋把霧面、珠光的光切碎；水光把紋路填平 —— 水膜是連續的，不切
+      float lines = 0.5 + 0.5 * sin(vUV.x * 1300.0 + 5.0 * sin(vUV.y * 260.0));
+      spec *= 1.0 - 0.45 * (1.0 - f.r) * (1.0 - lines);
+      // 真實的光：反光一半看唇的形狀、一半看畫面上真的亮的地方；很暗的地方（陰影、口縫）不反光
+      spec *= (0.45 + 0.55 * smoothstep(0.75, 1.2, s)) * smoothstep(0.3, 0.8, s) * sh.g;
+      lipSpec = spec;
+    } else {
+      // 水光（眼、頰）：透明上光層在受光面反射出光源的顏色（反射率空間裡就是白）
+      made += vec3(f.r * 0.30 * smoothstep(1.05, 1.65, s));
+    }
     // 珠光：雲母在受光面帶出商品色的光澤，加上固定在 UV 上的細閃 —— 頭一轉，閃點跟著皮膚走
     float n = fract(sin(dot(floor(vUV * 640.0), vec2(12.9898, 78.233))) * 43758.5453);
     made += f.g * (P * 0.22 * smoothstep(0.85, 1.5, s) + vec3(0.35 * step(0.985, n) * s));
 
-    vec3 outC = toSrgb(mix(cam, (uCCMInv * made) / uGain, a));
+    vec3 lin = mix(cam, (uCCMInv * made) / uGain, a);
+    // 立體的明暗與水膜的反光是「唇的形狀與表面」，不是顏料：水光唇釉是透的（覆蓋率低），
+    // 但它的反光一點都不弱。所以這兩樣不乘覆蓋率，只要有上妝（a 超過一點點）就完整出現
+    float film = clamp(a * 3.0, 0.0, 1.0);
+    lin *= mix(1.0, lipShade, film);
+    lin += (uCCMInv * vec3(lipSpec)) / uGain * film;
+    vec3 outC = toSrgb(lin);
     outC += vec3(0.28 * glow) * a;
     gl_FragColor = vec4(outC, 1.0);
   }`;
@@ -516,7 +704,10 @@ function initGL(w, h) {
       gl.texParameteri(gl.TEXTURE_2D, k, v);
     return t;
   };
-  tex = { blend: mkTex(), bias: mkTex(), blendB: mkTex(), biasB: mkTex(), frame: mkTex() };
+  tex = { blend: mkTex(), bias: mkTex(), blendB: mkTex(), biasB: mkTex(), frame: mkTex(), shape: mkTex() };
+  const ls = lipShape();
+  gl.bindTexture(gl.TEXTURE_2D, tex.shape);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, ls.size, ls.size, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(ls.data.buffer));
 
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -629,13 +820,27 @@ export function renderGL(ctx, P, w, h) {
   gl.uniformMatrix3fv(gl.getUniformLocation(prog, 'uCCMInv'), false, mat3col(ccmInv));
   gl.uniform1f(gl.getUniformLocation(prog, 'uYLip'), yLip);
   gl.uniform1f(gl.getUniformLocation(prog, 'uYSkin'), ySkin);
+  // 唇的立體：頭往左右轉時，光（固定在房間裡）相對於臉往另一邊移，高光跟著滑動
+  const fw = P[454].x - P[234].x;
+  const yaw = fw ? Math.max(-1, Math.min(1, ((P[1].x - P[234].x) / fw - 0.5) * 2)) : 0;
+  const ls = lipShape();
+  gl.uniform1f(gl.getUniformLocation(prog, 'uTexel'), 1.5 / ls.size);
+  gl.uniform1f(gl.getUniformLocation(prog, 'uVol'), LIP_FX.volume);
+  gl.uniform1f(gl.getUniformLocation(prog, 'uShadeMean'), ls.mean);
+  gl.uniform1f(gl.getUniformLocation(prog, 'uNK'), NORMAL_K);
+  gl.uniform3f(gl.getUniformLocation(prog, 'uLight'), LIP_FX.light[0] - 0.45 * yaw, LIP_FX.light[1], LIP_FX.light[2]);
+  gl.uniform3f(gl.getUniformLocation(prog, 'uSpecI'), LIP_FX.matte.spec, LIP_FX.gloss.spec, LIP_FX.shimmer.spec);
+  gl.uniform3f(gl.getUniformLocation(prog, 'uShin'), LIP_FX.matte.shin, LIP_FX.gloss.shin, LIP_FX.shimmer.shin);
+  const wt = LIP_FX.wet;
+  gl.uniform4f(gl.getUniformLocation(prog, 'uWet'), wt.spot, wt.hot, wt.film, wt.env);
+  gl.uniform2f(gl.getUniformLocation(prog, 'uWet2'), wt.rim, wt.glow);
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buf.idx);
 
   const edge = split >= 0 ? split : 1.0;
   const pass = (blend, bias, lo, hi) => {
     gl.uniform1f(gl.getUniformLocation(prog, 'uLo'), lo);
     gl.uniform1f(gl.getUniformLocation(prog, 'uHi'), hi);
-    for (const [i, [name, t]] of [['uBlend', blend], ['uBias', bias], ['uFrame', tex.frame]].entries()) {
+    for (const [i, [name, t]] of [['uBlend', blend], ['uBias', bias], ['uFrame', tex.frame], ['uShape', tex.shape]].entries()) {
       gl.activeTexture(gl.TEXTURE0 + i);
       gl.bindTexture(gl.TEXTURE_2D, t);
       gl.uniform1i(gl.getUniformLocation(prog, name), i);

@@ -10,7 +10,7 @@ import { renderMakeup, debugOverlay, LIPS_OUTER, EYE_R_ALL, EYE_L_ALL, SKIN_PATC
 import { setMakeup, setMakeupB, setSplit, setIntensity, setSweep, renderGL,
          screenToUV, brushDab, clearBrush, hasBrush, useBrush,
          beginStroke, undoStroke, redoStroke, strokeCount, redoCount,
-         pressureLevel, applyPressure, COVERAGE, setLighting, resetRefs, setColorMatrix } from './makeup-gl.js';
+         pressureLevel, applyPressure, COVERAGE, setLighting, resetRefs, setColorMatrix, LIP_FX } from './makeup-gl.js';
 import { loadChartQuad, fitFromCanvas, applyCCM, clearChartQuad } from './chart.js';
 import { sampleSkin, classifySkin, rankLooks, estimateIlluminant, estimateHighlight, applyGain,
          rgbToLab, hexToLab, deltaE, ITA_CLASSES } from './analysis.js';
@@ -37,7 +37,7 @@ import { buildRoutine, stepLines, stepOpts, routineRecap } from './routine.js';
 import { skinCondition, skinCondTop, skinCondLines } from './skincond.js';
 import { nextDuel, duelLines, duelOpts, duelPicked } from './duel.js';
 import { faceFit } from './fit.js';
-import { pickSurprise, newCheer, cheerFor, newRapport, rapportAdd, rapportPct, aiReactFor, levelFx } from './live.js';
+import { pickSurprise, newCheer, cheerFor, aiReactFor } from './live.js';
 import { findHairline, faceFeatures, classifyFace, faceLookBonus, faceReasonFor } from './faceshape.js';
 import { lineEmoji, optEmoji } from './emoji.js';
 import { initGender, guessAudience } from './gender.js';
@@ -122,8 +122,7 @@ const S = {
   brush: { tool: 'lip', size: 34, flow: 55, press: 65 },   // 手動上妝的虛擬刷具（press = 筆壓靈敏度）
   bag: [],
   tried: new Set(),   // 試過的唇色色號 —— 報告要講「你試了幾個」
-  rapport: newRapport(),   // 跟 AI 的默契：互動幾次、幾級
-  gifts: 0,                // AI 送了還沒拆的禮物（升級、試妝滿一分鐘），回覆列會多一個「拆開禮物」
+  gifts: 0,                // AI 送了還沒拆的禮物（試妝滿一分鐘），回覆列會多一個「拆開禮物」
   cheer: newCheer(),  // AI 主動送的互動（回讚、鼓掌…）送過哪些
   arMs: 0, arT0: 0,   // 實際停留在 AR 的時間
   rating: 0,
@@ -1138,10 +1137,9 @@ function chatAct(where, o) {
   chatYou(where, o.key, optEmoji(o));
   const r = runAct(o) || {};
   if (HEART_ACTS.has(o.act) && S.step === 4) floatHearts('s4');
-  // AI 讀到了：在你那則留言蓋章；默契 +1，升級時放彩帶
+  // AI 讀到了：在你那則留言蓋章
   const mine = [...c.msgs].reverse().find((m) => m.who === 'you');
   if (mine && !mine.react) mine.react = aiReactFor(o.act);
-  if (where === 's2' || where === 's4') bumpRapport(where);
   if (S.step === 4) cheerAfter(o);
   if (r.stay === false) return;                 // 換頁的動作，對話在新畫面重建
   // 動作沒帶新選項回來（例如沒東西可換）時，把原本那排放回去 ——
@@ -1406,7 +1404,7 @@ function liveBanner(where, emo, text, cls = '') {
 }
 const HEART_ACTS = new Set(['keepYes', 'keepBest', 'duelLeft', 'duelRight', 'usePref', 'tryTrend', 'snap']);
 
-/* ── AI 回應你時的特效（參考直播 App：主播回覆留言、對留言回表情、粉絲團等級、全螢幕彩帶） ── */
+/* ── AI 回應你時的特效（參考直播 App：主播回覆留言、對留言回表情、全螢幕彩帶） ── */
 /** AI 在打字：主播頭像一圈圈發亮，狀態從「試妝中」變「回覆中…」 */
 function hostTalking(where, on) {
   const h = $('#' + where + ' .host'); if (!h) return;
@@ -1414,74 +1412,10 @@ function hostTalking(where, on) {
   const st = h.querySelector('small > span');
   if (st) st.textContent = t(on ? 'host.typing' : 'host.' + where);
 }
-/** 主播膠囊上的默契等級＋進度條 */
-function paintRapport() {
-  for (const h of document.querySelectorAll('.frame .host')) {
-    for (let i = 0; i <= 4; i++) h.classList.toggle('lv' + i, S.rapport.lv === i);   // 頭像外圈、等級字跟著等級換顏色
-    let rp = h.querySelector('.rp');
-    if (!rp) { rp = el('em', 'rp'); h.querySelector('small')?.appendChild(rp); }
-    rp.textContent = '💞 Lv' + S.rapport.lv;
-    rp.title = t('rapport.lv' + S.rapport.lv);
-    let bar = h.querySelector('.bar');
-    if (!bar) { bar = el('u', 'bar', '<i></i>'); h.querySelector('div')?.appendChild(bar); }
-    bar.firstChild.style.width = Math.round(rapportPct(S.rapport) * 100) + '%';
-  }
-}
-function bumpRapport(where) {
-  const r = rapportAdd(S.rapport);
-  paintRapport();
-  if (r.up) levelUp(where, r.lv);
-}
-/**
- * 升級：越高級越隆重（規則在 js/live.js 的 LEVEL_FX）。
- * 特效之外，AI 也講一句這一級的回饋；有禮物就在回覆列放「🎁 拆開禮物」（第 2 步送的，留到試妝時拆）。
- */
-function levelUp(where, lv) {
-  const fx = levelFx(lv);
-  liveBanner(where, fx.emo, t('rapport.up', { lv, name: t('rapport.lv' + lv) }), 'lv' + lv);
-  const h = $('#' + where + ' .host');
-  if (h) { h.classList.remove('lvup'); void h.offsetWidth; h.classList.add('lvup'); }
-  confetti(where, fx.confetti, lv);
-  if (fx.badge) lvBadge(where, lv, fx.rays);
-  for (let i = 0; i < fx.fireworks; i++) setTimeout(() => firework(where, lv), 450 + i * 360);
-  S.gifts += fx.gift;
-  setTimeout(() => {
-    const c = S.chat[where];
-    let opts = c?.opts || [];
-    if (where === 's4' && S.gifts > 0 && !opts.some((o) => o.act === 'surprise')) opts = [{ key: 'opt.openGift', act: 'surprise' }, ...opts];
-    chatSay(where, [{ kind: 'praise', key: 'adv.lvup.' + lv, params: {} }], opts);
-  }, 700);
-}
-/** 中間的等級徽章（Lv2 起）；Lv4 後面還有一圈轉動的光芒 */
-function lvBadge(where, lv, rays) {
+/** 全螢幕彩帶：命定色出爐、跟著畫完 */
+function confetti(where, n = 28) {
   const fx = $('#' + where + '-fx'); if (!fx || calm()) return;
-  const b = el('div', 'lvbadge lv' + lv, (rays ? '<i class="rays"></i>' : '') + `<b>Lv${lv}</b><span>${t('rapport.lv' + lv)}</span>`);
-  fx.appendChild(b);
-  setTimeout(() => b.remove(), rays ? 3300 : 2500);
-}
-/** 煙火（Lv3 起）：畫面上半部隨機一點，炸開一圈亮點 */
-function firework(where, lv) {
-  const fx = $('#' + where + '-fx'); if (!fx || calm()) return;
-  const W = fx.clientWidth, H = fx.clientHeight;
-  const x = Math.round(W * (0.18 + Math.random() * 0.64)), y = Math.round(H * (0.12 + Math.random() * 0.3));
-  const cols = lv >= 4 ? ['#ff6f91', '#ffd166', '#9ad0ff', '#c3a6ff', '#7ee0b5'] : ['#ffd166', '#ffe9a8', '#ffb347'];
-  const col = cols[Math.floor(Math.random() * cols.length)];
-  for (let i = 0; i < 16; i++) {
-    const s = el('i', 'fw');
-    s.style.left = x + 'px'; s.style.top = y + 'px';
-    s.style.background = col; s.style.color = col;
-    s.style.setProperty('--a', i * 22.5 + 'deg');
-    s.style.setProperty('--d', Math.round(46 + Math.random() * 34) + 'px');
-    fx.appendChild(s);
-    setTimeout(() => s.remove(), 1300);
-  }
-}
-/** 全螢幕彩帶：默契升級、命定色出爐、跟著畫完 */
-function confetti(where, n = 28, lv = 0) {
-  const fx = $('#' + where + '-fx'); if (!fx || calm()) return;
-  // 等級的顏色：Lv1 粉、Lv2 紫、Lv3 金，其他（含 Lv4）彩虹
-  const cols = { 1: ['#ff6f91', '#ff9ec0', '#ffd1e0', '#ffffff'], 2: ['#c3a6ff', '#9b7bff', '#e4d8ff', '#ff9ec0'],
-                 3: ['#ffd166', '#ffb347', '#fff1c2', '#ffffff'] }[lv] || ['#ff6f91', '#ffd166', '#9ad0ff', '#c3a6ff', '#7ee0b5', '#ffffff'];
+  const cols = ['#ff6f91', '#ffd166', '#9ad0ff', '#c3a6ff', '#7ee0b5', '#ffffff'];
   const fall = fx.clientHeight + 30;
   for (let i = 0; i < n; i++) {
     const p = el('i', 'cf');
@@ -2580,7 +2514,6 @@ function enter4() {
   mountHistory();
   mountSheet();
   mountRail();
-  paintRapport();
 
   $('#zoom-btn').onclick = () => { S.zoom = !S.zoom; mountZoomBtn(); syncAROpts(); };
   $('#paint-btn').onclick = () => enterPaint();
@@ -2598,7 +2531,7 @@ function enter4() {
   if (DEBUG) globalThis.__LUCID_AR__ = { hasBrush, screenToUV, clearBrush, renderGL, toPixels, syncMakeup, lm: () => smooth,
                                          pressureLevel, applyPressure, press: () => ({ seen: pressSeen, sens: S.brush.press }),
                                          markFace, drawMark, tapRegion, feedGesture,
-                                         watchAR, faceInfo, state: () => S, skin: () => S.skin, chart: () => S.chartFit, face: () => ({ hair: S.hair, f: S.faceF, cls: S.face }),
+                                         watchAR, faceInfo, state: () => S, lipFx: LIP_FX, setIntensity, setSweep, setSplit, skin: () => S.skin, chart: () => S.chartFit, face: () => ({ hair: S.hair, f: S.faceF, cls: S.face }),
                                          yesNo: () => S.yesNo, gest: () => S.gesture };
   resetRefs();                     // 回到即時畫面：亮度基準改從鏡頭重新量
   startApply();
@@ -3330,7 +3263,7 @@ function arLoop() {
         if (S.zoom) drawLipZoom(dctx, smooth, W, H);
         drawMark(dctx, smooth, W, H);      // AI 講到哪，就在鏡子上圈到哪
         if (S.mode === 'bare' || S.mode === 'dual') drawSplitUI(dctx, W, H);
-        if (DEBUG) debugOverlay(dctx, smooth, W, H);
+        if (DEBUG && !globalThis.__LUCID_NO_OVERLAY__) debugOverlay(dctx, smooth, W, H);   // 驗收截圖時可以關掉
       } else {
         smooth = null;
         dctx.drawImage(base4, 0, 0);
@@ -3912,7 +3845,7 @@ function reset() {
   S.hist = []; S.redo = [];
   clearBrush();
   S.tried.clear(); S.arMs = 0; S.arT0 = 0;
-  S.rapport = newRapport(); S.gifts = 0;
+  S.gifts = 0;
   S.cheer = newCheer(); cheerQ.length = 0;
   S.pref = newPref(); S.said.clear(); S.prevLip = null;
   S.amount0 = null; S.asked3.clear(); S.shadeT0 = 0; S.lastAct = 0;

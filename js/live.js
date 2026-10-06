@@ -1,5 +1,5 @@
 /**
- * 直播間的互動：驚喜色號、AI 送的貼紙、默契等級（每級特效不同）、AI 對你留言的反應。
+ * 直播間的互動：驚喜色號、AI 送的貼紙、AI 對你留言的反應。
  * 這裡只放不碰畫面的判斷（好測），畫面與動畫在 app.js。
  */
 import { lipFamily } from './lipcolor.js';
@@ -70,24 +70,6 @@ export function cheerFor(st, ev, now) {
   return c;
 }
 
-/* ── 默契等級（參考直播 App 的粉絲團等級） ─────────────────────
-   每跟 AI 互動一次（點一個回覆、拆禮物…）默契 +1；到 3、8、15、25 升一級，
-   升級時跳彩帶與橫幅。主播資訊膠囊上看得到等級與進度條。 */
-export const RAPPORT_LV = [3, 8, 15, 25];
-export const newRapport = () => ({ pts: 0, lv: 0 });
-/** 互動一次：回傳現在幾級、這一下有沒有升級、離下一級的進度（0–1） */
-export function rapportAdd(st, n = 1) {
-  st.pts += n;
-  const lv = RAPPORT_LV.filter((x) => st.pts >= x).length;
-  const up = lv > st.lv;
-  st.lv = lv;
-  return { lv, up, pct: rapportPct(st) };
-}
-export function rapportPct(st) {
-  const lo = st.lv ? RAPPORT_LV[st.lv - 1] : 0, hi = RAPPORT_LV[st.lv];
-  return hi ? (st.pts - lo) / (hi - lo) : 1;
-}
-
 /* ── AI 對你那則留言的反應 ─────────────────────────────────
    直播主看到留言會回個表情；這裡 AI 讀到你的選擇，就在你那則留言尾端蓋一個章：
    表示喜歡 → 💗、調濃淡 → 👌、問為什麼 → 💡、換一支 → 👍…… */
@@ -100,19 +82,3 @@ const REACT_BY_ACT = {
 };
 export const aiReactFor = (act) => (/^why/.test(act || '') ? '💡' : REACT_BY_ACT[act] || '👍');
 
-/**
- * 每一級升級的特效與回饋 —— 越高級越隆重，一眼看得出差別：
- *   Lv1 聊得來：粉紅彩帶＋橫幅
- *   Lv2 有默契：紫色，加中間的等級徽章；送一份禮物
- *   Lv3 好默契：金色，徽章＋煙火；再送一份禮物
- *   Lv4 美妝知己：彩虹，徽章＋光芒＋大量彩帶＋煙火
- * 禮物＝回覆列多一個「🎁 拆開禮物」，點了換上一支驚喜色號。
- */
-export const LEVEL_FX = [
-  null,
-  { emo: '💞', confetti: 24, badge: false, fireworks: 0, rays: false, gift: 0 },
-  { emo: '💜', confetti: 36, badge: true, fireworks: 0, rays: false, gift: 1 },
-  { emo: '💛', confetti: 48, badge: true, fireworks: 3, rays: false, gift: 1 },
-  { emo: '💎', confetti: 80, badge: true, fireworks: 5, rays: true, gift: 0 },
-];
-export const levelFx = (lv) => LEVEL_FX[Math.max(1, Math.min(LEVEL_FX.length - 1, lv))];
