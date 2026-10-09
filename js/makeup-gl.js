@@ -53,6 +53,9 @@ const solidTris = (() => {
 })();
 
 const SOFT_PX = { shadow: 50, lip: 24 };   // 柔和度 100 對應的模糊半徑
+// 唇的邊：往唇中心收多少（比例）、柔邊最多幾個貼圖像素（唇在貼圖上約 250 像素寬，2.5 ≈ 唇寬 1%）
+export const LIP_INSET = { clip: 0.012, fill: 0.03 };
+const LIP_EDGE_MAX = 2.5;
 
 // ── 參數 ─────────────────────────────────────────────────
 const blank = () => ({
@@ -182,17 +185,18 @@ const LIP_LO_IN  = [78,95,88,178,87,14,317,402,318,324,308];
 const SHAPE = 512;
 /** 立體的強度與各質地的高光（強度、銳利度）。數值依據見 README「唇妝的立體感與水感」 */
 export const LIP_FX = {
-  volume: 0.7,                        // 0 = 平塗，1 = 全部用烤出來的光影
+  volume: 0.5,                        // 0 = 平塗，1 = 全部用烤出來的光影（實機看 0.7 太誇張）
   light: [0, 0.6, 0.8],               // 光從正前上方（之後依頭的左右轉動偏移）
   matte:   { spec: 0.02, shin: 4 },    // 霧面：幾乎沒有高光，只有很散的絨光
-  gloss:   { spec: 0.55, shin: 70 },  // 水光：橫向拉長的亮光帶＋整片水膜的柔光（見著色器「水潤感」）
+  gloss:   { spec: 0.30, shin: 70 },  // 水光：橫向拉長的亮光帶＋整片水膜的柔光（見著色器「水潤感」）
   // 水潤感的各層：band 光帶（較寬）、film 整片水膜、env 映著上方的環境光、rim 斜面反光、glow 果凍透亮
   // spot 唇最飽滿處那片柔和的亮（像映著一盞大燈）、hot 亮片中心更亮的芯、film 整片水膜、env 映著上方的環境光、rim 斜面反光、glow 果凍透亮
-  wet: { spot: 0.45, hot: 0.30, film: 0.24, env: 0.10, rim: 0.06, glow: 0.5 },
+  // 實機錄影看起來太誇張（螢光紅、中間一片白亮），全部收到大約一半
+  wet: { spot: 0.22, hot: 0.10, film: 0.10, env: 0.05, rim: 0.03, glow: 0.3 },
   // 質感（唇紋與表面）：lines 一張嘴橫向幾條唇紋、amp 唇紋在法線上的深度、fill 水光把唇紋填平到剩幾成、
   // settle 霧面顏料卡進紋路變深、grain 霧面的粉霧顆粒、ridge 上唇唇緣那一道微微隆起的亮（唇線）
   // 數值依據：唇紋研究（每片唇約 25–30 條）、霧面顏料卡進紋路約深 10–15%、水光把紋路填到剩 1–2 成（見 README）
-  texture: { lines: 28, amp: 2.6, fill: 0.15, settle: 0.13, grain: 0.06, ridge: 0.05, velvet: 0.06, matteVol: 0.8 },
+  texture: { lines: 28, amp: 2.6, fill: 0.15, settle: 0.13, grain: 0.06, ridge: 0.03, velvet: 0.04, matteVol: 0.8 },
   shimmer: { spec: 0.30, shin: 28 },   // 珠光：中等的光澤＋細閃
 };
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -354,7 +358,7 @@ export function lipShape(size = SHAPE) {
     const hx = (H[k + 1] - H[k - 1]) * 1.5, hy = (H[k + size] - H[k - size]) * 1.5;   // 著色器在 ±1.5 格取樣
     const nx = -hx * NORMAL_K, ny = hy * NORMAL_K, nz = 1, nn = Math.hypot(nx, ny, nz);
     const lam = (nx * lx + ny * ly + nz * lz) / nn / (lz / ln) / ln;
-    sum += Math.min(1.2, Math.max(0.55, 0.35 + 0.65 * lam)) * (0.6 + 0.4 * G[k]); n++;
+    sum += Math.min(1.12, Math.max(0.72, 0.5 + 0.5 * lam)) * (0.75 + 0.25 * G[k]); n++;
   }
   lipShapeCache = { data, size, mean: n ? sum / n : 1, box: [x0, y0, x1, y1] };
   return lipShapeCache;
@@ -414,15 +418,21 @@ function paint(canvas, biasMode) {
   const l = cur.lip;
   if (l.on && k('lip') > 0 && l.alpha > 0) {
     const a = l.alpha / 100 * k('lip'), grad = l.grad / 100;
-    x.filter = `blur(${l.soft / 100 * SOFT_PX.lip}px)`;
     const pts = UV_LIPS.map(uvPt);
     const c = mean(UV_LIPS);
     const r = Math.max(...pts.map((p) => Math.hypot(p[0] - c[0], p[1] - c[1])));
+    // 顏色不能超出唇線（實機錄影：柔邊往外暈，下唇下方、嘴角外都染到）。
+    // 唇膏的邊是俐落的（柔邊約唇寬 1%）：裁切範圍設在唇線往內一點點，柔邊只往內收，不往外暈。
+    // 往內收也替臉部追蹤留一點誤差 —— 點位偏一兩個像素，顏色仍在嘴上。
+    x.save();
+    x.beginPath(); pathPts(x, pts.map((p) => lerpP(p, c, LIP_INSET.clip))); x.clip();
+    x.filter = `blur(${Math.min(LIP_EDGE_MAX, l.soft / 100 * SOFT_PX.lip)}px)`;
     const g = x.createRadialGradient(c[0], c[1], 0, c[0], c[1], r);
     g.addColorStop(0, rgba(col('lip'), a));
     g.addColorStop(1, rgba(col('lip'), a * (1 - grad)));
     x.fillStyle = g;
-    x.beginPath(); pathPts(x, pts); x.fill();
+    x.beginPath(); pathPts(x, pts.map((p) => lerpP(p, c, LIP_INSET.fill))); x.fill();
+    x.restore();
   }
 
   x.filter = 'none';
@@ -695,12 +705,12 @@ const FS = `#ifdef GL_FRAGMENT_PRECISION_HIGH
       // 相機的明暗：霧面把細小的明暗壓平一點（粉霧感），水光反而拉開一點（濕的表面對比高）
       made = P * pow(max(s, 1e-4), mix(mix(1.0, 0.8, matteW), 1.1, f.r));
       float lam = dot(N, L) / L.z;                             // 平面 = 1
-      float shade = clamp(0.35 + 0.65 * lam, 0.55, 1.2) * (0.6 + 0.4 * sh.g) / uShadeMean;
+      float shade = clamp(0.5 + 0.5 * lam, 0.72, 1.12) * (0.75 + 0.25 * sh.g) / uShadeMean;   // 明暗幅度收小：立體但不像打了光
       lipShade = mix(1.0, shade, uVol * mix(1.0, uVelvet.y, matteW));   // 霧面（絲絨）的明暗比較柔
       // ── 水潤感：不是加幾個白點，而是整片唇上蓋了一層透明的水膜 ──
       // 1. 果凍感：水膜下的顏色像透光 —— 唇最飽滿處透亮、更飽和，唇緣與口縫比較深（漸層的深淺）
       float Yl = dot(made, vec3(0.2126, 0.7152, 0.0722));
-      vec3 juicy = max(mix(vec3(Yl), made, 1.22), 0.0) * (1.0 - 0.5 * uWet2.y + uWet2.y * 1.1 * sh.r);
+      vec3 juicy = max(mix(vec3(Yl), made, 1.1), 0.0) * (1.0 - 0.5 * uWet2.y + uWet2.y * 1.1 * sh.r);
       made = mix(made, juicy, f.r);
       // 霧面：稍微淡、稍微灰（粉霧）；顏料卡進唇紋裡顯得深一點；表面有一層很細的粉霧顆粒
       made = mix(made, mix(vec3(Yl), made, 0.94) * 1.03, matteW);
@@ -734,7 +744,7 @@ const FS = `#ifdef GL_FRAGMENT_PRECISION_HIGH
       spec += uRidge * mix(0.6, 1.2, f.r) * ridge * mid;
       // 真實的光：反光一半看唇的形狀、一半看畫面上真的亮的地方；很暗的地方（陰影、口縫）不反光
       spec *= (0.45 + 0.55 * smoothstep(0.75, 1.2, s)) * smoothstep(0.3, 0.8, s) * sh.g;
-      lipSpec = min(spec, 1.0);                              // 疊起來也不會爆成一片白
+      lipSpec = min(spec, 0.5);                              // 疊起來也不會爆成一片白
     } else {
       // 水光（眼、頰）：透明上光層在受光面反射出光源的顏色（反射率空間裡就是白）
       made += vec3(f.r * 0.30 * smoothstep(1.05, 1.65, s));
@@ -746,7 +756,8 @@ const FS = `#ifdef GL_FRAGMENT_PRECISION_HIGH
     vec3 lin = mix(cam, (uCCMInv * made) / uGain, a);
     // 立體的明暗與水膜的反光是「唇的形狀與表面」，不是顏料：水光唇釉是透的（覆蓋率低），
     // 但它的反光一點都不弱。所以這兩樣不乘覆蓋率，只要有上妝（a 超過一點點）就完整出現
-    float film = clamp(a * 3.0, 0.0, 1.0);
+    // 只在真的有上色的地方（不是柔邊那一圈淡淡的）：柔邊上放大三倍，會把光影畫到唇外
+    float film = smoothstep(0.08, 0.35, a);
     lin *= mix(1.0, lipShade, film);
     lin += (uCCMInv * vec3(lipSpec)) / uGain * film;
     vec3 outC = toSrgb(lin);

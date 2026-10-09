@@ -52,6 +52,7 @@ export function cheerFor(st, ev, now) {
     case 'adjust': c = { id: 'adjust', emo: '👌', key: 'cheer.adjust', burst: '✨' }; break;
     case 'guide': c = { id: 'guide:' + ev.n, emo: '🏅', key: 'cheer.guide', params: { n: ev.n }, burst: '👏' }; break;
     case 'paint': c = { id: 'paint', emo: '🖌️', key: 'cheer.paint', burst: '✨' }; break;
+    case 'pose': c = { id: 'pose:' + ev.step, emo: POSE_EMO[ev.step] || '👏', key: 'cheer.pose.' + ev.step, burst: '✨' }; break;
     case 'fit':
       ticked = true;
       if (st.fitN < FIT_MAX && ev.fit >= FIT_CHEER && ev.dwellMs >= FIT_DWELL_MS)
@@ -82,3 +83,24 @@ const REACT_BY_ACT = {
 };
 export const aiReactFor = (act) => (/^why/.test(act || '') ? '💡' : REACT_BY_ACT[act] || '👍');
 
+
+/* ── 動一動看看：笑一下、轉側臉、抿抿嘴 ─────────────────────────
+   正面看過還不夠：笑的時候露出牙齒、側面看唇的立體、抿嘴看顏色勻不勻 —— 專櫃試色也會這樣動。
+   用臉部點位量（都除以臉寬，人遠人近都一樣），跟「開始時的樣子」比；做到並撐住一下下才算。 */
+export const POSE_STEPS = ['smile', 'turn', 'press'];
+export const POSE_EMO = { smile: '😁', turn: '↔️', press: '👄' };
+export const POSE_HOLD_MS = 350;
+/** 從像素座標的關鍵點量：嘴寬、唇厚（上唇頂到下唇底）、左右轉（−1..1） */
+export function poseMetrics(P) {
+  const d = (a, b) => Math.hypot(P[a].x - P[b].x, P[a].y - P[b].y);
+  const fw = d(234, 454) || 1;
+  return { mw: d(61, 291) / fw, lh: d(0, 17) / fw, yaw: ((P[1].x - P[234].x) / ((P[454].x - P[234].x) || 1) - 0.5) * 2 };
+}
+/** 這個動作做到了沒：笑 = 嘴角往外拉寬 10%；轉 = 往任一邊轉超過 0.35；抿 = 唇厚剩七成以下 */
+export function posePass(step, m, base) {
+  if (!m || !base) return false;
+  if (step === 'smile') return m.mw > base.mw * 1.1;
+  if (step === 'turn') return Math.abs(m.yaw - base.yaw) > 0.35;
+  if (step === 'press') return m.lh < base.lh * 0.72;
+  return false;
+}

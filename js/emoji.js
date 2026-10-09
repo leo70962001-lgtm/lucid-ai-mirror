@@ -10,6 +10,7 @@
 
 // 句子：依文案鍵比對，先比對到的先用（越具體的放越前面）
 const LINE = [
+  [/^adv\.pose\./, '🎬'],
   [/^adv\.surprise$/, '🎁'],
   [/^adv\.hi\./, '👋'],
   [/^adv\.p\.face(Est|Unsure)$/, '🙏'],
@@ -127,7 +128,7 @@ const ACT = {
   whySeason: '🌈', seasonColors: '🎨', learn: '📚', quiz: '📝', quizAns: '✏️', paintSelf: '✍️', myTaste: '💭', trendNow: '🗞️', tryTrend: '💄', trendNext: '🔁',
   recapAll: '📋', wrapUp: '🧾', skinCond: '🪞', duelStart: '🆚', duelLeft: '👈', duelRight: '👉', duelEnd: '👌', snap: '📸', guideStart: '🧭', guideNext: '👉', guidePaint: '✍️', guideSkip: '⏭️', guideEnd: '👌',
   seaGold: '💛', seaSilver: '🤍', seaDunno: '🤔', seaCoral: '🧡', seaBrick: '🤎', seaSharp: '✨', seaHeavy: '😪',
-  surprise: '🎁',
+  surprise: '🎁', swipeShade: '👉', poseStart: '🎬', poseSkip: '⏭️', poseEnd: '👌',
 };
 const SEASON_EMO = { spring: '🌸', summer: '🌊', autumn: '🍂', winter: '❄️' };
 const CTX = {

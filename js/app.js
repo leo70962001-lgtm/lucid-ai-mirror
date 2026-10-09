@@ -37,7 +37,7 @@ import { buildRoutine, stepLines, stepOpts, routineRecap } from './routine.js';
 import { skinCondition, skinCondTop, skinCondLines } from './skincond.js';
 import { nextDuel, duelLines, duelOpts, duelPicked } from './duel.js';
 import { faceFit } from './fit.js';
-import { pickSurprise, newCheer, cheerFor, aiReactFor } from './live.js';
+import { pickSurprise, newCheer, cheerFor, aiReactFor, POSE_STEPS, POSE_EMO, POSE_HOLD_MS, poseMetrics, posePass } from './live.js';
 import { findHairline, faceFeatures, classifyFace, faceLookBonus, faceReasonFor } from './faceshape.js';
 import { lineEmoji, optEmoji } from './emoji.js';
 import { initGender, guessAudience } from './gender.js';
@@ -123,6 +123,7 @@ const S = {
   bag: [],
   tried: new Set(),   // 試過的唇色色號 —— 報告要講「你試了幾個」
   gifts: 0,                // AI 送了還沒拆的禮物（試妝滿一分鐘），回覆列會多一個「拆開禮物」
+  pose: null, posePrompted: false,   // 動一動看看：進行到哪一個動作；AI 主動邀請過了沒
   cheer: newCheer(),  // AI 主動送的互動（回讚、鼓掌…）送過哪些
   arMs: 0, arT0: 0,   // 實際停留在 AR 的時間
   rating: 0,
@@ -1096,7 +1097,8 @@ function mountSheet() {
 
 function syncSheet() {
   const sh = $('#sheet'); if (!sh) return;
-  $('#s4')?.classList.toggle('busy', !!(S.duel || S.guide));
+  $('#s4')?.classList.toggle('busy', !!(S.duel || S.guide || S.pose));
+  $('#s4')?.classList.toggle('posing', !!S.pose);   // 動一動時上方換成動作進度，模式切換與撤銷先收起來（不疊在一起）
   const c = S.chat.s4;
   const lastAI = c ? [...c.msgs].reverse().find((m) => m.who === 'ai') : null;
   const sig = lastAI ? sigOf(lastAI.l) : '';
@@ -1336,8 +1338,10 @@ function afterAnswer2(lines) {
 /** AR 的選項：有上一支色號時才給「換回剛才那支」 */
 const arOpts = () => (S.duel ? duelOpts() : S.guide
   ? stepOpts(S.guide.steps, S.guide.i)
+  : S.pose ? poseOpts()
   : [...(S.gifts > 0 ? [{ key: 'opt.openGift', act: 'surprise' }] : []),
      ...optsForAR(S.zoom, S.mode, !!S.prevLip),
+     { key: 'opt.poseStart', act: 'poseStart' },
      { key: 'opt.trendNow', act: 'trendNow' },
      ...(tasteRead(S.taste).ready ? [{ key: 'opt.myTaste', act: 'myTaste' }] : []),
      { key: 'opt.wrapUp', act: 'wrapUp' }, optLearn()]);
@@ -1482,6 +1486,62 @@ function placeTopLeft() {
   if (hist && hist.offsetParent === seg.offsetParent) hist.style.top = top + (seg.hidden ? 0 : seg.offsetHeight + 6) + 'px';
 }
 addEventListener('resize', () => { if (S.step === 4) placeRail(); });
+
+/* ── 滑動換色：畫面中間跳出色號名（像換濾鏡時跳出濾鏡名），下面一排點看得出是第幾支 ── */
+function shadeToast(p, idx, n, dir) {
+  const fx = $('#s4-fx'); if (!fx) return;
+  fx.querySelector('.shade-toast')?.remove();
+  const dots = Array.from({ length: n }, (_, k) => `<i class="${k === idx ? 'on' : ''}"></i>`).join('');
+  const el2 = el('div', 'shade-toast' + (dir < 0 ? ' from-left' : ''),
+    `<b><i style="background:${disp(p.color)}"></i>${tf(p, 'shade')}</b><small>${t('finish.' + p.finish)}</small><span class="dots">${dots}</span>`);
+  fx.appendChild(el2);
+  setTimeout(() => el2.remove(), 1600);
+}
+
+/* ── 動一動看看（AR × AI）──────────────────────────────────── */
+const poseOpts = () => [{ key: 'opt.poseSkip', act: 'poseSkip' }, { key: 'opt.poseEnd', act: 'poseEnd' }];
+/** 鏡子上方的進度：三個動作，做到的打勾、現在這個會跳 */
+function mountPoseBar() {
+  const fx = $('#s4-fx'); if (!fx) return;
+  let bar = fx.querySelector('.posebar');
+  if (!S.pose) { bar?.remove(); return; }
+  if (!bar) { bar = el('div', 'posebar'); fx.appendChild(bar); }
+  bar.innerHTML = POSE_STEPS.map((st, k) =>
+    `<span class="${k < S.pose.i ? 'done' : k === S.pose.i ? 'now' : ''}"><i>${k < S.pose.i ? '✓' : POSE_EMO[st]}</i>${t('pose.' + st)}</span>`).join('');
+}
+function poseTick(lm, now) {
+  if (!S.pose || !lm) return;
+  const c = $('#ar'); if (!c) return;
+  const m = poseMetrics(toPixels(lm, c.width, c.height));
+  if (!S.pose.base) { S.pose.base = m; return; }
+  const st = POSE_STEPS[S.pose.i];
+  if (!posePass(st, m, S.pose.base)) { S.pose.since = 0; return; }
+  S.pose.since ||= now;
+  if (now - S.pose.since >= POSE_HOLD_MS) poseDone(st);
+}
+/** 這個角度的唇妝：笑 → 冷暖調跟牙齒的關係；側面 → 水光／霧面的差別；抿嘴 → 顏色勻不勻 */
+function poseLine(st, p) {
+  if (st === 'smile') return { kind: 'fact', key: 'adv.pose.smile.' + (p.tone === 'cool' || p.tone === 'warm' ? p.tone : 'neutral'), params: { shade: tf(p, 'shade') } };
+  if (st === 'turn') return { kind: 'fact', key: 'adv.pose.turn.' + (p.finish === 'gloss' ? 'gloss' : 'matte'), params: {} };
+  return { kind: 'fact', key: 'adv.pose.press', params: {} };
+}
+function poseDone(st) {
+  const p = S.picks.lip;
+  cheer({ type: 'pose', step: st });
+  S.lastAct = performance.now();
+  S.pose.i++; S.pose.since = 0;
+  const lines = [poseLine(st, p)];
+  if (S.pose.i >= POSE_STEPS.length) {
+    S.pose = null; mountPoseBar(); syncSheet();
+    confetti('s4'); liveBanner('s4', '🎬', t('banner.pose'));
+    lines.push({ kind: 'ask', key: 'adv.pose.done', params: { shade: tf(p, 'shade') } });
+    chatSay('s4', lines, [{ key: 'opt.keepYes', act: 'keepYes' }, { key: 'opt.keepNo', act: 'keepNo' }, ...arOpts()]);
+    return;
+  }
+  lines.push({ kind: 'tip', key: 'adv.pose.next.' + POSE_STEPS[S.pose.i], params: {} });
+  mountPoseBar();
+  chatSay('s4', lines, poseOpts());
+}
 
 /* ── AI 送的貼紙 ───────────────────────────────────────────
    右側跳出「AI 送出 👏」貼紙＋一串表情往上飄（規則在 js/live.js 的 cheerFor）。
@@ -1926,6 +1986,33 @@ function runAct(o) {
                opts: arOpts() };
     }
     case 'keepNo': return runAct({ act: 'nextShade' });
+    // 左右滑：照順序換到下一支／上一支（像換濾鏡），AI 用一兩句話講這支是什麼感覺
+    case 'swipeShade': {
+      const list = PRODUCTS.filter((p) => p.cat === 'lip' && p.stock > 0);
+      const i = Math.max(0, list.findIndex((p) => p.id === S.picks.lip.id));
+      const j = (i + (o.dir || 1) + list.length) % list.length, next = list[j];
+      noteShadeDwell();
+      switchLip(next, 'reason.manual');
+      shadeToast(next, j, list.length, o.dir || 1);
+      return { lines: describeLip(next),
+               replace: ['adv.lip.desc', ...LIP_FAMILIES.map((f) => 'lipfam.' + f + '.say')], opts: arOpts() };
+    }
+    // 動一動看看：笑一下 → 轉側臉 → 抿抿嘴，每做到一個，AI 講這支在這個角度的樣子
+    case 'poseStart':
+      S.pose = { i: 0, base: null, since: 0 };
+      S.posePrompted = true;
+      mountPoseBar(); syncSheet();
+      return { lines: [{ kind: 'ask', key: 'adv.pose.start', params: {} }], opts: poseOpts() };
+    case 'poseSkip': {
+      if (!S.pose) return {};
+      S.pose.i++; S.pose.since = 0; S.pose.base = null;        // 下一幀重新量「開始時的樣子」
+      if (S.pose.i >= POSE_STEPS.length) return runAct({ act: 'poseEnd' });
+      mountPoseBar();
+      return { lines: [{ kind: 'tip', key: 'adv.pose.next.' + POSE_STEPS[S.pose.i], params: {} }], opts: poseOpts() };
+    }
+    case 'poseEnd':
+      S.pose = null; mountPoseBar(); syncSheet();
+      return { lines: [{ kind: 'fact', key: 'adv.pose.end', params: {} }], opts: arOpts() };
     // 驚喜禮物：換上一支沒試過、跟季節合得來、跟剛才不同色系的
     case 'surprise': {
       S.gifts = Math.max(0, S.gifts - 1);
@@ -2057,7 +2144,18 @@ function bestTried() {
 function watchAR(lm, W) {
   if (S.step !== 4 || !lm || !S.skin) return;
   cheerTick(performance.now());
-  if (S.duel || S.guide) return;          // 正在玩二選一或跟著畫的時候，不插別的話
+  poseTick(lm, performance.now());
+  if (S.duel || S.guide || S.pose) return;          // 正在玩二選一、跟著畫、動一動的時候，不插別的話
+  // 試了一陣子、手停下來的時候，AI 主動邀請「動一動看看」（一場一次）
+  if (!S.posePrompted && S.tried.size >= 1 && !S.yesNo) {
+    const arMs = S.arMs + (S.arT0 ? performance.now() - S.arT0 : 0);
+    if (arMs > 20000 && performance.now() - (S.lastAct || 0) > 6000) {
+      S.posePrompted = true; S.lastAct = performance.now();
+      chatSay('s4', [{ kind: 'ask', key: 'adv.pose.offer', params: { shade: tf(S.picks.lip, 'shade') } }],
+              [{ key: 'opt.poseStart', act: 'poseStart' }, ...arOpts().filter((o) => o.act !== 'poseStart')]);
+      return;
+    }
+  }
   // 還有問題等著回答時不插別的話 —— 否則新的提示會把答案按鈕換掉，
   // 畫面上剩一個問題卻沒有能回答的按鈕，點頭搖頭也跟著失效
   if (S.yesNo) return;
@@ -3074,7 +3172,15 @@ function bindMirror(frame) {
     const c = $('#ar'); const [x, y] = toCanvas(e, c);
     const moved = Math.hypot(x - tapPt[0], y - tapPt[1]);
     const dt = performance.now() - tapT0;
+    const tapPt0 = tapPt;
     tapPt = null;
+    // 左右快速一滑 = 換色號（像相機 App 換濾鏡）。按住看素顏、拖分界線都不會被誤判：要夠快、夠橫、夠長
+    const dx = x - tapPt0[0], dy = y - tapPt0[1];
+    if (dt < 700 && Math.abs(dx) > c.width * 0.12 && Math.abs(dx) > Math.abs(dy) * 1.5
+        && S.mode === 'full' && !S.duel && !S.guide && S.picks?.lip) {
+      chatAct('s4', { key: dx < 0 ? 'opt.swipeNext' : 'opt.swipePrev', act: 'swipeShade', dir: dx < 0 ? 1 : -1 });
+      return true;
+    }
     if (dt > 320 || moved > 12) return false;      // 那是按住或拖曳，不是點
     return tapRegion(x, y, c.width, c.height);
   };
@@ -3845,7 +3951,7 @@ function reset() {
   S.hist = []; S.redo = [];
   clearBrush();
   S.tried.clear(); S.arMs = 0; S.arT0 = 0;
-  S.gifts = 0;
+  S.gifts = 0; S.pose = null; S.posePrompted = false;
   S.cheer = newCheer(); cheerQ.length = 0;
   S.pref = newPref(); S.said.clear(); S.prevLip = null;
   S.amount0 = null; S.asked3.clear(); S.shadeT0 = 0; S.lastAct = 0;
