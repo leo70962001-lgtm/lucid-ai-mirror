@@ -13,7 +13,8 @@ import { lineEmoji, optEmoji } from './js/emoji.js';
 import { audienceFromPrediction, faceCropBox, GENDER_MIN_PROB } from './js/gender.js';
 import { skinCondition, skinCondTop, skinCondLines, scLevel, SC_LEVELS } from './js/skincond.js';
 import { faceFit } from './js/fit.js';
-import { pickSurprise, newCheer, cheerFor, CHEER_GAP_MS, GIFT_AR_MS, FIT_MAX, aiReactFor } from './js/live.js';
+import { pickSurprise, newCheer, cheerFor, CHEER_GAP_MS, GIFT_AR_MS, FIT_MAX, aiReactFor, POSE_STEPS, poseMetrics, posePass } from './js/live.js';
+import { LIP_INSET } from './js/makeup-gl.js';
 import { nextDuel, duelSides, duelLines, duelOpts, duelPicked, DUEL_AXES } from './js/duel.js';
 import { buildRoutine, stepLines, stepOpts, routineRecap } from './js/routine.js';
 import { TRENDS, TREND_PACK, TREND_STALE_DAYS, trendsFor, trendPlan, trendPick, trendLines,
@@ -1560,7 +1561,7 @@ console.log('\n\x1b[1m39. AI 主動送的互動：回讚、鼓掌、命中、禮
   ok(/if \(cheerQ\.length >= 2\) cheerQ\.shift\(\);/.test(app), '貼紙一次一張、最多排兩張');
   const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
   const lines = dict.split(/\r?\n/).filter((l) => l.trimStart().startsWith("'cheer."));
-  ok(lines.length === 8 && lines.every((l) => (l.match(/', '/g) || []).length >= 2), '貼紙文案 8 句、三種語言齊全');
+  ok(lines.length === 11 && lines.every((l) => (l.match(/', '/g) || []).length >= 2), '貼紙文案 11 句（含動一動的三句）、三種語言齊全');
   const banned = ['漂亮', '好看', '美', '瘦', 'pretty', 'beautiful', 'gorgeous', 'きれい', '可愛'];
   ok(!lines.some((l) => banned.some((w) => l.includes(w))), '只讚做了什麼、選了什麼，不評價長相');
 }
@@ -1616,8 +1617,8 @@ console.log('\n\x1b[1m42. 唇妝的立體感與水潤感\x1b[0m');
   ok(LIP_FX.wet.spot > 0 && LIP_FX.wet.film > 0 && LIP_FX.wet.glow > 0, '水潤感有三層：飽滿處的柔光、整片水膜、果凍透亮');
 
   const gl = readFileSync(new URL('./js/makeup-gl.js', import.meta.url), 'utf8');
-  ok(/float film = clamp\(a \* 3\.0, 0\.0, 1\.0\);\n\s+lin \*= mix\(1\.0, lipShade, film\);\n\s+lin \+= \(uCCMInv \* vec3\(lipSpec\)\) \/ uGain \* film;/.test(gl),
-     '立體與水膜不乘顏料覆蓋率：水光唇釉是透的，但反光不弱');
+  ok(/float film = smoothstep\(0\.08, 0\.35, a\);\n\s+lin \*= mix\(1\.0, lipShade, film\);\n\s+lin \+= \(uCCMInv \* vec3\(lipSpec\)\) \/ uGain \* film;/.test(gl),
+     '立體與水膜不乘顏料覆蓋率（水光唇釉是透的，但反光不弱），但柔邊那一圈不加 —— 光影不會畫到唇外');
   ok(/float spot = smoothstep\(0\.60, 0\.97, hs\);/.test(gl), '主要的亮是唇最飽滿處的一片柔光（像映著一盞大燈），不是一顆顆白點');
   ok(/N\.x \* mix\(1\.0, 0\.35, f\.r\)|Ns\.x \* mix\(1\.0, 0\.35, f\.r\)/.test(gl), '水光的反光往左右拉長（唇左右平、上下彎）');
   ok(/vec3 juicy = /.test(gl) && /mix\(mix\(1\.0, 0\.8, matteW\), 1\.1, f\.r\)/.test(gl), '水光：果凍般中間透亮、邊緣深；霧面：細小明暗壓平（粉霧）');
@@ -1667,9 +1668,54 @@ console.log('\n\x1b[1m43. 唇妝的質感：唇紋、絲絨霧面、水膜填平
   ok(tx.fill <= 0.2 && tx.settle >= 0.1 && tx.settle <= 0.15, '水光把唇紋填到剩兩成以下；霧面顏料卡進紋路深 10–15%');
   const gl = readFileSync(new URL('./js/makeup-gl.js', import.meta.url), 'utf8');
   ok(/sm\(2\.0, 4\.0, lipPx \/ tx\.lines\)/.test(gl), '一條紋在畫面上不到 2 像素就淡掉（低解析度不會變成雜訊白點）');
-  ok(/lipSpec = min\(spec, 1\.0\);/.test(gl), '反光疊起來也不超過 1，不會爆白');
+  ok(/lipSpec = min\(spec, 0\.5\);/.test(gl), '反光疊起來有上限，不會爆白');
   ok(/uVelvet\.x \* pow\(1\.0 - Ns\.z, 2\.0\)/.test(gl) && /uVol \* mix\(1\.0, uVelvet\.y, matteW\)/.test(gl), '絲絨霧面：沒有亮點，只有斜面上的柔光；明暗比水光柔');
   ok(/float ridge = step\(0\.75, dt\.a\)/.test(gl), '上唇唇緣有一道微微隆起的細光（唇形更清楚）');
+}
+
+console.log('\n\x1b[1m44. 唇色不出唇線＋滑動換色＋動一動看看（AR × AI）\x1b[0m');
+{
+  const gl = readFileSync(new URL('./js/makeup-gl.js', import.meta.url), 'utf8');
+  ok(LIP_INSET.clip > 0 && LIP_INSET.clip < 0.03 && /x\.clip\(\);\n\s+x\.filter = \`blur\(\$\{Math\.min\(LIP_EDGE_MAX/.test(gl),
+     '唇色裁在唇線往內一點點的範圍裡，柔邊只往內收（實機錄影：顏色超出嘴的輪廓）');
+  ok(LIP_FX.volume <= 0.5 && LIP_FX.wet.spot <= 0.25 && LIP_FX.gloss.spec <= 0.3, '立體與水光收斂到大約一半（實機看太誇張）');
+
+  // 動作偵測：用一張「假臉」的關鍵點
+  const face = (o = {}) => {
+    const P = Array.from({ length: 468 }, () => ({ x: 0, y: 0 }));
+    const set = (i, x, y) => { P[i] = { x, y }; };
+    set(234, 0, 0); set(454, 100, 0);                        // 臉寬 100
+    set(1, 50 + (o.yaw || 0) * 50, 10);                      // 鼻尖
+    set(61, 35 - (o.smile || 0), 60); set(291, 65 + (o.smile || 0), 60);   // 嘴角
+    set(0, 50, 55); set(17, 50, 55 + (o.lip ?? 14));          // 上唇頂、下唇底
+    return P;
+  };
+  const base = poseMetrics(face());
+  ok(POSE_STEPS.join() === 'smile,turn,press', '三個動作：笑一下 → 轉側臉 → 抿抿嘴');
+  ok(!posePass('smile', poseMetrics(face({ smile: 1 })), base) && posePass('smile', poseMetrics(face({ smile: 3 })), base), '笑：嘴角往外拉寬 10% 才算');
+  ok(!posePass('turn', poseMetrics(face({ yaw: 0.2 })), base) && posePass('turn', poseMetrics(face({ yaw: 0.5 })), base) && posePass('turn', poseMetrics(face({ yaw: -0.5 })), base),
+     '轉側臉：往任一邊轉超過 0.35 才算');
+  ok(!posePass('press', poseMetrics(face({ lip: 12 })), base) && posePass('press', poseMetrics(face({ lip: 9 })), base), '抿嘴：唇厚剩七成以下才算');
+
+  const app = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  ok(/Math\.abs\(dx\) > c\.width \* 0\.12 && Math\.abs\(dx\) > Math\.abs\(dy\) \* 1\.5/.test(app) && /act: 'swipeShade', dir: dx < 0 \? 1 : -1/.test(app),
+     '左右快速一滑換色號（要夠快、夠橫、夠長，不會跟按住看素顏搞混）');
+  ok(/shadeToast\(next, j, list\.length, o\.dir \|\| 1\)/.test(app), '滑動時畫面中間跳出色號名＋第幾支');
+  ok(/if \(now - S\.pose\.since >= POSE_HOLD_MS\) poseDone\(st\);/.test(app), '動作要撐住一下下才算（不會一閃就過）');
+  ok(/cheer\(\{ type: 'pose', step: st \}\)/.test(app) && /poseLine\(st, p\)/.test(app), '每做到一個動作：AI 送貼紙＋講這支在這個角度的樣子');
+  ok(/'adv\.pose\.smile\.' \+ \(p\.tone === 'cool' \|\| p\.tone === 'warm' \? p\.tone : 'neutral'\)/.test(app), '笑：依冷暖調講跟牙齒的關係');
+  ok(/'adv\.pose\.turn\.' \+ \(p\.finish === 'gloss' \? 'gloss' : 'matte'\)/.test(app), '側面：依水光／霧面講不同的樣子');
+  ok(/if \(!S\.posePrompted && S\.tried\.size >= 1 && !S\.yesNo\)/.test(app), 'AI 會主動邀請「動一動看看」（一場一次）');
+  ok(/S\.duel \|\| S\.guide \|\| S\.pose\)\);/.test(app), '動一動時右側按鈕先收起來');
+  ok(['swipeShade', 'poseStart', 'poseSkip', 'poseEnd'].every((a) => ACTS.includes(a) && optEmoji({ act: a })), '新動作都是已知動作、都有符號');
+  const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
+  const has3 = (k) => { const m = dict.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
+  const keys = ['opt.swipeNext', 'opt.swipePrev', 'opt.poseStart', 'opt.poseSkip', 'opt.poseEnd', 'pose.smile', 'pose.turn', 'pose.press', 'banner.pose',
+    'adv.pose.offer', 'adv.pose.start', 'adv.pose.next.turn', 'adv.pose.next.press', 'adv.pose.smile.cool', 'adv.pose.smile.warm', 'adv.pose.smile.neutral',
+    'adv.pose.turn.gloss', 'adv.pose.turn.matte', 'adv.pose.press', 'adv.pose.done', 'adv.pose.end', 'cheer.pose.smile', 'cheer.pose.turn', 'cheer.pose.press'];
+  ok(keys.every(has3), '文案三種語言齊全（' + keys.length + ' 句）');
+  const pl = dict.split(/\r?\n/).filter((l) => /'(adv\.pose|cheer\.pose)\./.test(l));
+  ok(!pl.some((l) => ['漂亮', '好看', '美麗', 'pretty', 'beautiful', 'きれい'].some((w) => l.includes(w))), '動一動的回饋只講顏色與角度，不評價長相');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

@@ -2045,3 +2045,35 @@ body {
   .msg.you .stamp.pop, .frame .host.talking .av::after { animation:none; }
 }
 
+
+/* ── 滑動換色：畫面中間跳出色號名＋一排點 ── */
+.fx .shade-toast {
+  position:absolute; left:50%; top:30%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:4px;
+  padding:10px 18px; border-radius:18px; color:#fff; text-align:center; white-space:nowrap;
+  background:rgba(18,10,14,.42); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+  box-shadow:0 0 0 1px rgba(255,255,255,.22) inset; animation:toastIn 1.6s ease forwards;
+}
+.fx .shade-toast.from-left { animation-name:toastInL; }
+.fx .shade-toast b { display:flex; align-items:center; gap:7px; font-size:16px; letter-spacing:.02em; text-shadow:0 1px 3px rgba(0,0,0,.35); }
+.fx .shade-toast b i { width:16px; height:16px; border-radius:50%; box-shadow:0 0 0 2px #fff; }
+.fx .shade-toast small { font-size:11px; opacity:.85; }
+.fx .shade-toast .dots { display:flex; gap:5px; margin-top:2px; }
+.fx .shade-toast .dots i { width:5px; height:5px; border-radius:50%; background:rgba(255,255,255,.4); }
+.fx .shade-toast .dots i.on { background:#fff; transform:scale(1.3); }
+@keyframes toastIn { 0% { opacity:0; transform:translate(-30%, 0); } 15% { opacity:1; transform:translate(-50%, 0); } 80% { opacity:1; } 100% { opacity:0; transform:translate(-50%, -8px); } }
+@keyframes toastInL { 0% { opacity:0; transform:translate(-70%, 0); } 15% { opacity:1; transform:translate(-50%, 0); } 80% { opacity:1; } 100% { opacity:0; transform:translate(-50%, -8px); } }
+/* ── 動一動看看：鏡子上方的三個動作 ── */
+.fx .posebar {
+  position:absolute; left:50%; top:58px; transform:translateX(-50%); display:flex; gap:6px; padding:5px; border-radius:22px;
+  background:rgba(18,10,14,.42); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); box-shadow:0 0 0 1px rgba(255,255,255,.2) inset;
+}
+.fx .posebar span { display:flex; align-items:center; gap:4px; padding:4px 10px 4px 5px; border-radius:16px; font-weight:700; font-size:11.5px; color:rgba(255,255,255,.7); white-space:nowrap; }
+.fx .posebar span i { width:22px; height:22px; border-radius:50%; display:grid; place-content:center; font-style:normal; font-size:13px; background:rgba(255,255,255,.18); }
+.fx .posebar span.now { color:#fff; background:linear-gradient(90deg, rgba(var(--primary-rgb),.95), rgba(var(--primary-rgb),.6)); animation:poseNow 1.2s ease-in-out infinite; }
+.fx .posebar span.done { color:#fff; }
+.fx .posebar span.done i { background:#7ee0b5; color:#14402e; font-weight:900; }
+@keyframes poseNow { 0%,100% { transform:none; } 50% { transform:scale(1.06); } }
+@media (max-width:560px) { .fx .posebar { top:52px; } .fx .posebar span { font-size:10.5px; padding:3px 8px 3px 4px; } }
+@media (prefers-reduced-motion:reduce) { .fx .shade-toast, .fx .posebar span.now { animation:none; } }
+
+#s4.posing .seg.float, #s4.posing .hist { visibility:hidden; }
