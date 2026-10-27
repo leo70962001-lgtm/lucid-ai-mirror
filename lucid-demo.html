@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <title>LUCID AI Smart Mirror — AI × AR 智慧美妝體驗儀</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!-- 安裝成 App（PWA）：Android / 電腦版 Chrome 讀 manifest；iPhone 讀下面幾個 apple 標籤 -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#c66884">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="LUCID 美妝鏡">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <style>
 /* LUCID AI Smart Mirror — kiosk UI
    版型作法沿用 threejs.org：全部尺寸與顏色走 CSS 變數，
@@ -2085,6 +2094,33 @@ body {
 
 #s4.posing .seg.float, #s4.posing .hist { visibility:hidden; }
 
+/* ── 安裝成 App：第一步下方的邀請、iPhone 的三步驟說明 ── */
+.pwa-invite {
+  position:absolute; left:10px; right:10px; top:10px; z-index:9;
+  display:flex; align-items:center; gap:10px; padding:8px 8px 8px 10px; border-radius:18px;
+  background:rgba(255,255,255,.94); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+  box-shadow:0 10px 28px rgba(var(--primary-rgb),.22), 0 0 0 1px rgba(var(--primary-rgb),.14);
+  animation:pwaIn .4s cubic-bezier(.2,1.2,.4,1) both;
+}
+.pwa-invite img { width:40px; height:40px; border-radius:10px; flex:none; }
+.pwa-invite span { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.pwa-invite b { font-size:13px; color:var(--ink, #3a2a30); }
+.pwa-invite small { font-size:11px; color:var(--ink-3, #8a7a80); }
+.pwa-invite .go { flex:none; border:0; border-radius:14px; padding:8px 12px; font-weight:700; font-size:12px; color:#fff; cursor:pointer;
+  background:linear-gradient(180deg, var(--primary-1), var(--primary-2)); }
+.pwa-invite .x { flex:none; width:26px; height:26px; border:0; border-radius:50%; background:transparent; color:var(--ink-3, #8a7a80); font-size:18px; cursor:pointer; }
+@keyframes pwaIn { from { opacity:0; transform:translateY(-12px); } to { opacity:1; transform:none; } }
+.pwa-guide { position:absolute; inset:0; z-index:60; display:grid; place-items:end center; padding:16px; background:rgba(30,16,22,.45); }
+.pwa-guide .card { width:min(100%, 380px); padding:20px 18px 16px; border-radius:22px; background:#fff; color:var(--ink, #3a2a30);
+  box-shadow:0 20px 50px rgba(0,0,0,.25); animation:pwaIn .35s ease both; text-align:left; }
+.pwa-guide img { width:56px; height:56px; border-radius:14px; display:block; margin:0 auto 8px; }
+.pwa-guide b { display:block; text-align:center; font-size:16px; margin-bottom:8px; }
+.pwa-guide ol { margin:0 0 8px; padding-left:22px; display:grid; gap:6px; font-size:14px; line-height:1.45; }
+.pwa-guide .note { font-size:11.5px; color:var(--ink-3, #8a7a80); margin:6px 0 12px; }
+.pwa-guide button { width:100%; border:0; border-radius:14px; padding:11px; font-weight:700; color:#fff; cursor:pointer;
+  background:linear-gradient(180deg, var(--primary-1), var(--primary-2)); }
+@media (prefers-reduced-motion:reduce) { .pwa-invite, .pwa-guide .card { animation:none; } }
+
 </style>
 </head>
 <body>
@@ -2663,6 +2699,26 @@ const DICT = {
   'banner.duel': ['命定色出爐：{shade}', 'Your shade: {shade}', '運命の色：{shade}'],
   'banner.snap': ['拍好了！最後一頁可以存', 'Snapped! Save it on the last page', '撮れました！最後のページで保存'],
   'banner.guide': ['跟著畫完了，好厲害', 'All steps done — nicely done', '全ステップ完了！'],
+  // 安裝成 App（PWA）
+  'pwa.title': ['安裝成 App', 'INSTALL AS APP', 'アプリとしてインストール'],
+  'pwa.install': ['安裝到主畫面', 'Add to Home Screen', 'ホーム画面に追加'],
+  'pwa.go': ['安裝', 'Install', 'インストール'],
+  'pwa.later': ['之後再說', 'Not now', 'あとで'],
+  'pwa.ok': ['知道了', 'Got it', 'わかりました'],
+  'pwa.invite.t': ['把 LUCID 美妝鏡加到主畫面', 'Add LUCID Mirror to your Home Screen', 'LUCID ミラーをホーム画面に'],
+  'pwa.invite.s': ['像 App 一樣一點就開，沒網路也能用', 'Opens like an app — works offline too', 'アプリのようにすぐ開けて、オフラインでも使えます'],
+  'pwa.st.installed': ['已安裝 —— 從主畫面打開就是 App', 'Installed — open it from your Home Screen', 'インストール済み —— ホーム画面から開けます'],
+  'pwa.st.prompt': ['這個瀏覽器可以直接安裝', 'This browser can install it directly', 'このブラウザでそのままインストールできます'],
+  'pwa.st.ios': ['iPhone / iPad：用 Safari 的「分享 → 加入主畫面」安裝', 'iPhone / iPad: install via Safari “Share → Add to Home Screen”', 'iPhone / iPad：Safari の「共有 → ホーム画面に追加」で'],
+  'pwa.st.inapp': ['你現在在 LINE / Facebook 的內建瀏覽器裡，要先用 Safari 或 Chrome 開啟才能安裝', 'You’re in an in-app browser (LINE / Facebook) — open in Safari or Chrome to install', 'LINE / Facebook の内蔵ブラウザです。Safari か Chrome で開くとインストールできます'],
+  'pwa.st.none': ['這個瀏覽器不支援安裝；用 Chrome、Edge 或 iPhone 的 Safari 開啟就可以', 'This browser can’t install apps — use Chrome, Edge, or Safari on iPhone', 'このブラウザは非対応です。Chrome・Edge・iPhone の Safari で開いてください'],
+  'pwa.offline': ['安裝後第一次打開會把臉部模型存在裝置裡（約 25 MB），之後沒網路也能拍照、試妝。相機一樣要允許。', 'The first launch saves the face models on the device (~25 MB); after that it works offline. Camera permission is still needed.', '初回起動時に顔モデル（約 25 MB）を端末に保存し、以降はオフラインでも使えます。カメラの許可は必要です。'],
+  'pwa.guide.title': ['加到主畫面，跟著做', 'Add to Home Screen', 'ホーム画面に追加する手順'],
+  'pwa.ios.1': ['點 Safari 下方（或上方）的「分享」按鈕 ⬆️', 'Tap Safari’s Share button ⬆️', 'Safari の「共有」ボタン ⬆️ をタップ'],
+  'pwa.ios.2': ['往下滑，選「加入主畫面」➕', 'Scroll down and choose “Add to Home Screen” ➕', '下にスクロールして「ホーム画面に追加」➕'],
+  'pwa.ios.3': ['右上角點「加入」—— 主畫面就會出現 LUCID 美妝鏡', 'Tap “Add” — LUCID Mirror appears on your Home Screen', '右上の「追加」—— ホーム画面に LUCID ミラーが表示されます'],
+  'pwa.inapp.1': ['點右上角的「⋯」', 'Tap “⋯” at the top right', '右上の「⋯」をタップ'],
+  'pwa.inapp.2': ['選「用 Safari 開啟」（Android 選「用 Chrome 開啟」）', 'Choose “Open in Safari” (Android: “Open in Chrome”)', '「Safari で開く」（Android は「Chrome で開く」）'],
   // 滑動換色、動一動看看
   'opt.swipeNext': ['滑到下一支', 'Swipe to next', '次の色へ'],
   'opt.swipePrev': ['滑回上一支', 'Swipe back', '前の色へ'],
@@ -5099,6 +5155,69 @@ function posePass(step, m, base) {
   if (step === 'turn') return Math.abs(m.yaw - base.yaw) > 0.35;
   if (step === 'press') return m.lh < base.lh * 0.72;
   return false;
+}
+
+
+/* ═══ js/pwa.js ═══ */
+/**
+ * 安裝成 App（PWA）：註冊 service worker、接住瀏覽器的安裝提示、判斷該教使用者怎麼裝。
+ *
+ * 各平台不一樣：
+ *   Android Chrome、電腦版 Chrome / Edge —— 瀏覽器會給一個「可以安裝」的事件，按鈕直接跳出系統的安裝視窗
+ *   iPhone / iPad Safari —— 沒有這個事件，只能教：分享 → 加入主畫面
+ *   LINE、Facebook、Instagram 的內建瀏覽器 —— 不能安裝，要先用 Safari / Chrome 開
+ *   已經裝好、從主畫面打開 —— 什麼都不顯示
+ * 畫面（按鈕、說明）在 app.js；這裡只管狀態。
+ */
+let deferred = null;
+let listener = null;
+
+const isStandalone = () =>
+  !!(globalThis.matchMedia?.('(display-mode: standalone)').matches || globalThis.navigator?.standalone === true);
+const isIOS = (ua = globalThis.navigator?.userAgent || '', touch = globalThis.navigator?.maxTouchPoints || 0) =>
+  /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && touch > 1);      // iPadOS 13 以後自稱 Mac
+const isInApp = (ua = globalThis.navigator?.userAgent || '') => /\bLine\/|FBAN|FBAV|Instagram|MicroMessenger/i.test(ua);
+
+/**
+ * 現在該顯示什麼：
+ *   'installed' 已安裝  'prompt' 可以直接跳安裝視窗  'inapp' 要先換瀏覽器  'ios' 教加入主畫面  'none' 這個瀏覽器不支援
+ */
+function pwaState(env = {}) {
+  const { standalone = isStandalone(), ua, touch, prompt = !!deferred } = env;
+  if (standalone) return 'installed';
+  if (prompt) return 'prompt';
+  if (isInApp(ua)) return 'inapp';
+  if (isIOS(ua, touch)) return 'ios';
+  return 'none';
+}
+
+/** 開機時呼叫一次。onChange：可安裝狀態變了（瀏覽器說可以裝了、裝好了）就通知畫面重畫 */
+function initPWA(onChange) {
+  listener = onChange;
+  const nav = globalThis.navigator;
+  if (!nav || !('serviceWorker' in nav) || location.protocol === 'file:') return false;
+  if (/\/_[^/]*\.html$/.test(location.pathname)) return false;     // 測試頁、量測台不註冊
+  nav.serviceWorker.register('sw.js').catch(() => { /* 沒有 sw.js（例如單檔版）就當一般網頁 */ });
+  // 第一次打開時，模型與 WASM 在 service worker 接手之前就載完了 —— 不補存的話要第二次打開才離線可用。
+  // 開機完成後把「剛剛載過的大檔」清單交給它，它從瀏覽器的快取裡補存一份。
+  nav.serviceWorker.ready.then((reg) => {
+    const urls = (globalThis.performance?.getEntriesByType?.('resource') || [])
+      .map((e) => e.name).filter((u) => u.startsWith(location.origin) && /\/(vendor|models)\//.test(u));
+    reg.active?.postMessage({ type: 'warm', urls: [...new Set(urls)] });
+  }).catch(() => {});
+  addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; listener?.(); });
+  addEventListener('appinstalled', () => { deferred = null; listener?.(); });
+  return true;
+}
+
+/** 跳出系統的安裝視窗（只有 'prompt' 狀態有用）。回傳使用者有沒有按安裝 */
+async function promptInstall() {
+  const e = deferred; if (!e) return false;
+  deferred = null;
+  e.prompt();
+  const r = await e.userChoice.catch(() => null);
+  listener?.();
+  return r?.outcome === 'accepted';
 }
 
 
@@ -8664,6 +8783,7 @@ const isReady = () => !!landmarker;
 
 
 
+
 // 顯示端校色：把「想讓顧客看到的顏色」換成「要送給這台螢幕的碼值」。
 // 沒有校正資料時原樣回傳，所以未校正的機台一切照舊。
 // 校正資料由 _calib.html 量測擬合後寫入 localStorage。
@@ -8807,6 +8927,7 @@ function mountSettings() {
   box.appendChild(shapes);
   box.appendChild(el('p', 'note', t('set.note')));
   mountCalSettings(box);
+  mountPwaSettings(box);
   btn.onclick = () => { box.hidden = !box.hidden; btn.classList.toggle('on', !box.hidden); };
   // 這次可能量不準：齒輪上亮一個小點，提醒設定裡有東西可以處理
   btn.classList.toggle('alert', S.color?.level === 'needed' || S.color?.level === 'suggest');
@@ -8851,6 +8972,58 @@ function mountCalSettings(box) {
   tr.appendChild(el('p', 'cal-st ' + (trendStale() ? 'suggest' : 'ok'),
                     t(trendStale() ? 'set.trend.old' : 'set.trend.ok', { pack: TREND_PACK, n: TRENDS.length })));
   box.appendChild(tr);
+}
+
+/* ── 安裝成 App（PWA） ─────────────────────────────────────
+   狀態在 js/pwa.js；這裡是畫面：設定面板的一個區塊、第一步下方的一次性邀請、iPhone 的「加入主畫面」說明。 */
+function mountPwaSettings(box) {
+  const st = pwaState();
+  const sec = el('div', 'cal pwa'); sec.id = 'set-pwa';
+  sec.appendChild(el('h4', '', t('pwa.title')));
+  sec.appendChild(el('p', 'cal-st ' + (st === 'installed' ? 'ok' : 'none'), t('pwa.st.' + st)));
+  if (st === 'prompt' || st === 'ios' || st === 'inapp') {
+    const b = el('button', 'cal-btn hot', '📲 ' + t('pwa.install'));
+    b.onclick = () => pwaInstall();
+    sec.appendChild(b);
+  }
+  sec.appendChild(el('p', 'note', t('pwa.offline')));
+  box.appendChild(sec);
+}
+async function pwaInstall() {
+  const st = pwaState();
+  if (st === 'prompt') { await promptInstall(); mountSettings(); $('#pwa-invite')?.remove(); return; }
+  if (st === 'ios' || st === 'inapp') pwaGuide(st);
+}
+/** iPhone：瀏覽器不能幫你按，所以一步一步教；在 LINE / FB 裡要先換成 Safari */
+function pwaGuide(st) {
+  $('#pwa-guide')?.remove();
+  const steps = st === 'inapp' ? ['pwa.inapp.1', 'pwa.inapp.2', 'pwa.ios.2', 'pwa.ios.3'] : ['pwa.ios.1', 'pwa.ios.2', 'pwa.ios.3'];
+  const g = el('div', 'pwa-guide');
+  g.id = 'pwa-guide';
+  g.setAttribute('role', 'dialog');
+  g.innerHTML = `<div class="card"><img src="icons/apple-touch-icon.png" alt=""><b>${t('pwa.guide.title')}</b>
+    <ol>${steps.map((k) => `<li>${t(k)}</li>`).join('')}</ol><p class="note">${t('pwa.offline')}</p>
+    <button type="button">${t('pwa.ok')}</button></div>`;
+  g.onclick = (e) => { if (e.target === g || e.target.tagName === 'BUTTON') g.remove(); };
+  $('#mirror').appendChild(g);
+}
+/** 第一步下方的邀請：可以裝、還沒裝、沒關掉過才出現 */
+function pwaInvite() {
+  const st = pwaState();
+  const old = $('#pwa-invite');
+  if (S.step !== 1 || readPref('lucid.pwa.hide', '') || !['prompt', 'ios', 'inapp'].includes(st)) { old?.remove(); return; }
+  if (old) return;
+  const v = el('div', 'pwa-invite');
+  v.id = 'pwa-invite';
+  v.innerHTML = `<img src="icons/icon-192.png" alt=""><span><b>${t('pwa.invite.t')}</b><small>${t('pwa.invite.s')}</small></span>`;
+  const go2 = el('button', 'go', t('pwa.go'));
+  go2.type = 'button';
+  go2.onclick = () => pwaInstall();
+  const x = el('button', 'x', '×');
+  x.type = 'button'; x.setAttribute('aria-label', t('pwa.later'));
+  x.onclick = () => { savePref('lucid.pwa.hide', '1'); v.remove(); };
+  v.append(go2, x);
+  ($('#s1 > .frame') || $('#s1'))?.appendChild(v);   // 放在相機框的上緣：不擋拍照鈕，也不會跑出畫面
 }
 
 /** 從對話打開設定並捲到指定區塊 */
@@ -8943,6 +9116,9 @@ function mountLang() {
 
   $('#boot').classList.add('gone');
   go(1);
+  // 安裝成 App：註冊 service worker；可以裝的時候在第一步下方邀請一次（關掉就不再出現）
+  initPWA(() => { mountSettings(); pwaInvite(); });
+  setTimeout(pwaInvite, 4000);
 })();
 
 function setBoot(msg) { $('#boot-msg').textContent = msg; }
