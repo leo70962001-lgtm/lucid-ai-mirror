@@ -17,6 +17,7 @@
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join, dirname, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -27,7 +28,7 @@ const B = (p) => readFileSync(join(ROOT, p));
 const KB = (n) => (n / 1024).toFixed(0) + ' KB';
 const MB = (n) => (n / 1048576).toFixed(2) + ' MB';
 
-const MODULES = ['js/i18n.js', 'js/products.js', 'js/context.js', 'js/analysis.js', 'js/season.js', 'js/lipcolor.js', 'js/trends.js', 'js/routine.js', 'js/skincond.js', 'js/duel.js', 'js/fit.js', 'js/live.js', 'js/learn.js', 'js/advisor.js', 'js/emoji.js', 'js/gender.js', 'js/chart.js', 'js/faceshape.js', 'js/face-mesh.js', 'js/makeup.js',
+const MODULES = ['js/i18n.js', 'js/products.js', 'js/context.js', 'js/analysis.js', 'js/season.js', 'js/lipcolor.js', 'js/trends.js', 'js/routine.js', 'js/skincond.js', 'js/duel.js', 'js/fit.js', 'js/live.js', 'js/pwa.js', 'js/learn.js', 'js/advisor.js', 'js/emoji.js', 'js/gender.js', 'js/chart.js', 'js/faceshape.js', 'js/face-mesh.js', 'js/makeup.js',
                  'js/makeup-gl.js', 'js/calib.js', 'js/selftest-face.js', 'js/face.js', 'js/app.js'];
 const CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 const FA_CDN = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15';
@@ -233,7 +234,9 @@ const siteFiles = ['index.html', 'main.css', 'models/face_landmarker.task',
   // 假鏡頭測試頁要用的那張臉 —— 沒複製進來的話，線上版的 _camtest.html 會直接相機錯誤
   'images/_source/face_e1tw71e1tw71e1tw.jpg',
   // _chart.html?sim= 與 _camtest.html?chart= 的假鏡頭（有色卡的畫面）
-  'tools/camtest-shim.js'];
+  'tools/camtest-shim.js',
+  // 安裝成 App（PWA）：manifest 與圖示
+  'manifest.webmanifest', ...(existsSync(join(ROOT, 'icons')) ? readdirSync(join(ROOT, 'icons')).map((f) => join('icons', f)) : [])];
 for (const f of siteFiles) if (copy(f)) n++;
 writeFileSync(join(SITE, 'images', 'products', 'index.json'),
               JSON.stringify(Object.keys(images).map((id) => id + '.png')));
@@ -241,6 +244,21 @@ n++;
 
 const sizeOf = (d) => readdirSync(d, { withFileTypes: true })
   .reduce((s, e) => s + (e.isDirectory() ? sizeOf(join(d, e.name)) : statSync(join(d, e.name)).size), 0);
+// service worker：VERSION 換成所有檔案內容的雜湊（任何檔案改了，裝好的 App 下次打開就會更新），
+// SHELL 換成安裝時先存起來的清單（頁面、程式、商品照、圖示；模型與 WASM 等第一次用到再存）
+{
+  const pub = siteFiles.filter((f) => existsSync(join(SITE, f)) && !/^_|^tools[\\/]|^images[\\/]_source/.test(f));
+  const h = createHash('sha1');
+  for (const f of pub.slice().sort()) h.update(f).update(readFileSync(join(SITE, f)));
+  const version = h.digest('hex').slice(0, 12);
+  const shell = ['./', ...pub.filter((f) => !/^(vendor|models)[\\/]/.test(f)).map((f) => f.replace(/\\/g, '/')), 'images/products/index.json'];
+  const sw = R('sw.js').replace("const VERSION = 'dev';", `const VERSION = '${version}';`)
+                       .replace('const SHELL = [];           // 建置時填入', `const SHELL = ${JSON.stringify(shell)};`);
+  if (sw.includes("'dev'") && !sw.includes(version)) throw new Error('sw.js 版本沒有換到');
+  writeFileSync(join(SITE, 'sw.js'), sw);
+  n++;
+  console.log(`\n[PWA] sw.js 版本 ${version}，安裝時先存 ${shell.length} 個檔案；模型與 WASM 第一次用到再存`);
+}
 console.log(`\n[2] 靜態站台　dist/site/　${n} 個檔案，${MB(sizeOf(SITE))}`);
 console.log('    整包丟上任何 HTTPS 靜態空間，或用 start.bat 在本機開 —— 這兩條路相機才能用。');
 console.log('    站台同樣不依賴 CDN，離線的內網機台也能跑。');

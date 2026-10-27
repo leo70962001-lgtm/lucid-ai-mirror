@@ -8,13 +8,14 @@ import { LOOKS, PRODUCTS, resolveLook, toneLabel } from './js/products.js';
 import { PATCHES, fitDisplay, correctRgb, xyzToLab, simulateDisplay, SRGB_PANEL } from './js/calib.js';
 import { pressureLevel, applyPressure, lipShape, lipHeight, lipOcclusion, lipDetail, LIP_FX } from './js/makeup-gl.js';
 import { FACE_SHAPES, PROTOTYPES, CELEBS, classifyFace, faceLookBonus, faceReasonFor } from './js/faceshape.js';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { lineEmoji, optEmoji } from './js/emoji.js';
 import { audienceFromPrediction, faceCropBox, GENDER_MIN_PROB } from './js/gender.js';
 import { skinCondition, skinCondTop, skinCondLines, scLevel, SC_LEVELS } from './js/skincond.js';
 import { faceFit } from './js/fit.js';
 import { pickSurprise, newCheer, cheerFor, CHEER_GAP_MS, GIFT_AR_MS, FIT_MAX, aiReactFor, POSE_STEPS, poseMetrics, posePass } from './js/live.js';
 import { LIP_INSET } from './js/makeup-gl.js';
+import { pwaState, isIOS, isInApp } from './js/pwa.js';
 import { nextDuel, duelSides, duelLines, duelOpts, duelPicked, DUEL_AXES } from './js/duel.js';
 import { buildRoutine, stepLines, stepOpts, routineRecap } from './js/routine.js';
 import { TRENDS, TREND_PACK, TREND_STALE_DAYS, trendsFor, trendPlan, trendPick, trendLines,
@@ -1716,6 +1717,57 @@ console.log('\n\x1b[1m44. 唇色不出唇線＋滑動換色＋動一動看看（
   ok(keys.every(has3), '文案三種語言齊全（' + keys.length + ' 句）');
   const pl = dict.split(/\r?\n/).filter((l) => /'(adv\.pose|cheer\.pose)\./.test(l));
   ok(!pl.some((l) => ['漂亮', '好看', '美麗', 'pretty', 'beautiful', 'きれい'].some((w) => l.includes(w))), '動一動的回饋只講顏色與角度，不評價長相');
+}
+
+console.log('\n\x1b[1m45. 可以下載的網路 App（PWA）：安裝到主畫面、離線也能開\x1b[0m');
+{
+  const m = JSON.parse(readFileSync(new URL('./manifest.webmanifest', import.meta.url), 'utf8'));
+  ok(m.name && m.short_name && m.display === 'standalone' && m.start_url === './index.html' && m.scope === './' && /^#/.test(m.theme_color),
+     'manifest：名稱、獨立視窗（像 App，沒有網址列）、從 index.html 開始、相對路徑（放在 GitHub Pages 子資料夾也能用）');
+  const sizes = m.icons.map((i) => i.sizes + ':' + i.purpose);
+  ok(sizes.includes('192x192:any') && sizes.includes('512x512:any') && sizes.includes('512x512:maskable'), '圖示：192、512、Android 自適應（maskable）');
+  const dim = (f) => { const b = readFileSync(new URL('./icons/' + f, import.meta.url)); return b.readUInt32BE(16) + 'x' + b.readUInt32BE(20); };
+  ok(dim('icon-192.png') === '192x192' && dim('icon-512.png') === '512x512' && dim('icon-maskable-512.png') === '512x512' && dim('apple-touch-icon.png') === '180x180',
+     '圖示檔的尺寸跟 manifest 寫的一樣（含 iPhone 的 180）');
+  const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  ok(/<link rel="manifest" href="manifest\.webmanifest">/.test(html) && /apple-touch-icon/.test(html) && /apple-mobile-web-app-capable/.test(html) && /name="theme-color"/.test(html),
+     '頁面掛上 manifest，以及 iPhone 需要的圖示與全螢幕標籤');
+
+  const sw = readFileSync(new URL('./sw.js', import.meta.url), 'utf8');
+  ok(/const VERSION = 'dev';/.test(sw) && /if \(VERSION === 'dev' \|\| req\.method !== 'GET'\) return;/.test(sw), '原始碼的 sw.js 是開發版：什麼都不存，改程式不會被快取卡住');
+  ok(/BIG\.test\(url\.pathname\) \? cacheFirst\(req\) : networkFirst\(req\)/.test(sw), '程式與頁面先上網拿最新的（不會新 html 配舊 js），模型與圖片先用存的');
+  ok(/k\.startsWith\('lucid-'\) && k !== CACHE/.test(sw), '改版時刪掉舊版的快取');
+  ok(/type !== 'warm'/.test(sw), '開機後補存剛載過的模型與 WASM —— 第一次打開之後就能離線');
+  const built = new URL('./dist/site/sw.js', import.meta.url);
+  if (existsSync(built)) {
+    const b = readFileSync(built, 'utf8');
+    const ver = /const VERSION = '([0-9a-f]{12})';/.exec(b)?.[1];
+    const shell = JSON.parse(/const SHELL = (\[.*?\]);/.exec(b)?.[1] || '[]');
+    ok(!!ver, '建置出來的 sw.js 版本換成檔案內容的雜湊（' + ver + '）：改了任何檔案，裝好的 App 下次打開就更新');
+    ok(['index.html', 'js/app.js', 'js/pwa.js', 'manifest.webmanifest', 'icons/icon-192.png', 'images/products/index.json'].every((f) => shell.includes(f))
+       && !shell.some((f) => /^(vendor|models)\/|^_|\\/.test(f)), '安裝時先存頁面、程式、商品照、圖示（' + shell.length + ' 個）；大型模型第一次用到再存；路徑都是 /');
+  }
+
+  ok(pwaState({ standalone: true }) === 'installed', '從主畫面打開：不再邀請安裝');
+  ok(pwaState({ standalone: false, prompt: true }) === 'prompt', 'Android / 電腦版 Chrome：直接跳系統的安裝視窗');
+  const iphone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+  ok(pwaState({ standalone: false, prompt: false, ua: iphone, touch: 5 }) === 'ios', 'iPhone Safari：教「分享 → 加入主畫面」');
+  ok(isIOS('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1.15', 5) && !isIOS('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 0),
+     'iPad（自稱 Mac 但有觸控）也算 iOS；真的 Mac 不算');
+  ok(pwaState({ standalone: false, prompt: false, ua: iphone + ' Line/14.0.0', touch: 5 }) === 'inapp' && isInApp('... FBAN/FBIOS ...') && isInApp('... Instagram 300 ...'),
+     'LINE / Facebook / Instagram 內建瀏覽器：先教換成 Safari / Chrome');
+  ok(pwaState({ standalone: false, prompt: false, ua: 'Mozilla/5.0 (Windows NT 10.0) Gecko/20100101 Firefox/130.0', touch: 0 }) === 'none', '不支援安裝的瀏覽器：說明要用哪個瀏覽器');
+
+  const pwa = readFileSync(new URL('./js/pwa.js', import.meta.url), 'utf8');
+  ok(/location\.protocol === 'file:'/.test(pwa) && /\\\/_\[\^\/\]\*\\\.html\$/.test(pwa), '單檔版（file://）與測試頁不註冊');
+  const app = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  ok(/readPref\('lucid\.pwa\.hide', ''\)/.test(app) && /savePref\('lucid\.pwa\.hide', '1'\)/.test(app), '邀請關掉就不再出現');
+  ok(/st === 'inapp' \? \['pwa\.inapp\.1', 'pwa\.inapp\.2', 'pwa\.ios\.2', 'pwa\.ios\.3'\]/.test(app), '在 LINE 裡：先換瀏覽器，再加入主畫面');
+  const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
+  const has3 = (k) => { const l = dict.split(/\r?\n/).find((x) => x.trimStart().startsWith("'" + k + "':")); return !!l && (l.match(/', '/g) || []).length >= 2; };
+  const keys = ['pwa.title', 'pwa.install', 'pwa.go', 'pwa.later', 'pwa.ok', 'pwa.invite.t', 'pwa.invite.s', 'pwa.st.installed', 'pwa.st.prompt', 'pwa.st.ios', 'pwa.st.inapp', 'pwa.st.none',
+    'pwa.offline', 'pwa.guide.title', 'pwa.ios.1', 'pwa.ios.2', 'pwa.ios.3', 'pwa.inapp.1', 'pwa.inapp.2'];
+  ok(keys.every(has3), '文案三種語言齊全（' + keys.length + ' 句）');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

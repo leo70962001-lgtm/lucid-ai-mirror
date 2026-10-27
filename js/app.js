@@ -37,6 +37,7 @@ import { buildRoutine, stepLines, stepOpts, routineRecap } from './routine.js';
 import { skinCondition, skinCondTop, skinCondLines } from './skincond.js';
 import { nextDuel, duelLines, duelOpts, duelPicked } from './duel.js';
 import { faceFit } from './fit.js';
+import { initPWA, pwaState, promptInstall } from './pwa.js';
 import { pickSurprise, newCheer, cheerFor, aiReactFor, POSE_STEPS, POSE_EMO, POSE_HOLD_MS, poseMetrics, posePass } from './live.js';
 import { findHairline, faceFeatures, classifyFace, faceLookBonus, faceReasonFor } from './faceshape.js';
 import { lineEmoji, optEmoji } from './emoji.js';
@@ -187,6 +188,7 @@ function mountSettings() {
   box.appendChild(shapes);
   box.appendChild(el('p', 'note', t('set.note')));
   mountCalSettings(box);
+  mountPwaSettings(box);
   btn.onclick = () => { box.hidden = !box.hidden; btn.classList.toggle('on', !box.hidden); };
   // 這次可能量不準：齒輪上亮一個小點，提醒設定裡有東西可以處理
   btn.classList.toggle('alert', S.color?.level === 'needed' || S.color?.level === 'suggest');
@@ -231,6 +233,58 @@ function mountCalSettings(box) {
   tr.appendChild(el('p', 'cal-st ' + (trendStale() ? 'suggest' : 'ok'),
                     t(trendStale() ? 'set.trend.old' : 'set.trend.ok', { pack: TREND_PACK, n: TRENDS.length })));
   box.appendChild(tr);
+}
+
+/* ── 安裝成 App（PWA） ─────────────────────────────────────
+   狀態在 js/pwa.js；這裡是畫面：設定面板的一個區塊、第一步下方的一次性邀請、iPhone 的「加入主畫面」說明。 */
+function mountPwaSettings(box) {
+  const st = pwaState();
+  const sec = el('div', 'cal pwa'); sec.id = 'set-pwa';
+  sec.appendChild(el('h4', '', t('pwa.title')));
+  sec.appendChild(el('p', 'cal-st ' + (st === 'installed' ? 'ok' : 'none'), t('pwa.st.' + st)));
+  if (st === 'prompt' || st === 'ios' || st === 'inapp') {
+    const b = el('button', 'cal-btn hot', '📲 ' + t('pwa.install'));
+    b.onclick = () => pwaInstall();
+    sec.appendChild(b);
+  }
+  sec.appendChild(el('p', 'note', t('pwa.offline')));
+  box.appendChild(sec);
+}
+async function pwaInstall() {
+  const st = pwaState();
+  if (st === 'prompt') { await promptInstall(); mountSettings(); $('#pwa-invite')?.remove(); return; }
+  if (st === 'ios' || st === 'inapp') pwaGuide(st);
+}
+/** iPhone：瀏覽器不能幫你按，所以一步一步教；在 LINE / FB 裡要先換成 Safari */
+function pwaGuide(st) {
+  $('#pwa-guide')?.remove();
+  const steps = st === 'inapp' ? ['pwa.inapp.1', 'pwa.inapp.2', 'pwa.ios.2', 'pwa.ios.3'] : ['pwa.ios.1', 'pwa.ios.2', 'pwa.ios.3'];
+  const g = el('div', 'pwa-guide');
+  g.id = 'pwa-guide';
+  g.setAttribute('role', 'dialog');
+  g.innerHTML = `<div class="card"><img src="icons/apple-touch-icon.png" alt=""><b>${t('pwa.guide.title')}</b>
+    <ol>${steps.map((k) => `<li>${t(k)}</li>`).join('')}</ol><p class="note">${t('pwa.offline')}</p>
+    <button type="button">${t('pwa.ok')}</button></div>`;
+  g.onclick = (e) => { if (e.target === g || e.target.tagName === 'BUTTON') g.remove(); };
+  $('#mirror').appendChild(g);
+}
+/** 第一步下方的邀請：可以裝、還沒裝、沒關掉過才出現 */
+function pwaInvite() {
+  const st = pwaState();
+  const old = $('#pwa-invite');
+  if (S.step !== 1 || readPref('lucid.pwa.hide', '') || !['prompt', 'ios', 'inapp'].includes(st)) { old?.remove(); return; }
+  if (old) return;
+  const v = el('div', 'pwa-invite');
+  v.id = 'pwa-invite';
+  v.innerHTML = `<img src="icons/icon-192.png" alt=""><span><b>${t('pwa.invite.t')}</b><small>${t('pwa.invite.s')}</small></span>`;
+  const go2 = el('button', 'go', t('pwa.go'));
+  go2.type = 'button';
+  go2.onclick = () => pwaInstall();
+  const x = el('button', 'x', '×');
+  x.type = 'button'; x.setAttribute('aria-label', t('pwa.later'));
+  x.onclick = () => { savePref('lucid.pwa.hide', '1'); v.remove(); };
+  v.append(go2, x);
+  ($('#s1 > .frame') || $('#s1'))?.appendChild(v);   // 放在相機框的上緣：不擋拍照鈕，也不會跑出畫面
 }
 
 /** 從對話打開設定並捲到指定區塊 */
@@ -323,6 +377,9 @@ function mountLang() {
 
   $('#boot').classList.add('gone');
   go(1);
+  // 安裝成 App：註冊 service worker；可以裝的時候在第一步下方邀請一次（關掉就不再出現）
+  initPWA(() => { mountSettings(); pwaInvite(); });
+  setTimeout(pwaInvite, 4000);
 })();
 
 function setBoot(msg) { $('#boot-msg').textContent = msg; }

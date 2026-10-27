@@ -1,0 +1,20 @@
+{
+  "name": "LUCID AI Smart Mirror — AI × AR 智慧美妝鏡",
+  "short_name": "LUCID 美妝鏡",
+  "description": "AI 膚色分析、季節色、AR 即時試妝與美妝顧問。安裝後從主畫面一點就開，模型存在手機裡，沒網路也能用。",
+  "lang": "zh-Hant",
+  "id": "./",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#fbf3f5",
+  "theme_color": "#c66884",
+  "categories": ["beauty", "lifestyle", "shopping"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

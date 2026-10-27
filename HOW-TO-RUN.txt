@@ -96,3 +96,10 @@ LUCID AI Smart Mirror — 怎麼執行
   輪廓本身就飄掉               → 臉部偵測的問題
 
 截圖給我就能定位。
+
+【安裝成手機 App（PWA）】
+用手機打開網址：https://leo70962001-lgtm.github.io/lucid-ai-mirror/
+  Android Chrome：畫面上方出現「把 LUCID 美妝鏡加到主畫面」→ 按「安裝」
+  iPhone Safari：按「安裝」看說明 —— 分享 → 加入主畫面 → 加入
+  在 LINE 裡打開的：先點右上角「⋯」→ 用 Safari / Chrome 開啟，再加入主畫面
+裝好之後從主畫面打開，第一次會把模型存在手機裡（約 25 MB），之後沒網路也能用。

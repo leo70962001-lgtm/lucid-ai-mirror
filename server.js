@@ -6,14 +6,17 @@ const http = require('http');
 const fs   = require('fs');
 const path = require('path');
 
-const PORT = Number(process.env.PORT) || 5173;
-const ROOT = __dirname;
+// node server.js [--root dist/site] [--port 5174]：--root 可以直接跑建置好的站台（測安裝成 App、離線用）
+const arg = (k) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : null; };
+const PORT = Number(arg('--port') || process.env.PORT) || 5173;
+const ROOT = arg('--root') ? path.resolve(__dirname, arg('--root')) : __dirname;
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css':  'text/css; charset=utf-8',
   '.js':   'text/javascript; charset=utf-8',
   '.mjs':  'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.task': 'application/octet-stream',
   '.wasm': 'application/wasm',
   '.png':  'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.mp4': 'video/mp4',
