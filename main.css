@@ -2104,3 +2104,47 @@ body {
 .pwa-guide button { width:100%; border:0; border-radius:14px; padding:11px; font-weight:700; color:#fff; cursor:pointer;
   background:linear-gradient(180deg, var(--primary-1), var(--primary-2)); }
 @media (prefers-reduced-motion:reduce) { .pwa-invite, .pwa-guide .card { animation:none; } }
+
+/* ── 問 AI：快速回覆列最前面一顆；打開後是標籤＋輸入框（一樣是直播留言的深色半透明） ── */
+.asker { display:flex; flex-direction:column; gap:6px; flex:none; pointer-events:auto; }
+.qa-tags { display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; }
+.qa-tags::-webkit-scrollbar { display:none; }
+.qa-tags button { flex:none; padding:5px 10px; border:0; border-radius:14px; font-size:12px; font-weight:700; color:#fff; white-space:nowrap; cursor:pointer;
+  background:rgba(18,10,14,.5); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); box-shadow:0 0 0 1px rgba(255,255,255,.2) inset; }
+.qa-form { display:flex; gap:6px; align-items:center; }
+.qa-input { flex:1; min-width:0; height:38px; padding:0 14px; border:0; border-radius:19px; background:rgba(255,255,255,.95); color:#3a2a30; font-size:16px; outline:none;
+  box-shadow:0 0 0 2px rgba(var(--primary-rgb),.5); }
+.qa-form .send { flex:none; height:38px; padding:0 14px; border:0; border-radius:19px; color:#fff; font-weight:700; cursor:pointer; background:linear-gradient(180deg, var(--primary-1), var(--primary-2)); }
+.qa-form .close { flex:none; width:30px; height:30px; border:0; border-radius:50%; color:#fff; font-size:17px; cursor:pointer; background:rgba(18,10,14,.5); }
+/* ── 最後一頁：前後對比、過程、指南；商品收在最下面 ── */
+.fin { margin:0 0 18px; }
+.fin > h3 { margin:0 0 8px; font-size:15px; color:var(--ink, #3a2a30); }
+.fin > p, .fin > small { display:block; margin:6px 0 8px; font-size:12px; color:var(--ink-3); }
+.bax { --x:50%; position:relative; width:min(100%, 420px); margin:0 auto; aspect-ratio:4 / 5; border-radius:18px; overflow:hidden; background:#1b1216; }
+.bax canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.bax #ba-after { clip-path:inset(0 0 0 var(--x)); }
+.bax .grip { position:absolute; top:0; bottom:0; left:var(--x); width:2px; margin-left:-1px; background:#fff; box-shadow:0 0 6px rgba(0,0,0,.4); pointer-events:none; }
+.bax .grip::after { content:'↔'; position:absolute; top:50%; left:50%; width:34px; height:34px; margin:-17px 0 0 -17px; border-radius:50%; display:grid; place-content:center;
+  font-style:normal; font-size:15px; color:var(--primary-2); background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.3); }
+.bax .tag { position:absolute; top:10px; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:800; letter-spacing:.08em; color:#fff; background:rgba(18,10,14,.5); pointer-events:none; }
+.bax .tag.l { left:10px; } .bax .tag.r { right:10px; }
+.bax input[type=range] { position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; cursor:ew-resize; }
+.flow { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(72px, 1fr); gap:8px; overflow-x:auto; padding-bottom:4px; }
+.flow figure { margin:0; text-align:center; }
+.flow canvas { width:100%; aspect-ratio:4 / 5; object-fit:cover; border-radius:12px; display:block; }
+.flow figure.done canvas { box-shadow:0 0 0 2px var(--primary-2); }
+.flow figcaption { margin-top:4px; font-size:11.5px; font-weight:700; color:var(--ink-2, #5a4650); }
+.how-modes { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+.how-modes button { padding:6px 11px; border-radius:15px; border:1px solid var(--line); background:#fff; font-size:12px; font-weight:700; color:var(--ink-2, #5a4650); cursor:pointer; }
+.how-modes button.on { color:#fff; border-color:transparent; background:linear-gradient(180deg, var(--primary-1), var(--primary-2)); }
+.how { padding:12px 14px; margin-bottom:10px; border-radius:16px; background:#fff; box-shadow:0 0 0 1px var(--line); }
+.how h4 { margin:0 0 6px; font-size:14px; }
+.how dl { margin:0; display:grid; grid-template-columns:auto minmax(0, 1fr); gap:5px 10px; font-size:13px; line-height:1.5; }
+.how dt { font-weight:700; color:var(--ink-3); white-space:nowrap; font-size:12px; line-height:1.6; }
+.how dd { margin:0; }
+.how dd.it2 { display:flex; align-items:center; gap:6px; }
+.how dd.tip { color:var(--ink-3); }
+#s5-prod > summary { cursor:pointer; padding:10px 2px; font-size:13px; font-weight:700; color:var(--ink-3); border-top:1px solid var(--line); }
+#s5-scroll > .fin { flex:none; }   /* 外層是直向 flex：不加這行，前後對比與過程會被壓扁 */
+#adv4 .opts button.ask-btn, #adv2 .opts button.ask-btn { background:linear-gradient(180deg, var(--primary-1), var(--primary-2)); color:#fff; border-color:transparent; font-weight:700; }
+.how .sw { flex:none; display:inline-block; width:16px; height:16px; border-radius:50%; box-shadow:0 0 0 1px rgba(0,0,0,.12); }

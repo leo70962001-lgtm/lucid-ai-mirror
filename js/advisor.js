@@ -380,7 +380,7 @@ export const EXPLAIN_ACTS = ['whyTone', 'whyMatch', 'whyFace', 'whyCeleb', 'whyA
 export const ANSWER_ACTS = ['prefSoft', 'prefBold', 'prefKeep', 'keepBest', 'noThanks', 'keepYes', 'keepNo', 'skipQs', 'buyLip', 'buyAll',
                             'audWomen', 'audMen', 'audAny', 'audKeep', 'lvlOften', 'lvlSome', 'lvlNew',
                             'ctxMood', 'ctxWeather', 'ctxPlan', 'ctxSkip', 'colorOpen', 'colorLater',
-                            'seaGold', 'seaSilver', 'seaDunno', 'seaCoral', 'seaBrick', 'seaSharp', 'seaHeavy', 'quizAns'];
+                            'seaGold', 'seaSilver', 'seaDunno', 'seaCoral', 'seaBrick', 'seaSharp', 'seaHeavy', 'quizAns', 'qaPick'];
 export const dropAnswers = (opts) => (opts || []).filter((o) => !ANSWER_ACTS.includes(o.act));
 
 /** 問過的「為什麼」就不再出現 —— 同一題問第二次不會有新資訊 */
@@ -593,7 +593,8 @@ export const ACTS = ['recapAll', 'wrapUp', 'skinCond', 'duelStart', 'duelLeft', 
                      'whySeason', 'seasonColors', 'learn', 'quiz', 'quizAns', 'paintSelf', 'myTaste', 'trendNow', 'tryTrend', 'trendNext',
                      'guideStart', 'guideNext', 'guidePaint', 'guideSkip', 'guideEnd',
                      'seaGold', 'seaSilver', 'seaDunno', 'seaCoral', 'seaBrick', 'seaSharp', 'seaHeavy',
-                     'surprise', 'swipeShade', 'poseStart', 'poseSkip', 'poseEnd'];
+                     'surprise', 'swipeShade', 'poseStart', 'poseSkip', 'poseEnd',
+                     'guideFine', 'coachFull', 'coachSome', 'coachNone', 'coachToggle', 'coachToolsDone', 'coachNoTool', 'qaPick'];
 
 // ── 反過來問：AI 也會提問 ───────────────────────────────
 // 只問「答案會真的改變接下來做什麼」的問題。問完沒有後續的問題不要問 ——
