@@ -2135,9 +2135,9 @@ body {
 .qa-form .send { flex:none; height:38px; padding:0 14px; border:0; border-radius:19px; color:#fff; font-weight:700; cursor:pointer; background:linear-gradient(180deg, var(--primary-1), var(--primary-2)); }
 .qa-form .close { flex:none; width:30px; height:30px; border:0; border-radius:50%; color:#fff; font-size:17px; cursor:pointer; background:rgba(18,10,14,.5); }
 /* ── 最後一頁：前後對比、過程、指南；商品收在最下面 ── */
-.fin { margin:0 0 18px; }
-.fin > h3 { margin:0 0 8px; font-size:15px; color:var(--ink, #3a2a30); }
-.fin > p, .fin > small { display:block; margin:6px 0 8px; font-size:12px; color:var(--ink-3); }
+.s5-sec { margin:0 0 18px; }
+.s5-sec > h3 { margin:0 0 8px; font-size:15px; color:var(--ink, #3a2a30); }
+.s5-sec > p, .s5-sec > small { display:block; margin:6px 0 8px; font-size:12px; color:var(--ink-3); }
 .bax { --x:50%; position:relative; width:min(100%, 420px); margin:0 auto; aspect-ratio:4 / 5; border-radius:18px; overflow:hidden; background:#1b1216; }
 .bax canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 .bax #ba-after { clip-path:inset(0 0 0 var(--x)); }
@@ -2157,15 +2157,35 @@ body {
 .how-modes button.on { color:#fff; border-color:transparent; background:linear-gradient(180deg, var(--primary-1), var(--primary-2)); }
 .how { padding:12px 14px; margin-bottom:10px; border-radius:16px; background:#fff; box-shadow:0 0 0 1px var(--line); }
 .how h4 { margin:0 0 6px; font-size:14px; }
-.how dl { margin:0; display:grid; grid-template-columns:auto minmax(0, 1fr); gap:5px 10px; font-size:13px; line-height:1.5; }
-.how dt { font-weight:700; color:var(--ink-3); white-space:nowrap; font-size:12px; line-height:1.6; }
-.how dd { margin:0; }
-.how dd.it2 { display:flex; align-items:center; gap:6px; }
-.how dd.tip { color:var(--ink-3); }
 #s5-prod > summary { cursor:pointer; padding:10px 2px; font-size:13px; font-weight:700; color:var(--ink-3); border-top:1px solid var(--line); }
-#s5-scroll > .fin { flex:none; }   /* 外層是直向 flex：不加這行，前後對比與過程會被壓扁 */
+#s5-scroll > .s5-sec { flex:none; }   /* 外層是直向 flex：不加這行，前後對比與過程會被壓扁 */
 #adv4 .opts button.ask-btn, #adv2 .opts button.ask-btn { background:linear-gradient(180deg, var(--primary-1), var(--primary-2)); color:#fff; border-color:transparent; font-weight:700; }
-.how .sw { flex:none; display:inline-block; width:16px; height:16px; border-radius:50%; box-shadow:0 0 0 1px rgba(0,0,0,.12); }
+.how .chip .sw { flex:none; display:inline-block; width:16px; height:16px; border-radius:50%; box-shadow:0 0 0 1px rgba(0,0,0,.12); }
+
+/* ── 化妝指導的步驟卡：對話換成一張卡，做法一句話，手法畫在臉上 ── */
+.coach-card { flex:none; display:flex; flex-direction:column; gap:6px; padding:9px 11px; border-radius:14px; color:#fff; pointer-events:auto;
+  background:rgba(18,10,14,.6); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); box-shadow:0 0 0 1px rgba(255,255,255,.16) inset; }
+.coach-card .pips { display:flex; gap:4px; flex-wrap:wrap; }
+.coach-card .pips span { padding:1px 8px; border-radius:9px; font-size:11px; font-weight:700; color:rgba(255,255,255,.65); background:rgba(255,255,255,.1); }
+.coach-card .pips .now { color:#fff; background:linear-gradient(90deg, var(--primary-1), var(--primary-2)); }
+.coach-card .pips .done { color:#14402e; background:#a9e8cc; }
+.coach-card .head { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.coach-card .stage { display:inline-flex; border-radius:9px; overflow:hidden; background:rgba(255,255,255,.14); }
+.coach-card .stage b { padding:1px 8px; font-size:11px; font-weight:700; color:rgba(255,255,255,.6); }
+.coach-card .stage b.on { color:#3a2a30; background:#fff; }
+.coach-card .do { margin:0; font-size:13.5px; font-weight:600; line-height:1.45; }
+.coach-card .tip { margin:0; font-size:11.5px; line-height:1.4; color:rgba(255,255,255,.78); }
+.coach-card .chips, .how .chips { display:flex; flex-wrap:wrap; gap:5px; }
+.coach-card .chip { display:inline-flex; align-items:center; gap:4px; padding:1px 8px; border-radius:9px; font-size:11.5px; font-weight:600; background:rgba(255,255,255,.14); }
+.coach-card .chip .sw { flex:none; display:inline-block; width:12px; height:12px; border-radius:50%; }
+/* 最後一頁的指南：先粗、再細各一張手法圖 */
+.how .chip { display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:10px; font-size:12px; font-weight:600; background:var(--line); }
+.how .pics { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; margin-top:10px; }
+.how figure { margin:0; }
+.how canvas { display:block; width:100%; height:auto; border-radius:10px; }
+.how figcaption { margin-top:6px; font-size:12.5px; line-height:1.5; }
+.how figcaption b { display:block; font-size:11.5px; color:var(--primary-2); }
+.how .tip { margin:8px 0 0; font-size:12px; color:var(--ink-3); }
 
 </style>
 </head>
@@ -2291,7 +2311,7 @@ body {
         <div id="s5-scroll">
 
         <!-- 最後一頁：化妝前後 → 從素顏到完成 → 化妝指南（化妝品、工具、手法）→ 你自己畫的；商品收在最下面 -->
-        <div class="fin">
+        <div class="s5-sec">
           <h3 data-i18n="s5.ba.title">化妝前後</h3>
           <div class="bax" id="s5-ba">
             <canvas id="ba-before"></canvas><canvas id="ba-after"></canvas>
@@ -2301,22 +2321,22 @@ body {
           </div>
           <small data-i18n="s5.ba.hint">左右拖曳看差別</small>
         </div>
-        <div class="fin">
+        <div class="s5-sec">
           <h3 data-i18n="s5.flow.title">從素顏到完成</h3>
           <div class="flow" id="s5-flow"></div>
         </div>
-        <div class="fin">
+        <div class="s5-sec">
           <h3 data-i18n="s5.how.title">你的化妝指南</h3>
           <p data-i18n="s5.how.sub">用什麼化妝品、什麼工具、手怎麼動 —— 從粗到細</p>
           <div class="how-modes" id="how-modes"></div>
           <div id="s5-how"></div>
         </div>
-        <div class="fin" id="s5-mine" hidden>
+        <div class="s5-sec" id="s5-mine" hidden>
           <h3 data-i18n="s5.mine">你自己畫的</h3>
           <div class="clip" id="clip-me" hidden></div>
           <div id="snaps" hidden></div>
         </div>
-        <details class="fin" id="s5-prod">
+        <details class="s5-sec" id="s5-prod">
           <summary data-i18n="s5.prod">用到的商品與價錢</summary>
           <div class="duo">
             <article class="blk" id="blk-ai">
@@ -2770,12 +2790,11 @@ const DICT = {
   'banner.guide': ['跟著畫完了，好厲害', 'All steps done — nicely done', '全ステップ完了！'],
   // 化妝指導：化妝品 → 工具 → 手法，從粗到細
   'adv.guide.ask': ['要我教你怎麼畫嗎？從你手邊有的工具開始，沒有工具也可以', 'Want me to teach you how? We start from whatever tools you have — none is fine', '塗り方を教えましょうか？手元の道具に合わせます。道具がなくても大丈夫です'],
-  'adv.coach.tools': ['先問一下：你手邊的工具有多少？我照你有的東西教', 'First: what tools do you have? I’ll teach with whatever is on hand', 'まず、手元に道具はどのくらいありますか？あるもので教えます'],
-  'adv.coach.some': ['你有哪幾樣？點一下打勾，沒有的我教替代品', 'Which ones do you have? Tap to tick — I’ll give substitutes for the rest', 'どれがありますか？タップで選んでください。ないものは代わりを教えます'],
-  'adv.coach.kit': ['好，分 {n} 步、從粗到細。先把東西備好：', 'OK — {n} steps, coarse to fine. Get these ready first:', 'では {n} ステップ、大まかなところから細部へ。まず準備です：'],
-  'adv.coach.kitItems': ['化妝品：{kit}，再加你平常用的底妝', 'Cosmetics: {kit}, plus your usual base', 'コスメ：{kit}、それといつものベース'],
-  'adv.coach.kitTools': ['工具：{parts}', 'Tools: {parts}', '道具：{parts}'],
-  'adv.coach.step': ['步驟 {i}／{n}　{part}｜工具：{tool}', 'Step {i} of {n} — {part} | Tool: {tool}', 'ステップ {i}／{n}　{part}｜道具：{tool}'],
+  'adv.coach.tools': ['你手邊有哪些工具？我照你有的教', 'First: what tools do you have? I’ll teach with whatever is on hand', 'まず、手元に道具はどのくらいありますか？あるもので教えます'],
+  'adv.coach.some': ['點一下打勾，沒有的我教替代品', 'Which ones do you have? Tap to tick — I’ll give substitutes for the rest', 'どれがありますか？タップで選んでください。ないものは代わりを教えます'],
+  'adv.coach.kit': ['分 {n} 步。先備好：', '{n} steps. Get these ready:', '全 {n} ステップ。まず準備：'],
+  'coach.stage.coarse': ['先粗', 'Coarse', '大まかに'],
+  'coach.stage.fine': ['再細', 'Details', '細かく'],
   'opt.coachFull': ['工具都有', 'I have them all', '全部ある'],
   'opt.coachSome': ['只有一部分', 'Only some', '一部だけ'],
   'opt.coachNone': ['沒有工具（用手指、紙巾）', 'No tools (fingers, tissue)', '道具なし（指・ティッシュ）'],
@@ -2800,33 +2819,33 @@ const DICT = {
   'coach.none.eye': ['無名指＋紙巾', 'Ring finger + tissue', '薬指＋ティッシュ'],
   'coach.none.cheek': ['指腹＋紙巾', 'Fingertips + tissue', '指の腹＋ティッシュ'],
   'coach.none.lip': ['指腹＋紙巾', 'Fingertips + tissue', '指の腹＋ティッシュ'],
-  'coach.base.full.coarse': ['先粗：底妝少量點在額頭、兩頰、鼻子、下巴，用微濕的美妝蛋大範圍按壓開', 'Coarse: dot a little base on forehead, cheeks, nose and chin, then press it out with a damp sponge', '大まかに：ベースを額・両頬・鼻・あごに少量置き、湿らせたスポンジで広く押さえ広げます'],
-  'coach.base.full.fine': ['再細：用美妝蛋的尖端補鼻翼、嘴角、眼下，臉的邊緣往脖子帶淡，不要留一條線', 'Details: use the sponge tip around the nose, mouth corners and under-eyes; fade the edges toward the neck so no line shows', '細かく：スポンジの先で小鼻・口角・目の下を整え、フェイスラインは首へぼかして境目を消します'],
-  'coach.base.sub.coarse': ['先粗：沒有美妝蛋就用沾濕擰乾的化妝棉，把底妝從臉中央往外輕輕按開', 'Coarse: no sponge? Use a damp, wrung-out cotton pad and press the base outward from the centre of the face', '大まかに：スポンジがなければ、湿らせて絞ったコットンで顔の中心から外へ押さえ広げます'],
-  'coach.base.sub.fine': ['再細：化妝棉對折，用尖角補鼻翼與嘴角，邊緣往脖子方向帶淡', 'Details: fold the pad and use the corner around the nose and mouth; fade the edges toward the neck', '細かく：コットンを折り、角で小鼻と口角を整え、フェイスラインは首へぼかします'],
-  'coach.base.none.coarse': ['先粗：手洗乾淨，底妝先在手背回溫，指腹從臉中央往外輕拍', 'Coarse: with clean hands, warm the base on the back of your hand and pat it outward from the centre with your fingertips', '大まかに：手を洗い、ベースを手の甲で温めて、指の腹で顔の中心から外へ軽くたたきます'],
-  'coach.base.none.fine': ['再細：鼻翼、嘴角用小指指腹點勻；最後紙巾輕壓全臉，吸掉多餘的油光', 'Details: even out the nose and mouth corners with your little finger, then press a tissue over the face to lift excess shine', '細かく：小鼻と口角は小指でなじませ、最後にティッシュで軽く押さえて余分な油分を取ります'],
+  'coach.base.full.coarse': ['底妝少量點在額頭、兩頰、鼻子、下巴，用微濕的美妝蛋大範圍按壓開', 'Dot a little base on forehead, cheeks, nose and chin, then press it out with a damp sponge', 'ベースを額・両頬・鼻・あごに少量置き、湿らせたスポンジで広く押さえ広げます'],
+  'coach.base.full.fine': ['用美妝蛋的尖端補鼻翼、嘴角、眼下，臉的邊緣往脖子帶淡，不要留一條線', 'Use the sponge tip around the nose, mouth corners and under-eyes; fade the edges toward the neck so no line shows', 'スポンジの先で小鼻・口角・目の下を整え、フェイスラインは首へぼかして境目を消します'],
+  'coach.base.sub.coarse': ['沒有美妝蛋就用沾濕擰乾的化妝棉，把底妝從臉中央往外輕輕按開', 'No sponge? Use a damp, wrung-out cotton pad and press the base outward from the centre of the face', 'スポンジがなければ、湿らせて絞ったコットンで顔の中心から外へ押さえ広げます'],
+  'coach.base.sub.fine': ['化妝棉對折，用尖角補鼻翼與嘴角，邊緣往脖子方向帶淡', 'Fold the pad and use the corner around the nose and mouth; fade the edges toward the neck', 'コットンを折り、角で小鼻と口角を整え、フェイスラインは首へぼかします'],
+  'coach.base.none.coarse': ['手洗乾淨，底妝先在手背回溫，指腹從臉中央往外輕拍', 'With clean hands, warm the base on the back of your hand and pat it outward from the centre with your fingertips', '手を洗い、ベースを手の甲で温めて、指の腹で顔の中心から外へ軽くたたきます'],
+  'coach.base.none.fine': ['鼻翼、嘴角用小指指腹點勻；最後紙巾輕壓全臉，吸掉多餘的油光', 'Even out the nose and mouth corners with your little finger, then press a tissue over the face to lift excess shine', '小鼻と口角は小指でなじませ、最後にティッシュで軽く押さえて余分な油分を取ります'],
   'coach.base.tip': ['一次用太多會卡粉；不夠再補，比一次上太厚好救', 'Too much at once turns cakey — adding more later is easier than fixing too much', '一度に塗りすぎるとヨレます。足りなければ足すほうが直しやすいです'],
-  'coach.eye.full.coarse': ['先粗：眼影刷沾淺色，在手背拍掉多餘的粉，整個眼窩來回刷一層', 'Coarse: load the brush with the light shade, tap off the excess on your hand, and sweep over the whole lid', '大まかに：ブラシに淡い色を取り、手の甲で余分を落として、まぶた全体に広げます'],
-  'coach.eye.full.fine': ['再細：小刷子沾深色，貼著睫毛根畫細細一條，再用乾淨的刷子把邊界往上刷開', 'Details: with a small brush, draw a thin line of the deep shade along the lash roots, then blend the edge upward with a clean brush', '細かく：小さなブラシで濃い色をまつげの際に細く入れ、きれいなブラシで境目を上へぼかします'],
-  'coach.eye.sub.coarse': ['先粗：沒有眼影刷就用棉花棒沾淺色，輕輕滾過整個眼窩', 'Coarse: no brush? Dip a cotton swab in the light shade and roll it gently across the lid', '大まかに：ブラシがなければ綿棒に淡い色を取り、まぶた全体に軽く転がします'],
-  'coach.eye.sub.fine': ['再細：換一支新棉花棒沾深色沿睫毛根畫細線，再用乾淨的一端把邊界推開', 'Details: with a fresh swab, draw the deep shade along the lash roots, then blend the edge with the clean end', '細かく：新しい綿棒で濃い色をまつげの際に入れ、きれいな側で境目をぼかします'],
-  'coach.eye.none.coarse': ['先粗：用無名指（力道最輕），沾淺色先在手背拍掉多餘的，再輕輕按滿眼窩', 'Coarse: use your ring finger (the gentlest). Pick up the light shade, tap off the excess, then press it over the lid', '大まかに：一番力の弱い薬指で淡い色を取り、手の甲で余分を落としてから、まぶたに軽くのせます'],
-  'coach.eye.none.fine': ['再細：小指尖沾深色，點在眼尾、沿睫毛根帶開；掉粉就用紙巾折尖輕輕沾掉', 'Details: with your little fingertip, dab the deep shade at the outer corner and along the lashes; lift fallout with a folded tissue tip', '細かく：小指の先で濃い色を目尻からまつげの際へ。粉が落ちたらティッシュの角で軽く取ります'],
+  'coach.eye.full.coarse': ['眼影刷沾淺色，在手背拍掉多餘的粉，整個眼窩來回刷一層', 'Load the brush with the light shade, tap off the excess on your hand, and sweep over the whole lid', 'ブラシに淡い色を取り、手の甲で余分を落として、まぶた全体に広げます'],
+  'coach.eye.full.fine': ['小刷子沾深色，貼著睫毛根畫細細一條，再用乾淨的刷子把邊界往上刷開', 'With a small brush, draw a thin line of the deep shade along the lash roots, then blend the edge upward with a clean brush', '小さなブラシで濃い色をまつげの際に細く入れ、きれいなブラシで境目を上へぼかします'],
+  'coach.eye.sub.coarse': ['沒有眼影刷就用棉花棒沾淺色，輕輕滾過整個眼窩', 'No brush? Dip a cotton swab in the light shade and roll it gently across the lid', 'ブラシがなければ綿棒に淡い色を取り、まぶた全体に軽く転がします'],
+  'coach.eye.sub.fine': ['換一支新棉花棒沾深色沿睫毛根畫細線，再用乾淨的一端把邊界推開', 'With a fresh swab, draw the deep shade along the lash roots, then blend the edge with the clean end', '新しい綿棒で濃い色をまつげの際に入れ、きれいな側で境目をぼかします'],
+  'coach.eye.none.coarse': ['用無名指（力道最輕），沾淺色先在手背拍掉多餘的，再輕輕按滿眼窩', 'Use your ring finger (the gentlest). Pick up the light shade, tap off the excess, then press it over the lid', '一番力の弱い薬指で淡い色を取り、手の甲で余分を落としてから、まぶたに軽くのせます'],
+  'coach.eye.none.fine': ['小指尖沾深色，點在眼尾、沿睫毛根帶開；掉粉就用紙巾折尖輕輕沾掉', 'With your little fingertip, dab the deep shade at the outer corner and along the lashes; lift fallout with a folded tissue tip', '小指の先で濃い色を目尻からまつげの際へ。粉が落ちたらティッシュの角で軽く取ります'],
   'coach.eye.tip': ['眼睛周圍皮膚很薄，不要用力，也不要碰到眼球；一次沾少一點，淡了再加', 'The skin around the eyes is thin — go gently and keep away from the eyeball. Pick up a little at a time', '目のまわりの皮膚は薄いので力を入れず、眼球に触れないように。少しずつ取りましょう'],
-  'coach.cheek.full.coarse': ['先粗：笑一下找到顴骨最高點，刷子沾粉拍掉多餘的，往太陽穴斜斜刷兩三下', 'Coarse: smile to find the high point of the cheek, tap off the excess, and sweep two or three times toward the temple', '大まかに：笑って頬の一番高い所を確認し、余分を落として、こめかみへ斜めに2〜3回入れます'],
-  'coach.cheek.full.fine': ['再細：刷子不再沾粉，在邊緣畫小圈把界線刷開；兩邊對照鏡子調到一樣', 'Details: with no extra powder, circle the edges to soften them, then compare both sides in the mirror', '細かく：粉を足さずに境目を小さく円を描いてぼかし、鏡で左右をそろえます'],
-  'coach.cheek.sub.coarse': ['先粗：沒有腮紅刷就用粉撲或化妝棉沾一點，從顴骨高點往太陽穴輕拍', 'Coarse: no brush? Pick up a little with a puff or cotton pad and pat from the cheek high point toward the temple', '大まかに：ブラシがなければパフかコットンに少し取り、頬の高い所からこめかみへ軽くたたきます'],
-  'coach.cheek.sub.fine': ['再細：用粉撲乾淨的一面按壓邊緣，讓顏色自然散開', 'Details: press the edges with the clean side of the puff so the colour fades naturally', '細かく：パフのきれいな面で境目を押さえ、色を自然に広げます'],
-  'coach.cheek.none.coarse': ['先粗：指腹沾一點，笑起來點在顴骨高點，往太陽穴方向拍開', 'Coarse: pick up a little on your fingertip, smile, dab on the cheek high point and pat toward the temple', '大まかに：指の腹に少し取り、笑って頬の高い所に置き、こめかみへたたき広げます'],
-  'coach.cheek.none.fine': ['再細：手指拍到看不出邊界；太紅就用紙巾輕壓，顏色會淡一階', 'Details: pat until no edge shows; if it’s too red, press with a tissue to take it down a notch', '細かく：境目が消えるまでたたき、赤すぎたらティッシュで軽く押さえて一段薄くします'],
+  'coach.cheek.full.coarse': ['笑一下找到顴骨最高點，刷子沾粉拍掉多餘的，往太陽穴斜斜刷兩三下', 'Smile to find the high point of the cheek, tap off the excess, and sweep two or three times toward the temple', '笑って頬の一番高い所を確認し、余分を落として、こめかみへ斜めに2〜3回入れます'],
+  'coach.cheek.full.fine': ['刷子不再沾粉，在邊緣畫小圈把界線刷開；兩邊對照鏡子調到一樣', 'With no extra powder, circle the edges to soften them, then compare both sides in the mirror', '粉を足さずに境目を小さく円を描いてぼかし、鏡で左右をそろえます'],
+  'coach.cheek.sub.coarse': ['沒有腮紅刷就用粉撲或化妝棉沾一點，從顴骨高點往太陽穴輕拍', 'No brush? Pick up a little with a puff or cotton pad and pat from the cheek high point toward the temple', 'ブラシがなければパフかコットンに少し取り、頬の高い所からこめかみへ軽くたたきます'],
+  'coach.cheek.sub.fine': ['用粉撲乾淨的一面按壓邊緣，讓顏色自然散開', 'Press the edges with the clean side of the puff so the colour fades naturally', 'パフのきれいな面で境目を押さえ、色を自然に広げます'],
+  'coach.cheek.none.coarse': ['指腹沾一點，笑起來點在顴骨高點，往太陽穴方向拍開', 'Pick up a little on your fingertip, smile, dab on the cheek high point and pat toward the temple', '指の腹に少し取り、笑って頬の高い所に置き、こめかみへたたき広げます'],
+  'coach.cheek.none.fine': ['手指拍到看不出邊界；太紅就用紙巾輕壓，顏色會淡一階', 'Pat until no edge shows; if it’s too red, press with a tissue to take it down a notch', '境目が消えるまでたたき、赤すぎたらティッシュで軽く押さえて一段薄くします'],
   'coach.cheek.tip': ['少量多次最自然；一次刷太紅很難救回來', 'Light layers look most natural — too much at once is hard to undo', '少しずつ重ねるのが自然です。一度に濃くすると戻しにくくなります'],
-  'coach.lip.full.coarse': ['先粗：先擦護唇膏等一下，唇刷沾色從唇中央往嘴角刷滿', 'Coarse: apply balm and wait a moment, then brush colour from the centre of the lips out to the corners', '大まかに：リップクリームを塗って少し待ち、ブラシで中央から口角へ塗り広げます'],
-  'coach.lip.full.fine': ['再細：用唇刷側邊沿唇峰、下唇線描清楚，嘴角用筆尖收細；最後抿一下', 'Details: define the cupid’s bow and lower lip line with the side of the brush, sharpen the corners with the tip, then press your lips', '細かく：ブラシの側面で山と下唇の輪郭を整え、口角は先端で細く。最後に唇を軽く合わせます'],
-  'coach.lip.sub.coarse': ['先粗：沒有唇刷就直接用條狀唇膏塗中央，或用棉花棒沾色往外帶', 'Coarse: no lip brush? Apply the stick to the centre directly, or use a cotton swab to carry colour outward', '大まかに：ブラシがなければスティックで中央に直接塗るか、綿棒で外へ広げます'],
-  'coach.lip.sub.fine': ['再細：棉花棒乾淨的一端沿唇線修邊；塗出去的地方沾一點護唇膏擦掉', 'Details: tidy the lip line with the clean end of the swab; use a little balm on it to wipe off any overdrawn colour', '細かく：綿棒のきれいな側で輪郭を整え、はみ出しはリップクリームを少しつけて拭き取ります'],
-  'coach.lip.none.coarse': ['先粗：指腹沾色，從唇中央往外拍開，會有自然的暈染感', 'Coarse: dab colour on with a fingertip from the centre outward for a soft, natural blur', '大まかに：指の腹で色を取り、中央から外へたたくと自然なにじみになります'],
-  'coach.lip.none.fine': ['再細：小指尖輕壓修唇線；紙巾對折抿一下，吸掉多餘的，顏色更持久', 'Details: tidy the lip line with your little fingertip, then press your lips on a folded tissue so the colour lasts longer', '細かく：小指の先で輪郭を整え、折ったティッシュを軽くくわえて余分を取ると長持ちします'],
+  'coach.lip.full.coarse': ['先擦護唇膏等一下，唇刷沾色從唇中央往嘴角刷滿', 'Apply balm and wait a moment, then brush colour from the centre of the lips out to the corners', 'リップクリームを塗って少し待ち、ブラシで中央から口角へ塗り広げます'],
+  'coach.lip.full.fine': ['用唇刷側邊沿唇峰、下唇線描清楚，嘴角用筆尖收細；最後抿一下', 'Define the cupid’s bow and lower lip line with the side of the brush, sharpen the corners with the tip, then press your lips', 'ブラシの側面で山と下唇の輪郭を整え、口角は先端で細く。最後に唇を軽く合わせます'],
+  'coach.lip.sub.coarse': ['沒有唇刷就直接用條狀唇膏塗中央，或用棉花棒沾色往外帶', 'No lip brush? Apply the stick to the centre directly, or use a cotton swab to carry colour outward', 'ブラシがなければスティックで中央に直接塗るか、綿棒で外へ広げます'],
+  'coach.lip.sub.fine': ['棉花棒乾淨的一端沿唇線修邊；塗出去的地方沾一點護唇膏擦掉', 'Tidy the lip line with the clean end of the swab; use a little balm on it to wipe off any overdrawn colour', '綿棒のきれいな側で輪郭を整え、はみ出しはリップクリームを少しつけて拭き取ります'],
+  'coach.lip.none.coarse': ['指腹沾色，從唇中央往外拍開，會有自然的暈染感', 'Dab colour on with a fingertip from the centre outward for a soft, natural blur', '指の腹で色を取り、中央から外へたたくと自然なにじみになります'],
+  'coach.lip.none.fine': ['小指尖輕壓修唇線；紙巾對折抿一下，吸掉多餘的，顏色更持久', 'Tidy the lip line with your little fingertip, then press your lips on a folded tissue so the colour lasts longer', '小指の先で輪郭を整え、折ったティッシュを軽くくわえて余分を取ると長持ちします'],
   'coach.lip.tip': ['嘴唇乾的話顏色會卡在脫皮的地方，先護唇再上色', 'Colour clings to dry patches, so moisturise your lips first', '唇が乾いていると皮むけに色が残るので、先に保湿しましょう'],
   // 最後一頁
   'flow.bare': ['素顏', 'Bare', 'すっぴん'],
@@ -2841,11 +2860,6 @@ const DICT = {
   'how.mode.full': ['工具齊全', 'All tools', '道具あり'],
   'how.mode.some': ['不齊全（替代品）', 'Some (substitutes)', '一部（代用品）'],
   'how.mode.none': ['沒有工具（手指、紙巾）', 'None (fingers, tissue)', 'なし（指・ティッシュ）'],
-  'how.item': ['化妝品', 'Cosmetic', 'コスメ'],
-  'how.tool': ['工具', 'Tool', '道具'],
-  'how.coarse': ['手法｜粗', 'Technique: coarse', '手順｜大まかに'],
-  'how.fine': ['手法｜細', 'Technique: details', '手順｜細かく'],
-  'how.tip': ['留意', 'Watch out', '注意'],
   // 問 AI
   'opt.ask': ['問 AI', 'Ask AI', 'AIに質問'],
   'rail.ask': ['問 AI', 'Ask AI', '質問'],
@@ -2935,7 +2949,6 @@ const DICT = {
   'cheer.tried': ['試了 {n} 支！越比越知道自己要什麼', '{n} shades tried! Comparing is how you find yours', '{n}本目！比べるほど好みが見えてきます'],
   'cheer.fit': ['色彩命中！這支在你的{season}色盤裡', 'Color match! This one sits in your {season} palette', 'カラー的中！{season}のパレットの色です'],
   'cheer.adjust': ['會調濃淡了 —— 上妝最關鍵的一招', 'You found the intensity dial — the key skill', '濃さの調整、これが一番のコツ'],
-  'cheer.guide': ['第 {n} 步完成，跟上了！', 'Step {n} done — keep going!', 'ステップ{n}完了、その調子！'],
   'cheer.paint': ['第一筆畫好了！慢慢疊，顏色會更自然', 'First stroke down! Build it up slowly', '最初のひと筆！少しずつ重ねると自然に'],
   'cheer.gift': ['送你一份驚喜禮物，點下面的「🎁 拆開禮物」', 'A surprise for you — tap “🎁 Open gift” below', 'サプライズをどうぞ。下の「🎁 開ける」から'],
   // 驚喜禮物、AI 回應你時的特效
@@ -3019,7 +3032,6 @@ const DICT = {
   // 一步一步帶你畫（引導模式）
   'adv.guide.done': ['完成了！這就是 {n} 步走完的樣子。想調整濃度、換色號或自己畫，隨時都可以', 'Done! That is the full look in {n} steps. Adjust, change shades or paint it yourself any time', '完成です！{n} ステップでこの仕上がりです。濃さや色、手描きもいつでもどうぞ'],
   'adv.guide.recap': ['今天跟著畫了 {n} 個部位：{parts}。在家也是同樣的順序', 'You followed along on {n} areas today: {parts}. Same order works at home', '今日は {n} か所を一緒に塗りました：{parts}。おうちでも同じ順番で'],
-  'adv.guide.skipped': ['好，這一步先跳過', 'Sure, skipping that step', 'では、このステップは飛ばしますね'],
   'adv.guide.end': ['好，引導先到這裡。想再走一次隨時跟我說', 'We will stop the walkthrough here — ask any time to run it again', 'ガイドはここまで。もう一度やりたくなったらいつでも'],
   'adv.guide.paint': ['這一步自己畫畫看：鏡子整面都能畫，筆刷已經幫你切到這個部位了', 'Try painting this step yourself — the whole mirror is paintable and the brush is already set to this area', 'このステップは自分で塗ってみましょう。鏡全体に塗れます。ブラシはこの部位に設定済みです'],
   'opt.guideStart': ['教我怎麼畫', 'Teach me how', '塗り方を教えて'],
@@ -5002,6 +5014,149 @@ function coachPlan({ picks = null, amount = null, mode = 'full', owned = new Set
   return out;
 }
 
+/* ── 把手法畫出來 ──────────────────────────────────────────
+   用講的很難懂「從哪裡刷到哪裡」，所以直接畫在使用者自己的臉上：
+     area 要上色的範圍、path 手要走的路線（有箭頭）、dot 要按壓的點
+   座標用臉部點位算，人動、臉轉，圖跟著走。鏡子上是動畫，最後一頁的指南是同一份圖的靜態版。 */
+const COACH_GLYPH = { full: '🖌️', sub: '🧽', none: '👆' };
+const EYES = [
+  { up: [33, 246, 161, 160, 159, 158, 157, 173, 133], brow: [46, 53, 52, 65, 55], blend: [160, 53] },
+  { up: [263, 466, 388, 387, 386, 385, 384, 398, 362], brow: [276, 283, 282, 295, 285], blend: [387, 283] },
+];
+const lerpPt = (a, b, k) => ({ x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k });
+
+/** 這個部位、這一段（粗／細）要畫什麼。P：像素座標的臉部點位 */
+function coachShapes(part, stage, P) {
+  const fw = Math.hypot(P[454].x - P[234].x, P[454].y - P[234].y) || 1;
+  const pts = (ids) => ids.map((i) => P[i]);
+  const path = (list) => ({ type: 'path', pts: list });
+  const dot = (at, r = 0.022) => ({ type: 'dot', at, r: fw * r });
+  const out = [];
+  if (part === 'eye') {
+    for (const e of EYES) {
+      const lid = e.up.map((_, k) => {
+        const b = P[e.brow[Math.round(k * (e.brow.length - 1) / (e.up.length - 1))]];
+        return lerpPt(P[e.up[k]], b, 0.62);
+      });
+      if (stage === 'coarse') {
+        out.push({ type: 'area', pts: [...pts(e.up), ...lid.slice().reverse()] });
+        const mid = e.up.map((_, k) => lerpPt(P[e.up[k]], lid[k], 0.5)).reverse();
+        out.push(path(mid));
+      } else {
+        out.push(path(pts(e.up).reverse()));           // 貼著睫毛根，由內往外
+        out.push(path([P[e.blend[0]], lerpPt(P[e.blend[0]], P[e.blend[1]], 0.55)]));   // 邊界往上暈開
+      }
+    }
+  } else if (part === 'cheek') {
+    for (const [c, temple] of [[50, 127], [280, 356]]) {
+      const end = lerpPt(P[c], P[temple], 0.72);
+      if (stage === 'coarse') { out.push(dot(P[c], 0.03)); out.push(path([P[c], end])); }
+      else {
+        // 邊緣畫小圈，把界線刷開
+        const m = lerpPt(P[c], end, 0.6), r = fw * 0.06;
+        out.push(path(Array.from({ length: 21 }, (_, k) => ({ x: m.x + r * Math.cos(k * 0.6), y: m.y + r * 0.7 * Math.sin(k * 0.6) }))));
+      }
+    }
+  } else if (part === 'lip') {
+    if (stage === 'coarse') {
+      const up = lerpPt(P[0], P[13], 0.5), lo = lerpPt(P[14], P[17], 0.5);
+      for (const from of [up, lo]) for (const corner of [61, 291]) out.push(path([from, lerpPt(from, P[corner], 0.85)]));
+    } else {
+      out.push(path(pts([61, 185, 40, 39, 37, 0])), path(pts([291, 409, 270, 269, 267, 0])));   // 沿唇峰
+      out.push(path(pts([61, 146, 91, 181, 84, 17])), path(pts([291, 375, 321, 405, 314, 17]))); // 沿下唇線
+    }
+  } else if (part === 'base') {
+    if (stage === 'coarse') {
+      for (const [from, to] of [[151, 10], [50, 234], [280, 454], [199, 152]]) {
+        out.push(dot(P[from]));
+        out.push(path([P[from], lerpPt(P[from], P[to], 0.7)]));
+      }
+      out.push(dot(P[4]));
+    } else {
+      for (const i of [129, 358, 61, 291, 119, 348]) out.push(dot(P[i], 0.018));
+      out.push(path(pts([132, 58, 172, 136, 150, 149, 176, 148, 152])), path(pts([361, 288, 397, 365, 379, 378, 400, 377, 152])));
+    }
+  }
+  return out;
+}
+
+/** 指南裡每張圖要框多大：眼看雙眼、頰與底妝看整張臉、唇看嘴（比例 4:3） */
+function coachRegion(part, P, W, H) {
+  const ids = part === 'eye' ? [46, 276, 55, 285, 145, 374] : part === 'lip' ? [61, 291, 0, 17] : [234, 454, 10, 152];
+  const xs = ids.map((i) => P[i].x), ys = ids.map((i) => P[i].y);
+  const pad = part === 'lip' ? 0.5 : part === 'eye' ? 0.14 : 0.08;
+  let w = (Math.max(...xs) - Math.min(...xs)) * (1 + pad * 2), h = (Math.max(...ys) - Math.min(...ys)) * (1 + pad * 2);
+  if (w / h < 4 / 3) w = h * 4 / 3; else h = w * 3 / 4;
+  if (w > W) { w = W; h = w * 3 / 4; }
+  if (h > H) { h = H; w = h * 4 / 3; }
+  const cx = (Math.max(...xs) + Math.min(...xs)) / 2, cy = (Math.max(...ys) + Math.min(...ys)) / 2;
+  return { x: Math.max(0, Math.min(W - w, cx - w / 2)), y: Math.max(0, Math.min(H - h, cy - h / 2)), w, h };
+}
+
+/** 折線上走到 k（0..1）的位置 */
+function pathAt(pts, k) {
+  const seg = pts.slice(1).map((p, i) => Math.hypot(p.x - pts[i].x, p.y - pts[i].y));
+  const total = seg.reduce((a, b) => a + b, 0) || 1;
+  let left = total * Math.max(0, Math.min(1, k));
+  for (let i = 0; i < seg.length; i++) {
+    if (left <= seg[i] || i === seg.length - 1) {
+      const p = lerpPt(pts[i], pts[i + 1], seg[i] ? Math.min(1, left / seg[i]) : 0);
+      return { p, i, prev: pts[i] };
+    }
+    left -= seg[i];
+  }
+  return { p: pts[pts.length - 1], i: pts.length - 2, prev: pts[pts.length - 2] };
+}
+
+/**
+ * 畫出來。t = 動畫進度（0..1，手走到路線的哪裡）；t = null 是靜態圖（路線全部畫完、箭頭在終點）。
+ * glyph：動畫時跟著路線走的工具（刷子、海綿、手指）。lw：線寬（像素）。
+ */
+function drawCoachShapes(ctx, shapes, { lw = 3, t = null, glyph = '' } = {}) {
+  ctx.save();
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = lw * 1.5;
+  ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff';
+  let tool = glyph;                    // 工具只畫一支：好幾支一起動太亂
+  for (const s of shapes) {
+    if (s.type === 'area') {
+      ctx.beginPath();
+      s.pts.forEach((p, k) => (k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+      ctx.closePath();
+      ctx.save(); ctx.globalAlpha = 0.22; ctx.fill(); ctx.restore();
+      ctx.save(); ctx.setLineDash([lw * 2, lw * 2]); ctx.lineWidth = lw * 0.6; ctx.stroke(); ctx.restore();
+    } else if (s.type === 'dot') {
+      const pulse = t == null ? 1 : 0.8 + 0.3 * Math.sin(t * Math.PI * 2);
+      ctx.lineWidth = lw * 0.8;
+      ctx.beginPath(); ctx.arc(s.at.x, s.at.y, s.r * pulse, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(s.at.x, s.at.y, lw * 0.7, 0, Math.PI * 2); ctx.fill();
+    } else if (s.type === 'path') {
+      const k = t == null ? 1 : t;
+      // 整條路線淡淡的，走過的部分實線
+      ctx.save(); ctx.globalAlpha = 0.45; ctx.setLineDash([lw * 1.6, lw * 2]); ctx.lineWidth = lw * 0.7;
+      ctx.beginPath(); s.pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.stroke(); ctx.restore();
+      const at = pathAt(s.pts, k);
+      ctx.lineWidth = lw;
+      ctx.beginPath(); ctx.moveTo(s.pts[0].x, s.pts[0].y);
+      for (let i = 1; i <= at.i; i++) ctx.lineTo(s.pts[i].x, s.pts[i].y);
+      ctx.lineTo(at.p.x, at.p.y); ctx.stroke();
+      // 箭頭
+      const dir = Math.atan2(at.p.y - at.prev.y, at.p.x - at.prev.x), a = lw * 3.2;
+      ctx.beginPath(); ctx.moveTo(at.p.x, at.p.y);
+      ctx.lineTo(at.p.x - a * Math.cos(dir - 0.5), at.p.y - a * Math.sin(dir - 0.5));
+      ctx.lineTo(at.p.x - a * Math.cos(dir + 0.5), at.p.y - a * Math.sin(dir + 0.5));
+      ctx.closePath(); ctx.fill();
+      if (tool && t != null) {
+        ctx.save(); ctx.shadowBlur = 0; ctx.font = (lw * 6) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+        ctx.fillText(tool, at.p.x + lw * 2.5, at.p.y - lw);
+        ctx.restore();
+        tool = '';
+      }
+    }
+  }
+  ctx.restore();
+}
+
 
 /* ═══ js/routine.js ═══ */
 /**
@@ -5014,7 +5169,7 @@ function coachPlan({ picks = null, amount = null, mode = 'full', owned = new Set
  *   先粗：鏡子上圈出位置，這一層淡淡出現（看得到範圍），講大範圍怎麼上、用什麼工具
  *   再細：這一層到位，講收邊、暈開、對稱，以及常見的失誤
  * 手法照工具走（見 coach.js）；這一步沒有工具可以當場換成替代品。
- * 一次只講一件事，步驟數寫在句子裡（步驟 2／4），使用者永遠知道還剩幾步。
+ * 教的時候不講一長串對話：鏡子下方一張步驟卡（第幾步、用什麼工具、一句做法），手法直接畫在臉上。
  */
 
 
@@ -5025,15 +5180,15 @@ const routineLine = (kind, key, params) => ({ kind, key, params: params || {} })
  * 底妝一定有（鏡子不畫底妝，用說的）；沒有的品項或濃度是 0 的部位不排。
  */
 function buildRoutine({ picks = null, look = null, amount = null } = {}) {
-  const steps = [{ id: 'prep', cat: null, mark: 'skin' }];
+  const steps = [{ id: 'prep', cat: null }];
   for (const part of COACH_PARTS) {
-    if (part === 'base') { steps.push({ id: 'base', cat: null, mark: 'skin' }); continue; }
+    if (part === 'base') { steps.push({ id: 'base', cat: null }); continue; }
     if (!picks?.[part]) continue;
     const target = amount?.[part] ?? look?.intensity?.[part] ?? 0.5;
     if (target <= 0) continue;
-    steps.push({ id: part, cat: part, mark: part, product: picks[part], amount: target });
+    steps.push({ id: part, cat: part, product: picks[part], amount: target });
   }
-  steps.push({ id: 'done', cat: null, mark: null });
+  steps.push({ id: 'done', cat: null });
   return steps;
 }
 
@@ -5046,37 +5201,32 @@ const toolModeOpts = () => [
 
 /** 只有一部分工具：點一下打勾（不講話、不洗版），勾好按開始 */
 const ownedOpts = (owned) => [
-  ...COACH_TOOLS.map((tool) => ({ key: 'coach.tool.' + tool, act: 'coachToggle', tool, silent: true, on: owned.has(tool) })),
+  ...COACH_TOOLS.map((tool) => ({ key: 'coach.tool.' + tool, act: 'coachToggle', tool, on: owned.has(tool) })),
   { key: 'opt.coachToolsDone', act: 'coachToolsDone' },
 ];
 
-/** 備料：這次會用到哪些化妝品、哪些工具 */
-function kitLines(steps, ctx) {
-  const parts = steps.filter((s) => s.id !== 'prep' && s.id !== 'done');
-  const kit = parts.filter((s) => s.product).map((s) => ['coach.part.' + s.id, s.product.id]);
-  const tools = [...new Set(parts.map((s) => coachToolKey(s.id, coachMethod(s.id, ctx.mode, ctx.owned))))];
-  return [routineLine('fact', 'adv.coach.kit', { n: parts.length }),
-          routineLine('tip', 'adv.coach.kitItems', { kit }),
-          routineLine('tip', 'adv.coach.kitTools', { parts: tools })];
-}
-
 /**
- * 這一步要說的話。
- * @param ctx { stage: 'coarse' | 'fine', mode, owned }
+ * 步驟卡要顯示什麼。
+ * @param ctx { stage: 'coarse' | 'fine', mode, owned, picking }
  */
-function stepLines(steps, i, ctx = {}) {
-  const step = steps?.[i];
-  if (!step) return [];
-  if (step.id === 'prep') return kitLines(steps, ctx);
-  const n = steps.length - 2;                    // 頭尾不算步驟
-  if (step.id === 'done') return [routineLine('praise', 'adv.guide.done', { n })];
-  const method = coachMethod(step.id, ctx.mode, ctx.owned);
-  if (ctx.stage === 'fine') {
-    return [routineLine('tip', `coach.${step.id}.${method}.fine`),
-            routineLine('caution', `coach.${step.id}.tip`)];
+function stepView(steps, i, ctx = {}) {
+  const parts = (steps || []).filter((s) => s.id !== 'prep' && s.id !== 'done');
+  const pips = parts.map((s) => {
+    const at = steps.indexOf(s);
+    return { id: s.id, state: at < i ? 'done' : at === i ? 'now' : 'todo' };
+  });
+  if (ctx.picking) return { kind: 'pick', pips, textKey: 'adv.coach.some' };
+  if (!ctx.mode) return { kind: 'tools', pips, textKey: 'adv.coach.tools' };
+  const step = steps[i];
+  if (!step) return { kind: 'done', pips, n: parts.length };
+  if (step.id === 'prep') {
+    return { kind: 'kit', pips, n: parts.length, products: parts.filter((s) => s.product).map((s) => ({ part: s.id, product: s.product })),
+             tools: [...new Set(parts.map((s) => coachToolKey(s.id, coachMethod(s.id, ctx.mode, ctx.owned))))] };
   }
-  return [routineLine('fact', 'adv.coach.step', { i, n, part: 'coach.part.' + step.id, tool: coachToolKey(step.id, method) }),
-          routineLine('tip', `coach.${step.id}.${method}.coarse`)];
+  if (step.id === 'done') return { kind: 'done', pips, n: parts.length };
+  const method = coachMethod(step.id, ctx.mode, ctx.owned), stage = ctx.stage === 'fine' ? 'fine' : 'coarse';
+  return { kind: 'step', pips, part: step.id, stage, method, at: i, n: parts.length, product: step.product || null, toolKey: coachToolKey(step.id, method),
+           textKey: `coach.${step.id}.${method}.${stage}`, tipKey: stage === 'fine' ? `coach.${step.id}.tip` : null };
 }
 
 /** 這一步可以做什麼：再細一點、下一步、自己畫、沒有這支工具、跳過、結束 */
@@ -5359,7 +5509,6 @@ function cheerFor(st, ev, now) {
       break;
     }
     case 'adjust': c = { id: 'adjust', emo: '👌', key: 'cheer.adjust', burst: '✨' }; break;
-    case 'guide': c = { id: 'guide:' + ev.n, emo: '🏅', key: 'cheer.guide', params: { n: ev.n }, burst: '👏' }; break;
     case 'paint': c = { id: 'paint', emo: '🖌️', key: 'cheer.paint', burst: '✨' }; break;
     case 'pose': c = { id: 'pose:' + ev.step, emo: POSE_EMO[ev.step] || '👏', key: 'cheer.pose.' + ev.step, burst: '✨' }; break;
     case 'fit':
@@ -10074,6 +10223,7 @@ function schedule(msgs, first) {
 function chatReset(where, lines, opts) {
   const old = S.chat[where];
   if (old?.timer) clearTimeout(old.timer);
+  if (where === 's2' || where === 's4') lines = trimLines(lines);
   S.chat[where] = { msgs: schedule(lines.map((l) => ({ who: 'ai', l })), 0), opts: opts || [] };
   mountChat(where);
 }
@@ -10098,7 +10248,19 @@ function chatReplace(where, keys, lines, opts) {
   chatSay(where, lines, opts);
 }
 
-function chatSay(where, lines, opts) {
+/**
+ * 對話要精簡：諮詢與試妝，AI 主動講的每次最多兩句。
+ * 留下提問（要等使用者回答）與提醒（光線、色偏），其餘照順序取。使用者自己問的不受限。
+ */
+const MAX_SAY = 2;
+function trimLines(lines) {
+  if (lines.length <= MAX_SAY) return lines;
+  const rank = (l) => (l.kind === 'ask' ? 0 : l.kind === 'caution' ? 1 : 2);
+  const keep = lines.map((l, i) => [rank(l), i]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).slice(0, MAX_SAY).map((x) => x[1]);
+  return lines.filter((_, i) => keep.includes(i));
+}
+function chatSay(where, lines, opts, full = false) {
+  if (!full && (where === 's2' || where === 's4')) lines = trimLines(lines);
   const c = (S.chat[where] ||= { msgs: [], opts: [] });
   const added = [];
   for (const l of lines) {
@@ -10143,7 +10305,8 @@ function mountChat(where) {
   let pendingAt = 0, prevWho = null;
   let fresh = false;
   // 對話區固定高度、自己往上捲，所以可以多留一些歷史，往上滑就看得到
-  for (const m of c.msgs.slice(-24)) {
+  // 指導中只留這一步問 AI 的留言，做法看步驟卡
+  for (const m of c.msgs.slice(inSheet && S.guide ? S.guide.logFrom : 0).slice(-24)) {
     // 還沒輪到的訊息先不畫，改畫一個「輸入中」氣泡；後面的也一起等
     if (m.who === 'ai' && m.revealAt > now) { pendingAt = m.revealAt; break; }
     if (m.who === 'you') {
@@ -10182,6 +10345,7 @@ function mountChat(where) {
     c.timer = setTimeout(() => { if (S.chat[where] === c) mountChat(where); }, Math.max(30, pendingAt - now));
   }
   box.appendChild(log);
+  if (inSheet && S.guide) box.appendChild(coachCard(S.guide));
   hostTalking(where, !!pendingAt);
   // 新訊息或「輸入中」出現時捲到底；使用者正在往上看舊訊息、又沒有新訊息時，留在原位
   log.onscroll = () => log.classList.toggle('more', log.scrollTop > 4);
@@ -10301,6 +10465,42 @@ function syncSheet() {
   }
 }
 
+/* ── 化妝指導的步驟卡：第幾步、用什麼工具、一句做法 ────────────── */
+function coachCard(g) {
+  const v = stepView(g.steps, g.i, guideCtx());
+  const card = el('div', 'coach-card');
+  const pips = el('div', 'pips');
+  v.pips.forEach((p) => pips.appendChild(el('span', p.state, (p.state === 'done' ? '✓ ' : '') + t('coach.part.' + p.id))));
+  card.appendChild(pips);
+  if (v.kind === 'tools' || v.kind === 'pick') card.appendChild(el('p', 'do', t(v.textKey)));
+  else if (v.kind === 'kit') {
+    card.appendChild(el('p', 'do', t('adv.coach.kit', { n: v.n })));
+    const items = v.products.map((x) => '<span class="chip">' + swatchHTML(x.product, 'sw') + t('coach.part.' + x.part) + ' ' + tf(x.product, 'shade') + '</span>').join('');
+    card.appendChild(el('div', 'chips', items + v.tools.map((k) => '<span class="chip">' + t(k) + '</span>').join('')));
+  } else if (v.kind === 'done') {
+    card.appendChild(el('p', 'do', t('adv.guide.done', { n: v.n })));
+  } else {
+    const head = el('div', 'head');
+    head.appendChild(el('span', 'stage', ['coarse', 'fine'].map((k) => `<b class="${k === v.stage ? 'on' : ''}">${t('coach.stage.' + k)}</b>`).join('')));
+    head.appendChild(el('span', 'chip', COACH_GLYPH[v.method] + ' ' + t(v.toolKey)));
+    card.appendChild(head);
+    card.appendChild(el('p', 'do', t(v.textKey)));
+    if (v.tipKey) card.appendChild(el('p', 'tip', t(v.tipKey)));
+  }
+  if (g.note) card.appendChild(el('p', 'tip', t(g.note)));
+  return card;
+}
+/** 鏡子上：這一步的手法畫在臉上，工具沿著路線走（減少動態效果時是靜態圖） */
+function drawCoach(ctx, lm, W, H) {
+  const g = S.guide; if (!g || !g.mode || g.picking || !lm) return;
+  const step = g.steps[g.i];
+  if (!step || step.id === 'prep' || step.id === 'done') return;
+  const shapes = coachShapes(step.id, g.stage, toPixels(lm, W, H));
+  const lw = Math.max(2, Math.min(W, H) * 0.0055);
+  const v = stepView(g.steps, g.i, guideCtx());
+  drawCoachShapes(ctx, shapes, calm() ? { lw } : { lw, t: (performance.now() % 1900) / 1900, glyph: COACH_GLYPH[v.method] });
+}
+
 /* ── 問 AI：打字問、或按標籤找教學（規則在 js/qa.js） ─────────── */
 const qaCtx = () => ({ mode: S.coach.mode || 'full', owned: S.coach.owned, season: S.season?.season || null });
 const escText = (s) => s.replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -10346,7 +10546,7 @@ function sendAsk(where, text) {
   const hits = qaSearch(q);
   // 查不到就老實說，留著標籤讓人自己找
   if (!hits.length) { c.asking = true; chatSay(where, [{ kind: 'fact', key: 'qa.none', params: {} }], back); return; }
-  chatSay(where, qaLines(hits[0], { ...qaCtx(), q }), [...hits.slice(1, 3).map(qaOpt), ...back]);
+  chatSay(where, qaLines(hits[0], { ...qaCtx(), q }), [...hits.slice(1, 3).map(qaOpt), ...back], true);
 }
 function askTag(where, tag) {
   const c = S.chat[where], back = c.opts.filter((o) => o.act !== 'qaPick');
@@ -10364,6 +10564,10 @@ function defaultOpts(where) {
   return optsForFinish();
 }
 
+const GUIDE_QUIET = new Set(['guideStart', 'coachFull', 'coachSome', 'coachNone', 'coachToggle', 'coachToolsDone', 'coachNoTool', 'guideFine', 'guideNext', 'guideSkip', 'guidePaint', 'guideEnd']);
+// 使用者自己問的東西照實講完；AI 主動講的每次最多兩句
+const ASKED_FOR = new Set(['qaPick', 'learn', 'quiz', 'quizAns', 'whySeason', 'seasonColors', 'myTaste', 'trendNow', 'recapAll', 'skinCond']);
+
 /** 點了選項：先把使用者說的話記進對話，再執行，最後回話 */
 function chatAct(where, o) {
   S.lastAct = performance.now();           // 有人在互動 → 主動開口的計時重來
@@ -10371,20 +10575,23 @@ function chatAct(where, o) {
   const c = (S.chat[where] ||= { msgs: [], opts: [] });
   const prevOpts = c.opts;
   (c.asked ||= new Set()).add(o.act);      // 問過的「為什麼」不再出現在選項裡
-  if (!o.silent) chatYou(where, o.key, optEmoji(o));
+  const quiet = GUIDE_QUIET.has(o.act);        // 指導的按鈕只換步驟卡，不變成留言
+  if (!quiet) chatYou(where, o.key, optEmoji(o));
   const r = runAct(o) || {};
+  if (quiet && S.guide) S.guide.logFrom = c.msgs.length;   // 換一步就把剛才問 AI 的留言收起來
   if (HEART_ACTS.has(o.act) && S.step === 4) floatHearts('s4');
   // AI 讀到了：在你那則留言蓋章
   const mine = [...c.msgs].reverse().find((m) => m.who === 'you');
-  if (!o.silent && mine && !mine.react) mine.react = aiReactFor(o.act);
+  if (!quiet && mine && !mine.react) mine.react = aiReactFor(o.act);
   if (S.step === 4) cheerAfter(o);
   if (r.stay === false) return;                 // 換頁的動作，對話在新畫面重建
   // 動作沒帶新選項回來（例如沒東西可換）時，把原本那排放回去 ——
   // chatYou 會先清空選項，不還回去的話對話就停在那裡沒得點了。
   if (!r.opts) r.opts = dropAnswers(prevOpts);
   // 「目前狀態」型的句子用取代，不然反覆調整會把幾乎一樣的話疊滿整個面板
-  if (r.replace) chatReplace(where, r.replace, r.lines || [], r.opts);
-  else chatSay(where, r.lines || [], r.opts);
+  const lines = r.lines || [];
+  if (r.replace) chatReplace(where, r.replace, lines, r.opts);
+  else chatSay(where, lines, r.opts, ASKED_FOR.has(o.act) || EXPLAIN_ACTS.includes(o.act));
 }
 
 // 夾限跟選項的判斷用同一組常數 —— 兩邊不一致就會出現「點了沒反應但選項還在」
@@ -10571,7 +10778,7 @@ function afterAnswer2(lines) {
 }
 
 /** AR 的選項：有上一支色號時才給「換回剛才那支」 */
-const guideCtx = () => ({ stage: S.guide.stage, mode: S.guide.mode, owned: S.guide.owned });
+const guideCtx = () => ({ stage: S.guide.stage, mode: S.guide.mode, owned: S.guide.owned, picking: S.guide.picking });
 const guideOpts = () => {
   const g = S.guide;
   if (g.picking) return ownedOpts(g.owned);
@@ -10817,7 +11024,6 @@ function nextCheer() {
 function cheerAfter(o) {
   if (o.act === 'keepYes' && S.picks?.lip) setTimeout(() => cheer({ type: 'like', id: S.picks.lip.id }), 900);   // 主播回讚：慢半拍才像在回應你
   if (o.act === 'softer' || o.act === 'stronger') cheer({ type: 'adjust' });
-  if (o.act === 'guideFine' && S.guide) cheer({ type: 'guide', n: S.guide.done.size });
 }
 /** 每一幀看一下：試妝滿一分鐘送禮物；停在一支跟季節合的色號上看了一陣子，送「命中」 */
 function cheerTick(now) {
@@ -10988,34 +11194,34 @@ function runAct(o) {
       return { lines: [say], opts: arOpts() };
     }
     /* ══ 化妝指導：化妝品 → 工具 → 手法，從粗到細 ══════════════════
-       先問手邊有什麼工具，再從素顏一層一層畫到完成。每個部位先粗（圈出位置、這一層淡淡出現）
-       再細（這一層到位、講收邊與常見失誤）。圈的是「你的臉」，不是示意圖。 */
+       先問手邊有什麼工具，再從素顏一層一層畫到完成。每個部位先粗（這一層淡淡出現）再細（到位）。
+       教的時候不講一長串對話：做法在步驟卡上（coachCard），手要怎麼走直接畫在臉上（drawCoach）。 */
     case 'guideStart': {
       if (!S.picks) return {};
       const steps = buildRoutine({ picks: S.picks, look: S.look, amount: S.amount });
-      S.guide = { steps, i: 0, stage: 'coarse', mode: null, owned: new Set(), picking: false, saved: { ...S.amount }, done: new Set() };
+      S.guide = { steps, i: 0, stage: 'coarse', mode: null, owned: new Set(), picking: false, saved: { ...S.amount }, done: new Set(), note: null, logFrom: 0 };
+      S.sheet.state = 'open'; S.sheet.tab = 'ai';
       // 先回到素顏：每一層要「出現」，才看得出它做了什麼
       step(() => { for (const c of ['lip', 'eye', 'cheek']) S.amount[c] = 0; });
-      startApply(); mountPanel(); markFace('skin');
-      return { lines: [{ kind: 'ask', key: 'adv.coach.tools', params: {} }], opts: guideOpts() };
+      startApply(); mountPanel();
+      return { opts: guideOpts() };
     }
     case 'coachSome': {
       const g = S.guide; if (!g) return {};
       g.mode = 'some'; g.picking = true;
-      return { lines: [{ kind: 'ask', key: 'adv.coach.some', params: {} }], opts: guideOpts() };
+      return { opts: guideOpts() };
     }
-    // 打勾不講話：勾幾個工具不該變成好幾則留言
     case 'coachToggle': {
       const g = S.guide; if (!g) return {};
       if (g.owned.has(o.tool)) g.owned.delete(o.tool); else g.owned.add(o.tool);
-      return { lines: [], opts: guideOpts() };
+      return { opts: guideOpts() };
     }
     case 'coachFull': case 'coachNone': case 'coachToolsDone': {
       const g = S.guide; if (!g) return {};
       g.mode = o.act === 'coachFull' ? 'full' : o.act === 'coachNone' ? 'none' : 'some';
       g.picking = false;
       S.coach = { mode: g.mode, owned: new Set(g.owned) };        // 最後一頁的指南照這個寫
-      return { lines: stepLines(g.steps, 0, guideCtx()), opts: guideOpts() };
+      return { opts: guideOpts() };
     }
     // 走到一半才發現沒有這支工具：當場換成替代品的講法
     case 'coachNoTool': {
@@ -11023,25 +11229,25 @@ function runAct(o) {
       if (g.mode === 'full') { g.mode = 'some'; g.owned = new Set(COACH_TOOLS); }
       g.owned.delete(o.tool);
       S.coach = { mode: g.mode, owned: new Set(g.owned) };
-      return { lines: stepLines(g.steps, g.i, guideCtx()), opts: guideOpts() };
+      return { opts: guideOpts() };
     }
     // 再細：這一層到位，講收邊、暈開與常見失誤
     case 'guideFine': {
       const g = S.guide; if (!g) return {};
       const cur = g.steps[g.i];
-      g.stage = 'fine';
+      g.stage = 'fine'; g.note = null;
       g.done.add(cur.id);
       if (cur.cat) {
         step(() => { S.amount[cur.cat] = cur.amount; });
         startApply(); paintPanel(); updateCallout(); mountPanel();
       }
-      return { lines: stepLines(g.steps, g.i, guideCtx()), opts: guideOpts() };
+      return { opts: guideOpts() };
     }
     case 'guideNext': case 'guideSkip': {
       const g = S.guide; if (!g) return {};
       const cur = g.steps[g.i];
       g.i = Math.min(g.i + 1, g.steps.length - 1);
-      g.stage = 'coarse';
+      g.stage = 'coarse'; g.note = null;
       const next = g.steps[g.i];
       // 跳過 = 這一層不畫；進下一步 = 那一層先淡淡出現（看得到位置與範圍）
       step(() => {
@@ -11049,11 +11255,8 @@ function runAct(o) {
         if (next.cat) S.amount[next.cat] = next.amount * COARSE_RATIO;
       });
       startApply(); paintPanel(); updateCallout(); mountPanel();
-      if (next.mark) markFace(next.mark);
-      const skipped = o.act === 'guideSkip' ? [{ kind: 'fact', key: 'adv.guide.skipped', params: {} }] : [];
-      const tail = next.id === 'done' ? routineRecap(g.steps, g.done) : [];
       if (next.id === 'done') { liveBanner('s4', '🎉', t('banner.guide')); confetti('s4'); }
-      return { lines: [...skipped, ...stepLines(g.steps, g.i, guideCtx()), ...tail], opts: guideOpts() };
+      return { opts: guideOpts() };
     }
     case 'guidePaint': {
       const g = S.guide; if (!g) return {};
@@ -11063,16 +11266,17 @@ function runAct(o) {
         step(() => { S.amount[cur.cat] = cur.amount; });
         startApply(); mountPanel();
         g.done.add(cur.id);
+        g.note = 'adv.guide.paint';
         enterPaint(); S.brush.tool = cur.cat; mountPaintbar();
       }
-      return { lines: [{ kind: 'tip', key: 'adv.guide.paint', params: {} }], opts: guideOpts() };
+      return { opts: guideOpts() };
     }
     case 'guideEnd': {
       const g = S.guide; if (!g) return {};
       // 中途結束：把整組妝補回去，不要留一張只畫一半的臉
       step(() => { for (const c of ['lip', 'eye', 'cheek']) S.amount[c] = g.saved[c] ?? S.amount[c]; });
       startApply(); paintPanel(); updateCallout(); mountPanel();
-      const recap = g.steps[g.i]?.id === 'done' ? [] : routineRecap(g.steps, g.done);
+      const recap = routineRecap(g.steps, g.done);
       S.guide = null; S.guideDone = true;
       return { lines: [...recap, { kind: 'fact', key: 'adv.guide.end', params: {} }], opts: arOpts() };
     }
@@ -11189,9 +11393,9 @@ function runAct(o) {
       const next = (read.ready && tasteSuggest(read, list, S.picks.lip.id)) || pickNext(list, S.picks.lip.id, S.pref);
       if (!next) return {};
       const prev = switchLip(next);
-      return { lines: [...onShadeChange(next, prev, S.skin), ...describeLip(next), ...prefNote(S.pref, next),
-                       ...shadeHint(next, PRODUCTS.filter((p) => p.cat === 'lip'), S.ctx, S.level),
-                       ...seasonShadeLine(next, S.season, PRODUCTS.filter((p) => p.cat === 'lip'))],
+      return { lines: [...describeLip(next).slice(0, 1), ...seasonShadeLine(next, S.season, PRODUCTS.filter((p) => p.cat === 'lip')),
+                       ...onShadeChange(next, prev, S.skin), ...prefNote(S.pref, next),
+                       ...shadeHint(next, PRODUCTS.filter((p) => p.cat === 'lip'), S.ctx, S.level)],
                replace: ['adv.shadeGap', 'adv.shadeSame', 'adv.shadeNeutral', 'adv.shadeOff', 'adv.prefTone',
                          'adv.dir.shadeWork', 'adv.dir.shadeNew', 'adv.dir.shadeParty',
                          'adv.season.shadeFit', 'adv.season.shadeOff', 'adv.lip.desc',
@@ -11282,7 +11486,7 @@ function runAct(o) {
       noteShadeDwell();
       switchLip(next, 'reason.manual');
       shadeToast(next, j, list.length, o.dir || 1);
-      return { lines: describeLip(next),
+      return { lines: describeLip(next).slice(0, 1),
                replace: ['adv.lip.desc', ...LIP_FAMILIES.map((f) => 'lipfam.' + f + '.say')], opts: arOpts() };
     }
     // 動一動看看：笑一下 → 轉側臉 → 抿抿嘴，每做到一個，AI 講這支在這個角度的樣子
@@ -12656,6 +12860,7 @@ function arLoop() {
         disp.dataset.live = '1';            // 鏡子真的畫過一幀了（拍照前要確認，不然會拍到空白畫布）
         if (S.zoom) drawLipZoom(dctx, smooth, W, H);
         drawMark(dctx, smooth, W, H);      // AI 講到哪，就在鏡子上圈到哪
+        drawCoach(dctx, smooth, W, H);     // 化妝指導：手法畫在臉上
         if (S.mode === 'bare' || S.mode === 'dual') drawSplitUI(dctx, W, H);
         if (DEBUG && !globalThis.__LUCID_NO_OVERLAY__) debugOverlay(dctx, smooth, W, H);   // 驗收截圖時可以關掉
       } else {
@@ -12917,7 +13122,7 @@ function paintRecItems() {
 /** 上妝結果的契合度：三條量出來的分項 + 一段照實說的評語 */
 function paintVerdict(meas) {
   const box = $('#verdict');
-  if (!meas) { box.hidden = true; mountAdvisor('#adv5', [], true); return; }
+  if (!meas) { box.hidden = true; return; }
   box.hidden = false;
   const v = evaluate(meas);
   // 給使用者的正面回饋：條件成立才誇，撐不起來就照實說 + 怎麼改
@@ -13147,8 +13352,25 @@ function paintBeforeAfter() {
     frame(tmp, t('coach.part.' + p), end && !hasBrush());
   });
   if (hasBrush()) { renderOnPhoto(tmp, S.picks, S.amount, S.look, true); frame(tmp, t('flow.mine'), true); }
+  // 指南的圖要畫在有妝的臉上
+  renderOnPhoto(tmp, S.picks, S.amount, S.look, true);
+  howSrc = tmp;
 }
-/** 化妝指南：每個部位的化妝品、工具、先粗、再細、常見失誤；可以切換手邊的工具 */
+let howSrc = null;
+/** 這個部位的手法圖：把臉框到那個部位，路線畫上去 */
+function howPic(part, stage) {
+  const W = S.photo.width, H = S.photo.height;
+  const P = toPixels(S.photoLm, W, H), b = coachRegion(part, P, W, H);
+  const c = el('canvas');
+  c.width = 360; c.height = Math.round(360 * b.h / b.w);
+  const x = c.getContext('2d'), k = c.width / b.w;
+  x.imageSmoothingQuality = 'high';
+  x.drawImage(howSrc || S.photo, b.x, b.y, b.w, b.h, 0, 0, c.width, c.height);
+  x.setTransform(k, 0, 0, k, -b.x * k, -b.y * k);
+  drawCoachShapes(x, coachShapes(part, stage, P), { lw: 2.6 / k });
+  return c;
+}
+/** 化妝指南：每個部位一張卡，化妝品與工具一行，先粗、再細各一張手法圖＋一句話；可以切換手邊的工具 */
 function paintHow() {
   const mode = S.coach.mode || 'full';
   const modes = $('#how-modes'); modes.innerHTML = '';
@@ -13160,13 +13382,20 @@ function paintHow() {
   }
   const box = $('#s5-how'); box.innerHTML = '';
   for (const s of coachPlan({ picks: S.picks, amount: S.amount, mode, owned: S.coach.owned })) {
-    const item = s.product ? swatchHTML(s.product, 'sw') + '<span>' + tf(s.product, 'shade') + '</span>' : '<span>' + t('coach.base.item') + '</span>';
-    box.appendChild(el('article', 'how', `<h4>${t('coach.part.' + s.part)}</h4>
-      <dl><dt>${t('how.item')}</dt><dd class="it2">${item}</dd>
-      <dt>${t('how.tool')}</dt><dd>${t(s.toolKey)}</dd>
-      <dt>${t('how.coarse')}</dt><dd>${t(s.coarseKey)}</dd>
-      <dt>${t('how.fine')}</dt><dd>${t(s.fineKey)}</dd>
-      <dt>${t('how.tip')}</dt><dd class="tip">${t(s.tipKey)}</dd></dl>`));
+    const card = el('article', 'how');
+    const item = s.product ? swatchHTML(s.product, 'sw') + tf(s.product, 'shade') : t('coach.base.item');
+    card.innerHTML = `<h4>${t('coach.part.' + s.part)}</h4>
+      <div class="chips"><span class="chip">${item}</span><span class="chip">${COACH_GLYPH[s.method]} ${t(s.toolKey)}</span></div>`;
+    const pics = el('div', 'pics');
+    for (const [stage, key] of [['coarse', s.coarseKey], ['fine', s.fineKey]]) {
+      const fig = el('figure');
+      fig.appendChild(howPic(s.part, stage));
+      fig.appendChild(el('figcaption', '', `<b>${t('coach.stage.' + stage)}</b>${t(key)}`));
+      pics.appendChild(fig);
+    }
+    card.appendChild(pics);
+    card.appendChild(el('p', 'tip', t(s.tipKey)));
+    box.appendChild(card);
   }
 }
 
@@ -13239,8 +13468,7 @@ function paintTwo(images = true) {
   const top = S.ranked[0];
   const ai = planFor(top.look);
   S.aiPlan = ai;
-  if (images) paintBeforeAfter();
-  paintHow();
+  if (images) { paintBeforeAfter(); paintHow(); }
   $('#blk-ai-name').textContent = tf(ai.look, 'name');
   $('#blk-ai-why').textContent = cardWhy(top.look, top.why);
   $('#blk-me-name').textContent = S.look ? tf(S.look, 'name') : '';
