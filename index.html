@@ -5,6 +5,8 @@
 <title>LUCID AI Smart Mirror — AI × AR 智慧美妝體驗儀</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <!-- 安裝成 App（PWA）：Android / 電腦版 Chrome 讀 manifest；iPhone 讀下面幾個 apple 標籤 -->
+<meta name="description" content="AI 美妝教學與 AR 試妝：用手機鏡頭看化妝前後，AI 問答教你用什麼化妝品、工具、手法，沒有工具也能畫。可安裝、可離線。">
+<meta name="keywords" content="AI 美妝教學, 化妝教學, AR 試妝, 虛擬試妝, 新手化妝, 沒有工具化妝, AI makeup tutorial, virtual makeup try-on, AIメイク, メイクレッスン">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#c66884">
 <meta name="mobile-web-app-capable" content="yes">
@@ -136,26 +138,50 @@
       <section class="screen" id="s5" hidden>
         <div id="s5-scroll">
 
-        <!-- 最後一頁只有兩塊：AI 推薦的妝、你自己決定的妝 —— 各自一張成品圖＋用到的商品 -->
-        <div class="duo">
-          <article class="blk" id="blk-ai">
-            <header><span class="who">AI</span><div><h3 data-i18n="blk.ai">AI 推薦的妝</h3><small id="blk-ai-name"></small></div></header>
-            <figure class="pic"><canvas id="img-ai"></canvas></figure>
-            <p class="why" id="blk-ai-why"></p>
-            <div class="items" id="items-ai"></div>
-            <button class="take" id="take-ai" type="button"></button>
-          </article>
-          <article class="blk me" id="blk-me">
-            <header><span class="who" data-i18n="blk.meTag">你</span><div><h3 data-i18n="blk.me">你自己決定的妝</h3><small id="blk-me-name"></small></div></header>
-            <figure class="pic"><canvas id="img-me"></canvas></figure>
-            <div class="clip" id="clip-me" hidden></div>
-            <div id="snaps" hidden></div>
-            <p class="why" id="blk-me-why"></p>
-            <div class="items" id="items-me"></div>
-            <button class="take" id="take-me" type="button"></button>
-          </article>
+        <!-- 最後一頁：化妝前後 → 從素顏到完成 → 化妝指南（化妝品、工具、手法）→ 你自己畫的；商品收在最下面 -->
+        <div class="fin">
+          <h3 data-i18n="s5.ba.title">化妝前後</h3>
+          <div class="bax" id="s5-ba">
+            <canvas id="ba-before"></canvas><canvas id="ba-after"></canvas>
+            <span class="tag l" data-i18n="ba.before">BEFORE</span><span class="tag r" data-i18n="ba.after">AFTER</span>
+            <i class="grip"></i>
+            <input type="range" id="ba-range" min="0" max="100" value="50" data-i18n-title="s5.ba.hint">
+          </div>
+          <small data-i18n="s5.ba.hint">左右拖曳看差別</small>
         </div>
-        <div class="note" id="rec-total"></div>
+        <div class="fin">
+          <h3 data-i18n="s5.flow.title">從素顏到完成</h3>
+          <div class="flow" id="s5-flow"></div>
+        </div>
+        <div class="fin">
+          <h3 data-i18n="s5.how.title">你的化妝指南</h3>
+          <p data-i18n="s5.how.sub">用什麼化妝品、什麼工具、手怎麼動 —— 從粗到細</p>
+          <div class="how-modes" id="how-modes"></div>
+          <div id="s5-how"></div>
+        </div>
+        <div class="fin" id="s5-mine" hidden>
+          <h3 data-i18n="s5.mine">你自己畫的</h3>
+          <div class="clip" id="clip-me" hidden></div>
+          <div id="snaps" hidden></div>
+        </div>
+        <details class="fin" id="s5-prod">
+          <summary data-i18n="s5.prod">用到的商品與價錢</summary>
+          <div class="duo">
+            <article class="blk" id="blk-ai">
+              <header><span class="who">AI</span><div><h3 data-i18n="blk.ai">AI 推薦的妝</h3><small id="blk-ai-name"></small></div></header>
+              <p class="why" id="blk-ai-why"></p>
+              <div class="items" id="items-ai"></div>
+              <button class="take" id="take-ai" type="button"></button>
+            </article>
+            <article class="blk me" id="blk-me">
+              <header><span class="who" data-i18n="blk.meTag">你</span><div><h3 data-i18n="blk.me">你自己決定的妝</h3><small id="blk-me-name"></small></div></header>
+              <p class="why" id="blk-me-why"></p>
+              <div class="items" id="items-me"></div>
+              <button class="take" id="take-me" type="button"></button>
+            </article>
+          </div>
+          <div class="note" id="rec-total"></div>
+        </details>
 
         <!-- 以前的區塊（購物清單、對話、詳細報告）：程式還會寫進去，但這一頁不再顯示 -->
         <div id="s5-legacy" hidden>
@@ -163,7 +189,6 @@
         <div class="sect-title" data-i18n="sect.rec">今天試的這幾件</div>
         <div id="bag-bar"></div>
         <div id="rec-items"></div>
-        <div class="note" id="rec-total"></div>
 
         <div class="sect-title" data-i18n="adv.title">給你的回饋</div>
         <div class="advisor big" id="adv5" hidden></div>
