@@ -18,7 +18,8 @@ import { pickSurprise, newCheer, cheerFor, CHEER_GAP_MS, GIFT_AR_MS, FIT_MAX, ai
 import { LIP_INSET } from './js/makeup-gl.js';
 import { pwaState, isIOS, isInApp } from './js/pwa.js';
 import { nextDuel, duelSides, duelLines, duelOpts, duelPicked, DUEL_AXES } from './js/duel.js';
-import { buildRoutine, stepView, stepOpts, routineRecap, toolModeOpts, ownedOpts } from './js/routine.js';
+import { lessonChapters, modeFrom, lessonRegions, averageSamples, assessPart, LESSON_LEVELS } from './js/lesson.js';
+import { GROWTH_KEY, GROWTH_PARTS, addRecord, growthTrend, growthDelta, sparkPoints } from './js/growth.js';
 import { COACH_PARTS, COACH_MODES, COACH_TOOLS, COACH_GLYPH, coachMethod, coachPlan, coachShapes, coachRegion, drawCoachShapes } from './js/coach.js';
 import { QA_TAGS, QA_KB, qaSearch, qaByTag, qaLines, qaMethod } from './js/qa.js';
 import { TRENDS, TREND_PACK, TREND_STALE_DAYS, trendsFor, trendPlan, trendPick, trendLines,
@@ -1229,63 +1230,32 @@ console.log('\n\x1b[1m31. 流行妝容：離線資料包、標日期、做得到
   ok(opts.every((o) => ACTS.includes(o.act) && optEmoji(o)), '流行的選項都是已知動作、都有符號');
 }
 
-console.log('\n\x1b[1m32. 化妝指導：化妝品 → 工具 → 手法，從粗到細\x1b[0m');
+console.log('\n\x1b[1m32. 化妝教學的章節：工具 → 化妝品 → 手法，從粗到細\x1b[0m');
 {
   const look = LOOKS.find((l) => l.id === 'natural');
   const picks = resolveLook(look, 'cool');
-  const steps = buildRoutine({ picks, look });
-  console.log('  ' + steps.map((x) => x.id).join(' → '));
-  ok(steps.map((x) => x.id).join() === 'prep,base,eye,cheek,lip,done', '從備料開始，底妝 → 眼 → 頰 → 唇，最後完成');
-  ok(steps.filter((x) => x.cat).every((x) => x.product && x.amount > 0), '有上色的每一步都有商品與目標濃度');
-  const menLook = LOOKS.find((l) => l.id === 'men');
-  ok(!buildRoutine({ picks: { lip: picks.lip, cheek: picks.cheek }, look: menLook }).some((x) => x.cat === 'eye'), '沒有眼影就不會出現空的眼影步驟');
-  ok(!buildRoutine({ picks, look, amount: { eye: 0, cheek: 0.3, lip: 0.5 } }).some((x) => x.cat === 'eye'), '濃度是 0 的部位也不排');
+  const ch = lessonChapters({ picks });
+  console.log('  ' + ch.map((x) => x.id).join(' → '));
+  ok(ch.map((x) => x.id).join() === 'tools,items,base,eye,cheek,lip,end', '從工具開始，再化妝品，底妝 → 眼 → 頰 → 唇，最後完成');
+  ok(ch.filter((x) => x.part && x.part !== 'base').every((x) => x.product && x.amount > 0), '有上色的每一章都有商品與目標濃度');
+  ok(!lessonChapters({ picks: { lip: picks.lip, cheek: picks.cheek } }).some((x) => x.id === 'eye'), '沒有眼影就沒有眼影這一章');
+  ok(!lessonChapters({ picks, amount: { eye: 0, cheek: 0.3, lip: 0.5 } }).some((x) => x.id === 'eye'), '濃度是 0 的部位也不排');
+  ok(lessonChapters({ picks: {} }).some((x) => x.id === 'base'), '底妝一定有');
 
   // 手法跟著工具走
   ok(coachMethod('eye', 'full') === 'full' && coachMethod('eye', 'none') === 'none', '工具齊全用工具；沒有工具用手指、紙巾');
   ok(coachMethod('lip', 'some', new Set(['lipBrush'])) === 'full' && coachMethod('eye', 'some', new Set(['lipBrush'])) === 'sub', '工具不齊全：有的用工具，沒有的用替代品');
-  const none = { stage: 'coarse', mode: 'none', owned: new Set() }, full = { stage: 'coarse', mode: 'full', owned: new Set() };
-  const eyeAt = steps.findIndex((x) => x.id === 'eye');
-  const V = stepView(steps, eyeAt, full);
-  ok(V.kind === 'step' && V.at === 2 && V.n === 4 && V.toolKey === 'coach.tool.eyeBrush' && V.product?.id === picks.eye.id, '步驟卡：第幾步、共幾步、用什麼工具、哪支化妝品');
-  ok(V.textKey === 'coach.eye.full.coarse' && !V.tipKey, '先粗只講一句');
-  const F = stepView(steps, eyeAt, { ...full, stage: 'fine' });
-  ok(F.textKey === 'coach.eye.full.fine' && F.tipKey === 'coach.eye.tip', '再細才加上常見失誤');
-  ok(stepView(steps, eyeAt, none).textKey === 'coach.eye.none.coarse', '沒有工具時換成手指的講法');
-  ok(V.pips.map((p) => p.state).join() === 'done,now,todo,todo', '進度：做完的、現在的、還沒到的');
-  const kit = stepView(steps, 0, full);
-  ok(kit.kind === 'kit' && kit.products.length === 3 && kit.tools.includes('coach.tool.lipBrush'), '開始前列出化妝品與工具');
-  ok(stepView(steps, 0, {}).kind === 'tools' && stepView(steps, 0, { mode: 'some', picking: true }).kind === 'pick', '還沒回答工具時先問');
-  ok(stepView(steps, steps.length - 1, full).kind === 'done', '走完顯示完成');
-
-  // 選項
-  const coarse = stepOpts(steps, eyeAt, full).map((o) => o.act);
-  ok(coarse.join() === 'guideFine,guidePaint,coachNoTool,guideSkip,guideEnd', '先粗：再細一點／自己畫／我沒有這個工具／跳過／結束');
-  ok(!stepOpts(steps, eyeAt, none).some((o) => o.act === 'coachNoTool'), '已經沒有工具就不再問');
-  ok(stepOpts(steps, 1, full).every((o) => o.act !== 'guidePaint'), '底妝鏡子不畫，沒有「自己畫」');
-  const lipAt = steps.findIndex((x) => x.id === 'lip');
-  ok(stepOpts(steps, eyeAt, { ...full, stage: 'fine' })[0].act === 'guideNext' && stepOpts(steps, lipAt, { ...full, stage: 'fine' })[0].key === 'opt.guideFinish', '再細之後才到下一步；最後一步改成完成');
-  ok(stepOpts(steps, steps.length - 1, full).map((o) => o.act).join() === 'guideEnd' && stepOpts(steps, 0, full).map((o) => o.act).join() === 'guideNext,guideEnd', '備料與完成只有該有的選項');
-  ok(toolModeOpts().map((o) => o.act).join() === 'coachFull,coachSome,coachNone', '一開始先問工具：齊全／一部分／沒有');
-  const owned = ownedOpts(new Set(['sponge']));
-  ok(owned.filter((o) => o.act === 'coachToggle').length === 4 && optEmoji(owned[0]) === '✅' && optEmoji(owned[1]) === '⬜', '看得到勾了哪些');
-  const allOpts = [...toolModeOpts(), ...owned, ...[0, 1, eyeAt, lipAt, steps.length - 1].flatMap((i) => [...stepOpts(steps, i, full), ...stepOpts(steps, i, { ...full, stage: 'fine' })])];
-  ok(allOpts.every((o) => ACTS.includes(o.act) && optEmoji(o)), '引導的選項都是已知動作、都有符號');
-
-  const rc = routineRecap(steps, new Set(['eye', 'lip']));
-  ok(rc[0].key === 'adv.guide.recap' && rc[0].params.n === 2, '回顧只算真的跟著畫過的部位');
-  ok(routineRecap(steps, new Set()).length === 0, '一步都沒做就不講回顧');
+  ok(coachMethod('eye', 'some', new Set(['lipBrush']), false) === 'none', '連替代品也沒有：改用手指');
+  ok(modeFrom(new Set(COACH_TOOLS), false) === 'full' && modeFrom(new Set(), false) === 'none' && modeFrom(new Set(), true) === 'some' && modeFrom(new Set(['sponge']), false) === 'some', '勾選的工具決定教法');
 
   // 文案：四個部位 × 三種手法 × 粗細，三種語言都要有
   const dictSrc4 = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
   const has3g = (k) => { const m = dictSrc4.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
   const keys = [...COACH_PARTS.flatMap((p) => ['full', 'sub', 'none'].flatMap((m) => ['coach.' + p + '.' + m + '.coarse', 'coach.' + p + '.' + m + '.fine'])),
                 ...COACH_PARTS.flatMap((p) => ['coach.' + p + '.tip', 'coach.part.' + p, 'coach.sub.' + p, 'coach.none.' + p]),
-                ...COACH_TOOLS.map((x) => 'coach.tool.' + x),
-                ...['ask', 'done', 'recap', 'end', 'paint'].map((x) => 'adv.guide.' + x), ...['tools', 'some', 'kit'].map((x) => 'adv.coach.' + x), 'coach.stage.coarse', 'coach.stage.fine',
-                ...['guideStart', 'guideNext', 'guideFinish', 'guidePaint', 'guideSkip', 'guideEnd', 'coachFull', 'coachSome', 'coachNone', 'coachToolsDone', 'coachStart', 'coachFine', 'coachNoTool', 'more', 'less'].map((x) => 'opt.' + x)];
+                ...COACH_TOOLS.map((x) => 'coach.tool.' + x), 'adv.guide.ask', 'coach.stage.coarse', 'coach.stage.fine', 'opt.guideStart'];
   const miss = keys.filter((k) => !has3g(k));
-  ok(miss.length === 0, '指導的文案三種語言齊全（' + keys.length + ' 句）' + (miss.length ? ' 缺：' + miss.join(',') : ''));
+  ok(miss.length === 0, '教學的文案三種語言齊全（' + keys.length + ' 句）' + (miss.length ? ' 缺：' + miss.join(',') : ''));
   ok(!/'guide\.eye\.do'/.test(dictSrc4), '舊的引導文案清掉了');
 }
 
@@ -1397,7 +1367,7 @@ console.log('\n\x1b[1m34. 膚況分析、二選一找命定色、拍下這個妝
   const newActs = ['skinCond', 'duelStart', 'duelLeft', 'duelRight', 'duelEnd', 'snap'];
   ok(newActs.every((a) => ACTS.includes(a) && optEmoji({ act: a, key: 'opt.' + a })), '新動作都是已知動作、都有符號');
   const app3 = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
-  ok(/if \(S\.duel \|\| S\.guide\) return;/.test(app3), '玩二選一或跟著畫的時候，AI 不插別的話');
+  ok(/if \(S\.duel \|\| S\.teach\) return;/.test(app3), '玩二選一或上教學的時候，AI 不插別的話');
   ok(/function snapLook/.test(app3) && /download = /.test(app3), '拍下的妝可以在最後一頁存下來');
   const dict7 = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
   const has3r = (k) => { const m = dict7.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
@@ -1477,17 +1447,17 @@ console.log('\n\x1b[1m36. 直播間的固定配置：主播資訊、右側按鈕
   ok(sec('s4').includes('id="s4-rail"') && sec('s4').includes('id="s4-fx"'), '第 3 步有右側按鈕列與特效層');
   const rail = app.slice(app.indexOf('const RAIL = ['), app.indexOf('];', app.indexOf('const RAIL = [')));
   const railActs = [...rail.matchAll(/act: '(\w+)'/g)].map((m) => m[1]);
-  ok(railActs.join() === 'guideStart,paintSelf,snap,duelStart' && /\{ ask: true, emo: '💬'/.test(rail) && rail.indexOf('guideStart') < rail.indexOf('ask: true') && railActs.every((a) => ACTS.includes(a)), '右側按鈕：教我畫、問 AI 排最上面，再來自己畫、拍照、二選一');
+  ok(railActs.join() === 'paintSelf,snap,duelStart' && /\{ ask: true, emo: '💬'/.test(rail) && railActs.every((a) => ACTS.includes(a)), '右側按鈕：問 AI 排最上面，再來自己畫、拍照、二選一（學怎麼畫是下面的主要按鈕）');
   const opts = app.slice(app.indexOf('const arOpts = () =>'), app.indexOf('/* ══ 直播間的互動元素'));
   ok(railActs.filter((a) => a !== 'guideStart').every((a) => !opts.includes("act: '" + a + "'")) && /S\.guideDone \? \[\] : \[\{ key: 'opt\.guideStart'/.test(opts), '快速回覆只留回答 AI 的選項；只有「教我怎麼畫」在走過一次之前排第一個');
   ok(/#s4\.busy \.rail, #s4\.painting-mode \.rail \{ display:none; \}/.test(css), '玩二選一、跟著畫、自己畫的時候右側按鈕先收起來');
   ok(/const HEART_ACTS = new Set\(\[[^\]]*'keepYes'[^\]]*'duelLeft'[^\]]*\]\)/.test(app) && /floatHearts\('s4'\)/.test(app), '表示喜歡的時候飄愛心');
   ok(/if \(!fx \|\| calm\(\)\) return;/.test(app), '系統設定減少動態效果時不飄愛心');
-  ok(/liveBanner\('s4', '💖'/.test(app) && /liveBanner\('s4', '📸'/.test(app) && /liveBanner\('s4', '🎉'/.test(app), '命定色出爐、拍好了、跟著畫完會跳禮物式橫幅');
+  ok(/liveBanner\('s4', '💖'/.test(app) && /liveBanner\('s4', '📸'/.test(app), '命定色出爐、拍好了會跳禮物式橫幅');
   ok(/@keyframes liveIn/.test(css), '新留言從左邊滑進來');
   const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
   const has3 = (k) => { const m = dict.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
-  const keys = ['host.name', 'host.s2', 'host.s4', 'rail.duel', 'rail.snap', 'rail.guide', 'rail.paint', 'banner.duel', 'banner.snap', 'banner.guide'];
+  const keys = ['host.name', 'host.s2', 'host.s4', 'rail.duel', 'rail.snap', 'rail.paint', 'banner.duel', 'banner.snap'];
   ok(keys.every(has3), '文案三種語言齊全（' + keys.length + ' 句）');
 }
 
@@ -1720,7 +1690,7 @@ console.log('\n\x1b[1m44. 唇色不出唇線＋滑動換色＋動一動看看（
   ok(/'adv\.pose\.smile\.' \+ \(p\.tone === 'cool' \|\| p\.tone === 'warm' \? p\.tone : 'neutral'\)/.test(app), '笑：依冷暖調講跟牙齒的關係');
   ok(/'adv\.pose\.turn\.' \+ \(p\.finish === 'gloss' \? 'gloss' : 'matte'\)/.test(app), '側面：依水光／霧面講不同的樣子');
   ok(/if \(!S\.posePrompted && S\.tried\.size >= 1 && !S\.yesNo\)/.test(app), 'AI 會主動邀請「動一動看看」（一場一次）');
-  ok(/S\.duel \|\| S\.guide \|\| S\.pose\)\);/.test(app), '動一動時右側按鈕先收起來');
+  ok(/S\.duel \|\| S\.pose\)\);/.test(app), '動一動時右側按鈕先收起來');
   ok(['swipeShade', 'poseStart', 'poseSkip', 'poseEnd'].every((a) => ACTS.includes(a) && optEmoji({ act: a })), '新動作都是已知動作、都有符號');
   const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
   const has3 = (k) => { const m = dict.split(/\r?\n/).find((l) => l.trimStart().startsWith("'" + k + "':")); return !!m && (m.match(/', '/g) || []).length >= 2; };
@@ -1833,11 +1803,11 @@ console.log('\n\x1b[1m46. 反饋：AI 問答、前後對比、過程、產品退
   ok(/let demo = !calm\(\);/.test(app) && /range\.oninput = \(\) => \{ demo = false;/.test(app), '前後對比一進來自己掃一次，一碰就停；減少動態效果時不掃');
   ok(html.split('id="rec-total"').length === 2, '修掉重複的 id（#rec-total 有兩個）');
   ok(/frame\(S\.photo, t\('flow\.bare'\), false\)/.test(app) && /parts\.forEach/.test(app), '過程從素顏開始，一層一層疊到完成');
-  ok(COACH_MODES.join() === 'full,some,none' && /b\.onclick = \(\) => \{ S\.coach\.mode = m; paintHow\(\); \}/.test(app), '指南可以切換手邊的工具');
+  ok(COACH_MODES.join() === 'full,some,none' && /b\.onclick = \(\) => \{ S\.coach\.mode = m; S\.coach\.hasSub = true; paintHow\(\); \}/.test(app), '指南可以切換手邊的工具');
   const plan = coachPlan({ picks: resolveLook(LOOKS.find((l) => l.id === 'natural'), 'cool'), mode: 'none' });
   ok(plan.map((p) => p.part).join() === 'base,eye,cheek,lip' && plan.every((p) => p.method === 'none' && p.toolKey.startsWith('coach.none.')) && plan[0].product === null, '指南列出每個部位的化妝品、工具、手法');
-  ok(/!S\.guide && !S\.guideDone \? \[\{ kind: 'ask', key: 'adv\.guide\.ask'/.test(app), '每個人一進鏡子就邀請化妝指導（以前只問新手）');
-  ok(/S\.amount\[next\.cat\] = next\.amount \* COARSE_RATIO/.test(app) && /S\.amount\[cur\.cat\] = cur\.amount;/.test(app), '鏡子上也是先粗再細：先淡淡出現，再細才到位');
+  ok(/!S\.guideDone \? \[\{ kind: 'ask', key: 'adv\.guide\.ask'/.test(app), '每個人一進鏡子就邀請化妝教學（以前只問新手）');
+  ok(/T\.saved\[c\] \* \(T\.stage === 'coarse' \? COARSE_RATIO : 1\)/.test(app), '鏡子上也是先粗再細：先淡淡出現，再細才到位');
   const adv = dict.split(/\r?\n/).filter((l) => /^  '(coach|qa)\./.test(l));
   ok(!adv.some((l) => ['漂亮', '好看', '美麗', '顯瘦', 'pretty', 'beautiful', '美しい'].some((w) => l.includes(w))), '指導與問答只講做法，不評價長相');   // 「きれい」在這裡是乾淨的刷子，不算
 }
@@ -1849,16 +1819,17 @@ console.log('\n\x1b[1m47. 對話精簡；教學步驟畫出來\x1b[0m');
   ok(!!fn, '有每次最多兩句的規則');
   const trimLines = new Function(fn + '; return trimLines;')();
   const L = (kind, key) => ({ kind, key });
-  ok(trimLines([L('fact', 'a'), L('tip', 'b')]).length === 2, '兩句以內不動');
-  ok(trimLines([L('fact', 'a'), L('tip', 'b'), L('tip', 'c'), L('fact', 'd')]).map((x) => x.key).join() === 'a,b', '太多就留前兩句');
+  ok(trimLines([L('fact', 'a'), L('tip', 'b')]).map((x) => x.key).join() === 'a', '一般的話一次只講一句');
+  ok(trimLines([L('fact', 'a'), L('tip', 'b'), L('tip', 'c'), L('fact', 'd')]).map((x) => x.key).join() === 'a', '再多也只留第一句');
   ok(trimLines([L('fact', 'a'), L('tip', 'b'), L('ask', 'c')]).map((x) => x.key).join() === 'a,c', '要等回答的提問一定留下，順序不變');
   ok(trimLines([L('fact', 'a'), L('caution', 'b'), L('tip', 'c'), L('ask', 'd')]).map((x) => x.key).join() === 'b,d', '提醒（光線、色偏）比一般句子優先');
   ok(/if \(!full && \(where === 's2' \|\| where === 's4'\)\) lines = trimLines\(lines\);/.test(app), '諮詢與試妝才限制');
   ok(/ASKED_FOR\.has\(o\.act\) \|\| EXPLAIN_ACTS\.includes\(o\.act\)/.test(app) && /\.\.\.back\], true\);/.test(app), '使用者自己問的（為什麼、小教室、問 AI）照實講完');
-  ok(/const quiet = GUIDE_QUIET\.has\(o\.act\);/.test(app) && /if \(inSheet && S\.guide\) box\.appendChild\(coachCard\(S\.guide\)\);/.test(app), '指導時不留對話，換成步驟卡');
+  ok(/c\.msgs\.slice\(inSheet \? -6 : -4\)/.test(app), '對話只顯示最近幾則');
+  ok(!/S\.guide\b|coachCard|GUIDE_QUIET/.test(app), '舊的對話式指導都拿掉了');
   ok(!/stepLines/.test(app), '舊的引導句子不再進對話');
   const imported = new Set([...app.matchAll(/^import \{([^}]*)\} from/gm)].flatMap((x) => x[1].split(',').map((n) => n.trim())));
-  ok(['EXPLAIN_ACTS', 'stepView', 'coachShapes', 'coachRegion', 'drawCoachShapes', 'COACH_GLYPH', 'qaSearch', 'qaLines', 'QA_KB', 'QA_TAGS', 'qaByTag'].every((n) => imported.has(n)), '指導與問答用到的名字都有 import');
+  ok(['EXPLAIN_ACTS', 'lessonChapters', 'assessPart', 'addRecord', 'coachShapes', 'coachRegion', 'drawCoachShapes', 'COACH_GLYPH', 'qaSearch', 'qaLines', 'QA_KB', 'QA_TAGS', 'qaByTag'].every((n) => imported.has(n)), '指導與問答用到的名字都有 import');
 
   // 畫在臉上：假臉（468 點散在 0..640 × 0..480 內）
   const P = Array.from({ length: 468 }, (_, i) => ({ x: 120 + (i * 37) % 400, y: 60 + (i * 53) % 360 }));
@@ -1886,6 +1857,79 @@ console.log('\n\x1b[1m47. 對話精簡；教學步驟畫出來\x1b[0m');
   ok(/fig\.appendChild\(howPic\(s\.part, stage\)\)/.test(app), '最後一頁的指南也是圖：先粗、再細各一張');
   const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
   ok(!/'coach\.[a-z]+\.(full|sub|none)\.(coarse|fine)': \['(先粗|再細)/.test(dict), '句首不再重複「先粗、再細」（卡片和圖已經標了）');
+}
+
+console.log('\n\x1b[1m48. 化妝教學獨立成一段；量真的臉；成長紀錄\x1b[0m');
+{
+  const app = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const lab = (L, a = 0, b = 0) => ({ L, a, b });
+  const target = lab(40, 50, 20), cov = 0.5;
+  const b0 = lab(70, 10, 15), ctrl = lab(80, 8, 12);
+  const base = { ctrl, sides: [b0, b0] };
+  const at = (k) => lab(b0.L + (target.L - b0.L) * cov * k, b0.a + (target.a - b0.a) * cov * k, b0.b + (target.b - b0.b) * cov * k);
+  const cur = (k1, k2 = k1, c = ctrl) => ({ ctrl: c, sides: [at(k1), at(k2)] });
+  ok(assessPart(base, cur(0), target, cov).level === 'none', '沒有變化：還沒上');
+  ok(assessPart(base, cur(0.5), target, cov).level === 'light', '走到一半：偏淡');
+  const good = assessPart(base, cur(1), target, cov);
+  ok(good.level === 'good' && good.score === 100 && good.uneven === null, '剛好到目標：差不多，滿分');
+  ok(assessPart(base, cur(1.8), target, cov).level === 'heavy', '超過目標：太濃');
+  ok(assessPart(base, cur(2), target, cov).score === 50, '超過目標扣得比不夠慢：真的口紅塗滿不會只剩個位數');
+  const un = assessPart(base, cur(0.5, 1.1), target, cov);
+  ok(un.uneven === 0, '左右差很多：指出比較淡的是畫面左邊');
+  ok(assessPart(base, cur(1.1, 0.5), target, cov).uneven === 1, '　右邊淡就說右邊');
+  ok(assessPart(base, cur(0.8, 1), target, cov).uneven === null, '　差一點不算不平均');
+  // 燈光變了：臉和額頭一起變，不能當成有上妝
+  const dL = 12, lit = { ctrl: lab(ctrl.L + dL, ctrl.a, ctrl.b), sides: [lab(b0.L + dL, b0.a, b0.b), lab(b0.L + dL, b0.a, b0.b)] };
+  ok(assessPart(base, lit, target, cov).level === 'none', '燈光變亮：扣掉額頭的變化，不會誤判成上了妝');
+  const close = assessPart(base, cur(1), lab(71, 11, 15), cov);
+  ok(close.level === 'small' && close.score === null, '目標跟原本太接近：老實說量不出來，也不給分');
+  ok(LESSON_LEVELS.none < LESSON_LEVELS.light && LESSON_LEVELS.light < 1 && 1 < LESSON_LEVELS.heavy, '門檻由淡到濃');
+
+  // 平均與區域
+  const avg = averageSamples([{ ctrl: lab(10), sides: [lab(20)] }, null, { ctrl: lab(30), sides: [lab(40)] }]);
+  ok(avg.ctrl.L === 20 && avg.sides[0].L === 30, '幾次量測取平均，量不到的略過');
+  ok(averageSamples([null, null]) === null, '全部量不到回 null');
+  const P = Array.from({ length: 468 }, (_, i) => ({ x: 120 + (i * 37) % 400, y: 60 + (i * 53) % 360 }));
+  ok(lessonRegions('base', P) === null, '底妝不量（鏡頭分不出來）');
+  ok(lessonRegions('lip', P).sides.length === 1 && !!lessonRegions('lip', P).sides[0].hole, '唇：一區，挖掉嘴巴裡面');
+  const ch = lessonRegions('cheek', P).sides;
+  ok(ch.length === 2 && ch[0].circle.x <= ch[1].circle.x, '腮紅：左右各一區，照畫面由左到右');
+  ok(lessonRegions('eye', P).sides.length === 2, '眼影：左右各一區');
+
+  // 成長紀錄
+  const rec = (at, s, photo) => ({ at, scores: s, before: photo ? 'b' : null, after: photo ? 'a' : null });
+  let list = [];
+  for (let i = 0; i < 40; i++) list = addRecord(list, rec(i, { lip: i }, true));
+  ok(list.length === 30 && list[29].at === 39, '最多留 30 筆，新的在最後');
+  ok(list.filter((r) => r.before).length === 12 && list[29].before === 'b' && list[0].before === null && list[0].scores.lip === 10, '照片只留最近 12 筆，舊的分數留著');
+  const L2 = [rec(1, { lip: 40 }), rec(2, { eye: 50 }), rec(3, { lip: 55 })];
+  ok(growthTrend(L2, 'lip').map((x) => x.score).join() === '40,55', '趨勢只算有量到的');
+  ok(growthDelta(L2, 'lip') === 15 && growthDelta(L2, 'eye') === null && growthDelta(L2, 'cheek') === null, '比上次進步多少；只有一次沒得比');
+  const pts = sparkPoints([{ at: 1, score: 0 }, { at: 2, score: 100 }], 120, 44);
+  ok(pts[0].y === 38 && pts[1].y === 6 && pts[0].x === 6 && pts[1].x === 114, '折線縱軸固定 0–100，三個部位同一把尺');
+  ok(sparkPoints([{ at: 1, score: 50 }], 120, 44)[0].x === 60, '只有一點時放中間');
+  ok(GROWTH_KEY === 'lucid.growth' && GROWTH_PARTS.join() === 'eye,cheek,lip', '紀錄的部位：眼、頰、唇');
+
+  // 接線
+  ok(/case 'guideStart':\s*enterTeach\(\);/.test(app) && /label: t\('btn\.teach'\)/.test(app), '試妝的主要按鈕進教學');
+  ok(/if \(n !== 4 && S\.teach\) leaveTeach\(\);/.test(app) && /Object\.assign\(S\.amount, S\.teach\.saved\)/.test(app), '離開教學時把試的妝放回去');
+  ok(/else if \(T\.view === 'self'\) S\.amount\[c\] = 0;/.test(app), '換我畫：虛擬的妝全部拿掉，鏡子是真的臉');
+  ok(/if \(S\.duel \|\| S\.teach\) return;/.test(app) && /if \(S\.duel \|\| S\.teach \|\| S\.pose/.test(app), '教學時 AI 不插話');
+  ok(/T\.photo \? T\.before : null/.test(app) && /type="checkbox" id="teach-photo" \$\{T\.photo \? 'checked' : ''\}/.test(app), '照片要勾了才存');
+  ok(/del\.dataset\.armed/.test(app), '刪除紀錄要按兩次');
+  const css = readFileSync(new URL('./main.css', import.meta.url), 'utf8');
+  ok(/#adv4 \.log \{ flex:none; max-height:92px; \}/.test(css), '對話只佔鏡子下方一小塊');
+
+  // 文案
+  const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
+  const lines = dict.split(/\r?\n/).filter((l) => /^\s*'(teach|grow)\.|^\s*'btn\.teach'/.test(l));
+  ok(lines.length > 60 && lines.every((l) => (l.match(/', '/g) || []).length >= 2), '教學與紀錄的文案三種語言齊全（' + lines.length + ' 句）');
+  ok(!/teach\.[^']*': \[[^\]]*(漂亮|好看|難看|醜|臉型不|beautiful|ugly)/.test(dict), '教學只談手上的動作，不評論長相');
+  const used = [...app.matchAll(/t\('((?:teach|grow)\.[a-zA-Z.]+)'/g)].map((m) => m[1]).filter((k) => !k.endsWith('.'));
+  ok(used.every((k) => dict.includes("'" + k + "':")), '程式用到的固定文案都有定義');
+  for (const part of ['eye', 'cheek', 'lip']) for (const lv of ['none', 'light', 'good', 'heavy']) ok(dict.includes("'teach.fb." + part + '.' + lv + "':"), '回饋：' + part + ' ' + lv);
+  for (const id of ['sponge', 'eyeBrush', 'blushBrush', 'lipBrush', 'cotton', 'hand', 'tissue']) ok(dict.includes("'teach.tool." + id + "':") && dict.includes("'teach.tool." + id + ".use':"), '工具卡：' + id);
+  for (const fin of ['matte', 'gloss', 'shimmer']) ok(dict.includes("'teach.finish." + fin + "':"), '質地說明：' + fin);
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);
