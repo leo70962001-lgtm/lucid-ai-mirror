@@ -2117,9 +2117,9 @@ body {
 .qa-form .send { flex:none; height:38px; padding:0 14px; border:0; border-radius:19px; color:#fff; font-weight:700; cursor:pointer; background:linear-gradient(180deg, var(--primary-1), var(--primary-2)); }
 .qa-form .close { flex:none; width:30px; height:30px; border:0; border-radius:50%; color:#fff; font-size:17px; cursor:pointer; background:rgba(18,10,14,.5); }
 /* ── 最後一頁：前後對比、過程、指南；商品收在最下面 ── */
-.fin { margin:0 0 18px; }
-.fin > h3 { margin:0 0 8px; font-size:15px; color:var(--ink, #3a2a30); }
-.fin > p, .fin > small { display:block; margin:6px 0 8px; font-size:12px; color:var(--ink-3); }
+.s5-sec { margin:0 0 18px; }
+.s5-sec > h3 { margin:0 0 8px; font-size:15px; color:var(--ink, #3a2a30); }
+.s5-sec > p, .s5-sec > small { display:block; margin:6px 0 8px; font-size:12px; color:var(--ink-3); }
 .bax { --x:50%; position:relative; width:min(100%, 420px); margin:0 auto; aspect-ratio:4 / 5; border-radius:18px; overflow:hidden; background:#1b1216; }
 .bax canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 .bax #ba-after { clip-path:inset(0 0 0 var(--x)); }
@@ -2139,12 +2139,32 @@ body {
 .how-modes button.on { color:#fff; border-color:transparent; background:linear-gradient(180deg, var(--primary-1), var(--primary-2)); }
 .how { padding:12px 14px; margin-bottom:10px; border-radius:16px; background:#fff; box-shadow:0 0 0 1px var(--line); }
 .how h4 { margin:0 0 6px; font-size:14px; }
-.how dl { margin:0; display:grid; grid-template-columns:auto minmax(0, 1fr); gap:5px 10px; font-size:13px; line-height:1.5; }
-.how dt { font-weight:700; color:var(--ink-3); white-space:nowrap; font-size:12px; line-height:1.6; }
-.how dd { margin:0; }
-.how dd.it2 { display:flex; align-items:center; gap:6px; }
-.how dd.tip { color:var(--ink-3); }
 #s5-prod > summary { cursor:pointer; padding:10px 2px; font-size:13px; font-weight:700; color:var(--ink-3); border-top:1px solid var(--line); }
-#s5-scroll > .fin { flex:none; }   /* 外層是直向 flex：不加這行，前後對比與過程會被壓扁 */
+#s5-scroll > .s5-sec { flex:none; }   /* 外層是直向 flex：不加這行，前後對比與過程會被壓扁 */
 #adv4 .opts button.ask-btn, #adv2 .opts button.ask-btn { background:linear-gradient(180deg, var(--primary-1), var(--primary-2)); color:#fff; border-color:transparent; font-weight:700; }
-.how .sw { flex:none; display:inline-block; width:16px; height:16px; border-radius:50%; box-shadow:0 0 0 1px rgba(0,0,0,.12); }
+.how .chip .sw { flex:none; display:inline-block; width:16px; height:16px; border-radius:50%; box-shadow:0 0 0 1px rgba(0,0,0,.12); }
+
+/* ── 化妝指導的步驟卡：對話換成一張卡，做法一句話，手法畫在臉上 ── */
+.coach-card { flex:none; display:flex; flex-direction:column; gap:6px; padding:9px 11px; border-radius:14px; color:#fff; pointer-events:auto;
+  background:rgba(18,10,14,.6); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); box-shadow:0 0 0 1px rgba(255,255,255,.16) inset; }
+.coach-card .pips { display:flex; gap:4px; flex-wrap:wrap; }
+.coach-card .pips span { padding:1px 8px; border-radius:9px; font-size:11px; font-weight:700; color:rgba(255,255,255,.65); background:rgba(255,255,255,.1); }
+.coach-card .pips .now { color:#fff; background:linear-gradient(90deg, var(--primary-1), var(--primary-2)); }
+.coach-card .pips .done { color:#14402e; background:#a9e8cc; }
+.coach-card .head { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.coach-card .stage { display:inline-flex; border-radius:9px; overflow:hidden; background:rgba(255,255,255,.14); }
+.coach-card .stage b { padding:1px 8px; font-size:11px; font-weight:700; color:rgba(255,255,255,.6); }
+.coach-card .stage b.on { color:#3a2a30; background:#fff; }
+.coach-card .do { margin:0; font-size:13.5px; font-weight:600; line-height:1.45; }
+.coach-card .tip { margin:0; font-size:11.5px; line-height:1.4; color:rgba(255,255,255,.78); }
+.coach-card .chips, .how .chips { display:flex; flex-wrap:wrap; gap:5px; }
+.coach-card .chip { display:inline-flex; align-items:center; gap:4px; padding:1px 8px; border-radius:9px; font-size:11.5px; font-weight:600; background:rgba(255,255,255,.14); }
+.coach-card .chip .sw { flex:none; display:inline-block; width:12px; height:12px; border-radius:50%; }
+/* 最後一頁的指南：先粗、再細各一張手法圖 */
+.how .chip { display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:10px; font-size:12px; font-weight:600; background:var(--line); }
+.how .pics { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; margin-top:10px; }
+.how figure { margin:0; }
+.how canvas { display:block; width:100%; height:auto; border-radius:10px; }
+.how figcaption { margin-top:6px; font-size:12.5px; line-height:1.5; }
+.how figcaption b { display:block; font-size:11.5px; color:var(--primary-2); }
+.how .tip { margin:8px 0 0; font-size:12px; color:var(--ink-3); }

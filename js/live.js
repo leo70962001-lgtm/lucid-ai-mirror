@@ -50,7 +50,6 @@ export function cheerFor(st, ev, now) {
       break;
     }
     case 'adjust': c = { id: 'adjust', emo: '👌', key: 'cheer.adjust', burst: '✨' }; break;
-    case 'guide': c = { id: 'guide:' + ev.n, emo: '🏅', key: 'cheer.guide', params: { n: ev.n }, burst: '👏' }; break;
     case 'paint': c = { id: 'paint', emo: '🖌️', key: 'cheer.paint', burst: '✨' }; break;
     case 'pose': c = { id: 'pose:' + ev.step, emo: POSE_EMO[ev.step] || '👏', key: 'cheer.pose.' + ev.step, burst: '✨' }; break;
     case 'fit':

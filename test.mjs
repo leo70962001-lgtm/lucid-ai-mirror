@@ -18,8 +18,8 @@ import { pickSurprise, newCheer, cheerFor, CHEER_GAP_MS, GIFT_AR_MS, FIT_MAX, ai
 import { LIP_INSET } from './js/makeup-gl.js';
 import { pwaState, isIOS, isInApp } from './js/pwa.js';
 import { nextDuel, duelSides, duelLines, duelOpts, duelPicked, DUEL_AXES } from './js/duel.js';
-import { buildRoutine, stepLines, stepOpts, routineRecap, toolModeOpts, ownedOpts } from './js/routine.js';
-import { COACH_PARTS, COACH_MODES, COACH_TOOLS, coachMethod, coachPlan } from './js/coach.js';
+import { buildRoutine, stepView, stepOpts, routineRecap, toolModeOpts, ownedOpts } from './js/routine.js';
+import { COACH_PARTS, COACH_MODES, COACH_TOOLS, COACH_GLYPH, coachMethod, coachPlan, coachShapes, coachRegion, drawCoachShapes } from './js/coach.js';
 import { QA_TAGS, QA_KB, qaSearch, qaByTag, qaLines, qaMethod } from './js/qa.js';
 import { TRENDS, TREND_PACK, TREND_STALE_DAYS, trendsFor, trendPlan, trendPick, trendLines,
          trendAgeDays, trendStale, trendStaleLines } from './js/trends.js';
@@ -1236,7 +1236,7 @@ console.log('\n\x1b[1m32. 化妝指導：化妝品 → 工具 → 手法，從�
   const steps = buildRoutine({ picks, look });
   console.log('  ' + steps.map((x) => x.id).join(' → '));
   ok(steps.map((x) => x.id).join() === 'prep,base,eye,cheek,lip,done', '從備料開始，底妝 → 眼 → 頰 → 唇，最後完成');
-  ok(steps.filter((x) => x.cat).every((x) => x.product && x.amount > 0 && x.mark === x.cat), '有上色的每一步都有商品、目標濃度、鏡子上要圈的位置');
+  ok(steps.filter((x) => x.cat).every((x) => x.product && x.amount > 0), '有上色的每一步都有商品與目標濃度');
   const menLook = LOOKS.find((l) => l.id === 'men');
   ok(!buildRoutine({ picks: { lip: picks.lip, cheek: picks.cheek }, look: menLook }).some((x) => x.cat === 'eye'), '沒有眼影就不會出現空的眼影步驟');
   ok(!buildRoutine({ picks, look, amount: { eye: 0, cheek: 0.3, lip: 0.5 } }).some((x) => x.cat === 'eye'), '濃度是 0 的部位也不排');
@@ -1246,15 +1246,17 @@ console.log('\n\x1b[1m32. 化妝指導：化妝品 → 工具 → 手法，從�
   ok(coachMethod('lip', 'some', new Set(['lipBrush'])) === 'full' && coachMethod('eye', 'some', new Set(['lipBrush'])) === 'sub', '工具不齊全：有的用工具，沒有的用替代品');
   const none = { stage: 'coarse', mode: 'none', owned: new Set() }, full = { stage: 'coarse', mode: 'full', owned: new Set() };
   const eyeAt = steps.findIndex((x) => x.id === 'eye');
-  const L = stepLines(steps, eyeAt, full);
-  ok(L[0].key === 'adv.coach.step' && L[0].params.n === 4 && L[0].params.tool === 'coach.tool.eyeBrush', '每一步講第幾步、共幾步、用什麼工具');
-  ok(L[1].key === 'coach.eye.full.coarse', '先講粗（大範圍怎麼上）');
-  const F = stepLines(steps, eyeAt, { ...full, stage: 'fine' });
-  ok(F[0].key === 'coach.eye.full.fine' && F[1].key === 'coach.eye.tip', '再講細（收邊、暈開）與常見失誤');
-  ok(stepLines(steps, eyeAt, none)[1].key === 'coach.eye.none.coarse', '沒有工具時換成手指的講法');
-  const kit = stepLines(steps, 0, full);
-  ok(kit[0].key === 'adv.coach.kit' && kit[1].params.kit.length === 3 && kit[2].params.parts.includes('coach.tool.lipBrush'), '開始前列出化妝品與工具');
-  ok(stepLines(steps, steps.length - 1, full)[0].kind === 'praise', '結尾是肯定句');
+  const V = stepView(steps, eyeAt, full);
+  ok(V.kind === 'step' && V.at === 2 && V.n === 4 && V.toolKey === 'coach.tool.eyeBrush' && V.product?.id === picks.eye.id, '步驟卡：第幾步、共幾步、用什麼工具、哪支化妝品');
+  ok(V.textKey === 'coach.eye.full.coarse' && !V.tipKey, '先粗只講一句');
+  const F = stepView(steps, eyeAt, { ...full, stage: 'fine' });
+  ok(F.textKey === 'coach.eye.full.fine' && F.tipKey === 'coach.eye.tip', '再細才加上常見失誤');
+  ok(stepView(steps, eyeAt, none).textKey === 'coach.eye.none.coarse', '沒有工具時換成手指的講法');
+  ok(V.pips.map((p) => p.state).join() === 'done,now,todo,todo', '進度：做完的、現在的、還沒到的');
+  const kit = stepView(steps, 0, full);
+  ok(kit.kind === 'kit' && kit.products.length === 3 && kit.tools.includes('coach.tool.lipBrush'), '開始前列出化妝品與工具');
+  ok(stepView(steps, 0, {}).kind === 'tools' && stepView(steps, 0, { mode: 'some', picking: true }).kind === 'pick', '還沒回答工具時先問');
+  ok(stepView(steps, steps.length - 1, full).kind === 'done', '走完顯示完成');
 
   // 選項
   const coarse = stepOpts(steps, eyeAt, full).map((o) => o.act);
@@ -1266,7 +1268,7 @@ console.log('\n\x1b[1m32. 化妝指導：化妝品 → 工具 → 手法，從�
   ok(stepOpts(steps, steps.length - 1, full).map((o) => o.act).join() === 'guideEnd' && stepOpts(steps, 0, full).map((o) => o.act).join() === 'guideNext,guideEnd', '備料與完成只有該有的選項');
   ok(toolModeOpts().map((o) => o.act).join() === 'coachFull,coachSome,coachNone', '一開始先問工具：齊全／一部分／沒有');
   const owned = ownedOpts(new Set(['sponge']));
-  ok(owned.filter((o) => o.act === 'coachToggle').length === 4 && owned.every((o) => o.act !== 'coachToggle' || o.silent) && optEmoji(owned[0]) === '✅' && optEmoji(owned[1]) === '⬜', '勾工具不講話，看得到勾了哪些');
+  ok(owned.filter((o) => o.act === 'coachToggle').length === 4 && optEmoji(owned[0]) === '✅' && optEmoji(owned[1]) === '⬜', '看得到勾了哪些');
   const allOpts = [...toolModeOpts(), ...owned, ...[0, 1, eyeAt, lipAt, steps.length - 1].flatMap((i) => [...stepOpts(steps, i, full), ...stepOpts(steps, i, { ...full, stage: 'fine' })])];
   ok(allOpts.every((o) => ACTS.includes(o.act) && optEmoji(o)), '引導的選項都是已知動作、都有符號');
 
@@ -1280,7 +1282,7 @@ console.log('\n\x1b[1m32. 化妝指導：化妝品 → 工具 → 手法，從�
   const keys = [...COACH_PARTS.flatMap((p) => ['full', 'sub', 'none'].flatMap((m) => ['coach.' + p + '.' + m + '.coarse', 'coach.' + p + '.' + m + '.fine'])),
                 ...COACH_PARTS.flatMap((p) => ['coach.' + p + '.tip', 'coach.part.' + p, 'coach.sub.' + p, 'coach.none.' + p]),
                 ...COACH_TOOLS.map((x) => 'coach.tool.' + x),
-                ...['ask', 'done', 'recap', 'skipped', 'end', 'paint'].map((x) => 'adv.guide.' + x), ...['tools', 'some', 'kit', 'kitItems', 'kitTools', 'step'].map((x) => 'adv.coach.' + x),
+                ...['ask', 'done', 'recap', 'end', 'paint'].map((x) => 'adv.guide.' + x), ...['tools', 'some', 'kit'].map((x) => 'adv.coach.' + x), 'coach.stage.coarse', 'coach.stage.fine',
                 ...['guideStart', 'guideNext', 'guideFinish', 'guidePaint', 'guideSkip', 'guideEnd', 'coachFull', 'coachSome', 'coachNone', 'coachToolsDone', 'coachStart', 'coachFine', 'coachNoTool', 'more', 'less'].map((x) => 'opt.' + x)];
   const miss = keys.filter((k) => !has3g(k));
   ok(miss.length === 0, '指導的文案三種語言齊全（' + keys.length + ' 句）' + (miss.length ? ' 缺：' + miss.join(',') : ''));
@@ -1569,11 +1571,11 @@ console.log('\n\x1b[1m39. AI 主動送的互動：回讚、鼓掌、命中、禮
 
   const app = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
   ok(/o\.act === 'keepYes' && S\.picks\?\.lip\) setTimeout\(\(\) => cheer\(\{ type: 'like', id: S\.picks\.lip\.id \}\), 900\)/.test(app), '你說「留這支」→ AI 慢半拍（0.9 秒）回讚');
-  ok(/beginStroke\(\);\n\s+cheer\(\{ type: 'paint' \}\);/.test(app) && /o\.act === 'guideFine' && S\.guide/.test(app), '自己畫第一筆、跟著畫完一步也會讚');
+  ok(/beginStroke\(\);\n\s+cheer\(\{ type: 'paint' \}\);/.test(app) && !/type: 'guide'/.test(app), '自己畫第一筆會讚；跟著畫的進度看步驟卡，不再跳貼紙蓋住臉');
   ok(/if \(cheerQ\.length >= 2\) cheerQ\.shift\(\);/.test(app), '貼紙一次一張、最多排兩張');
   const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
   const lines = dict.split(/\r?\n/).filter((l) => l.trimStart().startsWith("'cheer."));
-  ok(lines.length === 11 && lines.every((l) => (l.match(/', '/g) || []).length >= 2), '貼紙文案 11 句（含動一動的三句）、三種語言齊全');
+  ok(lines.length === 10 && lines.every((l) => (l.match(/', '/g) || []).length >= 2), '貼紙文案 10 句（含動一動的三句）、三種語言齊全');
   const banned = ['漂亮', '好看', '美', '瘦', 'pretty', 'beautiful', 'gorgeous', 'きれい', '可愛'];
   ok(!lines.some((l) => banned.some((w) => l.includes(w))), '只讚做了什麼、選了什麼，不評價長相');
 }
@@ -1585,7 +1587,7 @@ console.log('\n\x1b[1m40. 你跟 AI 互動時，AI 給的反饋特效（等級�
   const app = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
   const css = readFileSync(new URL('./main.css', import.meta.url), 'utf8');
   const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
-  ok(/if \(!o\.silent && mine && !mine\.react\) mine\.react = aiReactFor\(o\.act\);/.test(app) && /el\('i', 'stamp'/.test(app), '你點了回覆 → AI 在你那則留言尾端蓋章');
+  ok(/if \(!quiet && mine && !mine\.react\) mine\.react = aiReactFor\(o\.act\);/.test(app) && /el\('i', 'stamp'/.test(app), '你點了回覆 → AI 在你那則留言尾端蓋章');
   ok(/if \(prevWho === 'you' && \(where === 's2' \|\| where === 's4'\)\) bubble\.appendChild\(el\('span', 're', t\('chat\.replyYou'\)\)\)/.test(app),
      'AI 接著你的留言回話時掛「回覆 @你」');
   ok(/hostTalking\(where, !!pendingAt\)/.test(app) && /\.frame \.host\.talking \.av::after/.test(css), 'AI 打字時主播頭像一圈圈發亮、狀態變「回覆中…」');
@@ -1783,6 +1785,20 @@ console.log('\n\x1b[1m45. 可以下載的網路 App（PWA）：安裝到主畫�
 
 console.log('\n\x1b[1m46. 反饋：AI 問答、前後對比、過程、產品退到後面、標籤搜尋\x1b[0m');
 {
+  // app.js 要瀏覽器才跑得起來，這裡跑不到：呼叫到不存在的函式，只有走到那一頁才會當掉。所以掃一遍名字。
+  {
+    const src = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|\s)\/\/[^\n]*/g, ' ')
+      .replace(/'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"/g, "''").replace(/`[^`]*`/g, (m) => [...m.matchAll(/\$\{([^}]*)\}/g)].map((x) => x[1]).join(' ; '));
+    const declared = new Set([...src.matchAll(/(?:function\s+|const\s+|let\s+|var\s+|class\s+)([A-Za-z_$][\w$]*)/g)].map((m) => m[1]));
+    for (const m of src.matchAll(/^import\s*\{([^}]*)\}/gm)) m[1].split(',').forEach((n) => declared.add(n.trim()));
+    for (const m of src.matchAll(/(?:const|let)\s*[\[{]([^\]}=]*)[\]}]\s*=/g)) m[1].split(',').forEach((n) => declared.add(n.split(':').pop().split('=')[0].trim()));
+    for (const m of src.matchAll(/\(([^()]*)\)\s*=>|function[^(]*\(([^()]*)\)|\b([A-Za-z_$][\w$]*)\s*=>/g)) (m[1] || m[2] || m[3] || '').split(',').forEach((n) => declared.add(n.replace(/[{}\[\]\s]/g, '').split('=')[0]));
+    // analyse、fast：掃描用的是粗略的去字串，這兩個是誤判（analyse 有定義；fast 是正規式裡的字）
+    const known = new Set(['analyse', 'fast', 'if', 'for', 'while', 'switch', 'catch', 'return', 'function', 'typeof', 'await', 'import', 'super', 'parseInt', 'parseFloat', 'isFinite', 'isNaN', 'String', 'Number', 'Boolean', 'Array', 'Object', 'Set', 'Map', 'Date', 'Math', 'JSON', 'Promise', 'RegExp', 'Error', 'Symbol', 'Uint8Array', 'Uint8ClampedArray', 'Float32Array', 'Image', 'Blob', 'URL', 'File', 'FileReader', 'MediaRecorder', 'MediaStream', 'ResizeObserver', 'PointerEvent', 'Event', 'requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'addEventListener', 'removeEventListener', 'fetch', 'atob', 'btoa', 'alert', 'confirm', 'prompt', 'matchMedia', 'getComputedStyle', 'encodeURIComponent', 'decodeURIComponent', 'createImageBitmap', 'OffscreenCanvas', 'structuredClone', 'AudioContext']);
+    const missing = [...new Set([...src.matchAll(/(?<![.\w$])([A-Za-z_$][\w$]*)\(/g)].map((m) => m[1]))].filter((n) => !declared.has(n) && !known.has(n));
+    ok(missing.length === 0, 'app.js 呼叫的函式都存在' + (missing.length ? ' 找不到：' + missing.join() : ''));
+  }
   // 語法：這支測試不會載入 app.js（要瀏覽器才跑得起來），語法錯了只有開機才會發現，所以逐檔檢查
   const modDir = new URL('./js/', import.meta.url);
   const badSyntax = readdirSync(modDir).filter((f) => f.endsWith('.js')).filter((f) => spawnSync(process.execPath, ['--input-type=module', '--check'], { input: readFileSync(new URL(f, modDir)), encoding: 'utf8' }).status !== 0);
@@ -1813,7 +1829,7 @@ console.log('\n\x1b[1m46. 反饋：AI 問答、前後對比、過程、產品退
   // 最後一頁的順序
   const at = (id) => html.indexOf('id="' + id + '"');
   ok(at('s5-ba') < at('s5-flow') && at('s5-flow') < at('s5-how') && at('s5-how') < at('s5-mine') && at('s5-mine') < at('s5-prod'), '最後一頁：前後對比 → 過程 → 指南 → 你畫的 → 商品');
-  ok(/<details class="fin" id="s5-prod">/.test(html), '商品收起來，要看再打開');
+  ok(/<details class="s5-sec" id="s5-prod">/.test(html), '商品收起來，要看再打開');
   ok(/let demo = !calm\(\);/.test(app) && /range\.oninput = \(\) => \{ demo = false;/.test(app), '前後對比一進來自己掃一次，一碰就停；減少動態效果時不掃');
   ok(html.split('id="rec-total"').length === 2, '修掉重複的 id（#rec-total 有兩個）');
   ok(/frame\(S\.photo, t\('flow\.bare'\), false\)/.test(app) && /parts\.forEach/.test(app), '過程從素顏開始，一層一層疊到完成');
@@ -1824,6 +1840,52 @@ console.log('\n\x1b[1m46. 反饋：AI 問答、前後對比、過程、產品退
   ok(/S\.amount\[next\.cat\] = next\.amount \* COARSE_RATIO/.test(app) && /S\.amount\[cur\.cat\] = cur\.amount;/.test(app), '鏡子上也是先粗再細：先淡淡出現，再細才到位');
   const adv = dict.split(/\r?\n/).filter((l) => /^  '(coach|qa)\./.test(l));
   ok(!adv.some((l) => ['漂亮', '好看', '美麗', '顯瘦', 'pretty', 'beautiful', '美しい'].some((w) => l.includes(w))), '指導與問答只講做法，不評價長相');   // 「きれい」在這裡是乾淨的刷子，不算
+}
+
+console.log('\n\x1b[1m47. 對話精簡；教學步驟畫出來\x1b[0m');
+{
+  const app = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const fn = /const MAX_SAY = 2;\nfunction trimLines\(lines\) \{[\s\S]*?\n\}/.exec(app)?.[0];
+  ok(!!fn, '有每次最多兩句的規則');
+  const trimLines = new Function(fn + '; return trimLines;')();
+  const L = (kind, key) => ({ kind, key });
+  ok(trimLines([L('fact', 'a'), L('tip', 'b')]).length === 2, '兩句以內不動');
+  ok(trimLines([L('fact', 'a'), L('tip', 'b'), L('tip', 'c'), L('fact', 'd')]).map((x) => x.key).join() === 'a,b', '太多就留前兩句');
+  ok(trimLines([L('fact', 'a'), L('tip', 'b'), L('ask', 'c')]).map((x) => x.key).join() === 'a,c', '要等回答的提問一定留下，順序不變');
+  ok(trimLines([L('fact', 'a'), L('caution', 'b'), L('tip', 'c'), L('ask', 'd')]).map((x) => x.key).join() === 'b,d', '提醒（光線、色偏）比一般句子優先');
+  ok(/if \(!full && \(where === 's2' \|\| where === 's4'\)\) lines = trimLines\(lines\);/.test(app), '諮詢與試妝才限制');
+  ok(/ASKED_FOR\.has\(o\.act\) \|\| EXPLAIN_ACTS\.includes\(o\.act\)/.test(app) && /\.\.\.back\], true\);/.test(app), '使用者自己問的（為什麼、小教室、問 AI）照實講完');
+  ok(/const quiet = GUIDE_QUIET\.has\(o\.act\);/.test(app) && /if \(inSheet && S\.guide\) box\.appendChild\(coachCard\(S\.guide\)\);/.test(app), '指導時不留對話，換成步驟卡');
+  ok(!/stepLines/.test(app), '舊的引導句子不再進對話');
+  const imported = new Set([...app.matchAll(/^import \{([^}]*)\} from/gm)].flatMap((x) => x[1].split(',').map((n) => n.trim())));
+  ok(['EXPLAIN_ACTS', 'stepView', 'coachShapes', 'coachRegion', 'drawCoachShapes', 'COACH_GLYPH', 'qaSearch', 'qaLines', 'QA_KB', 'QA_TAGS', 'qaByTag'].every((n) => imported.has(n)), '指導與問答用到的名字都有 import');
+
+  // 畫在臉上：假臉（468 點散在 0..640 × 0..480 內）
+  const P = Array.from({ length: 468 }, (_, i) => ({ x: 120 + (i * 37) % 400, y: 60 + (i * 53) % 360 }));
+  const all = COACH_PARTS.flatMap((p) => ['coarse', 'fine'].map((st) => [p, st, coachShapes(p, st, P)]));
+  ok(all.every(([, , sh]) => sh.length > 0), '四個部位、粗細都有圖');
+  const finite = (p) => Number.isFinite(p.x) && Number.isFinite(p.y);
+  ok(all.every(([, , sh]) => sh.every((x) => (x.pts ? x.pts.length >= 2 && x.pts.every(finite) : finite(x.at)))), '座標都算得出來');
+  ok(coachShapes('lip', 'coarse', P).filter((x) => x.type === 'path').length === 4, '唇：先粗是從中央往兩邊嘴角的四條路線');
+  ok(coachShapes('eye', 'coarse', P).some((x) => x.type === 'area') && !coachShapes('eye', 'fine', P).some((x) => x.type === 'area'), '眼：先粗畫範圍，再細畫貼著睫毛根的線');
+  ok(coachShapes('base', 'coarse', P).some((x) => x.type === 'dot'), '底妝：有要點上去的位置');
+  ok(COACH_MODES.every((m) => COACH_GLYPH[m === 'some' ? 'sub' : m]), '工具圖示跟著手法（刷子、海綿、手指）');
+  const calls = [];
+  const ctx = new Proxy({}, { get: (o, k) => (k in o ? o[k] : (...a) => { calls.push(k); }), set: (o, k, v) => { o[k] = v; return true; } });
+  let threw = false;
+  try { for (const [, , sh] of all) { drawCoachShapes(ctx, sh, { lw: 3 }); drawCoachShapes(ctx, sh, { lw: 3, t: 0.4, glyph: '👆' }); drawCoachShapes(ctx, sh, { lw: 3, t: 0 }); drawCoachShapes(ctx, sh, { lw: 3, t: 1 }); } } catch { threw = true; }
+  ok(!threw && calls.includes('stroke') && calls.includes('fillText'), '動畫與靜態都畫得出來（進度 0 到 1）');
+  calls.length = 0;
+  drawCoachShapes(ctx, coachShapes('lip', 'fine', P), { lw: 3, t: 0.5, glyph: '👆' });
+  ok(calls.filter((c) => c === 'fillText').length === 1, '工具只畫一支（四條路線也一樣）');
+  for (const part of COACH_PARTS) {
+    const b = coachRegion(part, P, 640, 480);
+    ok(b.x >= 0 && b.y >= 0 && b.x + b.w <= 640.01 && b.y + b.h <= 480.01 && Math.abs(b.w / b.h - 4 / 3) < 0.01, '手法圖的框不超出照片：' + part);
+  }
+  ok(/drawCoach\(dctx, smooth, W, H\);/.test(app) && /calm\(\) \? \{ lw \}/.test(app), '鏡子每一幀畫；減少動態效果時是靜態圖');
+  ok(/fig\.appendChild\(howPic\(s\.part, stage\)\)/.test(app), '最後一頁的指南也是圖：先粗、再細各一張');
+  const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
+  ok(!/'coach\.[a-z]+\.(full|sub|none)\.(coarse|fine)': \['(先粗|再細)/.test(dict), '句首不再重複「先粗、再細」（卡片和圖已經標了）');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

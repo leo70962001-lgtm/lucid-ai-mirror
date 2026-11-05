@@ -8,7 +8,7 @@
  *   先粗：鏡子上圈出位置，這一層淡淡出現（看得到範圍），講大範圍怎麼上、用什麼工具
  *   再細：這一層到位，講收邊、暈開、對稱，以及常見的失誤
  * 手法照工具走（見 coach.js）；這一步沒有工具可以當場換成替代品。
- * 一次只講一件事，步驟數寫在句子裡（步驟 2／4），使用者永遠知道還剩幾步。
+ * 教的時候不講一長串對話：鏡子下方一張步驟卡（第幾步、用什麼工具、一句做法），手法直接畫在臉上。
  */
 import { COACH_PARTS, coachMethod, coachToolKey, PART_TOOL, COACH_TOOLS } from './coach.js';
 
@@ -19,15 +19,15 @@ const routineLine = (kind, key, params) => ({ kind, key, params: params || {} })
  * 底妝一定有（鏡子不畫底妝，用說的）；沒有的品項或濃度是 0 的部位不排。
  */
 export function buildRoutine({ picks = null, look = null, amount = null } = {}) {
-  const steps = [{ id: 'prep', cat: null, mark: 'skin' }];
+  const steps = [{ id: 'prep', cat: null }];
   for (const part of COACH_PARTS) {
-    if (part === 'base') { steps.push({ id: 'base', cat: null, mark: 'skin' }); continue; }
+    if (part === 'base') { steps.push({ id: 'base', cat: null }); continue; }
     if (!picks?.[part]) continue;
     const target = amount?.[part] ?? look?.intensity?.[part] ?? 0.5;
     if (target <= 0) continue;
-    steps.push({ id: part, cat: part, mark: part, product: picks[part], amount: target });
+    steps.push({ id: part, cat: part, product: picks[part], amount: target });
   }
-  steps.push({ id: 'done', cat: null, mark: null });
+  steps.push({ id: 'done', cat: null });
   return steps;
 }
 
@@ -40,37 +40,32 @@ export const toolModeOpts = () => [
 
 /** 只有一部分工具：點一下打勾（不講話、不洗版），勾好按開始 */
 export const ownedOpts = (owned) => [
-  ...COACH_TOOLS.map((tool) => ({ key: 'coach.tool.' + tool, act: 'coachToggle', tool, silent: true, on: owned.has(tool) })),
+  ...COACH_TOOLS.map((tool) => ({ key: 'coach.tool.' + tool, act: 'coachToggle', tool, on: owned.has(tool) })),
   { key: 'opt.coachToolsDone', act: 'coachToolsDone' },
 ];
 
-/** 備料：這次會用到哪些化妝品、哪些工具 */
-function kitLines(steps, ctx) {
-  const parts = steps.filter((s) => s.id !== 'prep' && s.id !== 'done');
-  const kit = parts.filter((s) => s.product).map((s) => ['coach.part.' + s.id, s.product.id]);
-  const tools = [...new Set(parts.map((s) => coachToolKey(s.id, coachMethod(s.id, ctx.mode, ctx.owned))))];
-  return [routineLine('fact', 'adv.coach.kit', { n: parts.length }),
-          routineLine('tip', 'adv.coach.kitItems', { kit }),
-          routineLine('tip', 'adv.coach.kitTools', { parts: tools })];
-}
-
 /**
- * 這一步要說的話。
- * @param ctx { stage: 'coarse' | 'fine', mode, owned }
+ * 步驟卡要顯示什麼。
+ * @param ctx { stage: 'coarse' | 'fine', mode, owned, picking }
  */
-export function stepLines(steps, i, ctx = {}) {
-  const step = steps?.[i];
-  if (!step) return [];
-  if (step.id === 'prep') return kitLines(steps, ctx);
-  const n = steps.length - 2;                    // 頭尾不算步驟
-  if (step.id === 'done') return [routineLine('praise', 'adv.guide.done', { n })];
-  const method = coachMethod(step.id, ctx.mode, ctx.owned);
-  if (ctx.stage === 'fine') {
-    return [routineLine('tip', `coach.${step.id}.${method}.fine`),
-            routineLine('caution', `coach.${step.id}.tip`)];
+export function stepView(steps, i, ctx = {}) {
+  const parts = (steps || []).filter((s) => s.id !== 'prep' && s.id !== 'done');
+  const pips = parts.map((s) => {
+    const at = steps.indexOf(s);
+    return { id: s.id, state: at < i ? 'done' : at === i ? 'now' : 'todo' };
+  });
+  if (ctx.picking) return { kind: 'pick', pips, textKey: 'adv.coach.some' };
+  if (!ctx.mode) return { kind: 'tools', pips, textKey: 'adv.coach.tools' };
+  const step = steps[i];
+  if (!step) return { kind: 'done', pips, n: parts.length };
+  if (step.id === 'prep') {
+    return { kind: 'kit', pips, n: parts.length, products: parts.filter((s) => s.product).map((s) => ({ part: s.id, product: s.product })),
+             tools: [...new Set(parts.map((s) => coachToolKey(s.id, coachMethod(s.id, ctx.mode, ctx.owned))))] };
   }
-  return [routineLine('fact', 'adv.coach.step', { i, n, part: 'coach.part.' + step.id, tool: coachToolKey(step.id, method) }),
-          routineLine('tip', `coach.${step.id}.${method}.coarse`)];
+  if (step.id === 'done') return { kind: 'done', pips, n: parts.length };
+  const method = coachMethod(step.id, ctx.mode, ctx.owned), stage = ctx.stage === 'fine' ? 'fine' : 'coarse';
+  return { kind: 'step', pips, part: step.id, stage, method, at: i, n: parts.length, product: step.product || null, toolKey: coachToolKey(step.id, method),
+           textKey: `coach.${step.id}.${method}.${stage}`, tipKey: stage === 'fine' ? `coach.${step.id}.tip` : null };
 }
 
 /** 這一步可以做什麼：再細一點、下一步、自己畫、沒有這支工具、跳過、結束 */
