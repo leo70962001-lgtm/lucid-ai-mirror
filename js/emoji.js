@@ -10,7 +10,6 @@
 
 // 句子：依文案鍵比對，先比對到的先用（越具體的放越前面）
 const LINE = [
-  [/^adv\.coach\./, '🧭'],
   [/^coach\..*\.tip$/, '🙏'],
   [/^coach\./, '🖌️'],
   [/^qa\./, '📖'],
@@ -130,10 +129,10 @@ const ACT = {
   skipQs: '⏭️', buyLip: '🛍️', buyAll: '🛍️',
   colorHow: '🎨', colorOpen: '⚙️', retake: '📷', colorLater: '👌',
   whySeason: '🌈', seasonColors: '🎨', learn: '📚', quiz: '📝', quizAns: '✏️', paintSelf: '✍️', myTaste: '💭', trendNow: '🗞️', tryTrend: '💄', trendNext: '🔁',
-  recapAll: '📋', wrapUp: '🧾', skinCond: '🪞', duelStart: '🆚', duelLeft: '👈', duelRight: '👉', duelEnd: '👌', snap: '📸', guideStart: '🧭', guideNext: '👉', guidePaint: '✍️', guideSkip: '⏭️', guideEnd: '👌',
+  recapAll: '📋', wrapUp: '🧾', skinCond: '🪞', duelStart: '🆚', duelLeft: '👈', duelRight: '👉', duelEnd: '👌', snap: '📸', guideStart: '🧭',
   seaGold: '💛', seaSilver: '🤍', seaDunno: '🤔', seaCoral: '🧡', seaBrick: '🤎', seaSharp: '✨', seaHeavy: '😪',
   surprise: '🎁', swipeShade: '👉', poseStart: '🎬', poseSkip: '⏭️', poseEnd: '👌',
-  guideFine: '🔍', coachFull: '🖌️', coachSome: '🧰', coachNone: '🖐️', coachToolsDone: '👉', coachNoTool: '🧻', qaPick: '📖',
+  qaPick: '📖',
 };
 const SEASON_EMO = { spring: '🌸', summer: '🌊', autumn: '🍂', winter: '❄️' };
 const CTX = {
@@ -145,7 +144,6 @@ const CTX = {
 export function optEmoji(o) {
   if (!o) return '';
   if (o.key === 'opt.ctxYes') return '👍';
-  if (o.act === 'coachToggle') return o.on ? '✅' : '⬜';
   if (o.act === 'quizAns' && /^season\./.test(o.key)) return SEASON_EMO[o.key.slice(7)] || '✏️';
   if (/^ctx(Mood|Weather|Plan)$/.test(o.act)) return CTX[o.val] || '💬';
   return ACT[o.act] || '';

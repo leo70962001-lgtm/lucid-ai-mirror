@@ -21,9 +21,9 @@ export const COACH_TOOLS = Object.values(PART_TOOL);
 export const COARSE_RATIO = 0.55;
 
 /** 這個部位該教哪一種手法。mode = some 時，有這支工具才算齊全 */
-export function coachMethod(part, mode, owned = new Set()) {
+export function coachMethod(part, mode, owned = new Set(), hasSub = true) {
   if (mode === 'none') return 'none';
-  if (mode === 'some' && !owned.has(PART_TOOL[part])) return 'sub';
+  if (mode === 'some' && !owned.has(PART_TOOL[part])) return hasSub ? 'sub' : 'none';
   return 'full';
 }
 
@@ -38,12 +38,12 @@ export function coachToolKey(part, method) {
  * 整份指南：有哪幾個部位、各用哪支化妝品、什麼工具、先粗再細怎麼做。
  * 底妝不在商品目錄裡，用「你平常用的底妝」；沒有的品項或濃度是 0 的部位不列。
  */
-export function coachPlan({ picks = null, amount = null, mode = 'full', owned = new Set() } = {}) {
+export function coachPlan({ picks = null, amount = null, mode = 'full', owned = new Set(), hasSub = true } = {}) {
   const out = [];
   for (const part of COACH_PARTS) {
     const product = part === 'base' ? null : picks?.[part] || null;
     if (part !== 'base' && (!product || (amount?.[part] ?? 1) <= 0)) continue;
-    const method = coachMethod(part, mode, owned);
+    const method = coachMethod(part, mode, owned, hasSub);
     out.push({
       part, product, method, toolKey: coachToolKey(part, method),
       coarseKey: `coach.${part}.${method}.coarse`, fineKey: `coach.${part}.${method}.fine`, tipKey: `coach.${part}.tip`,
