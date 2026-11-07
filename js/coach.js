@@ -184,13 +184,82 @@ export function drawCoachShapes(ctx, shapes, { lw = 3, t = null, glyph = '' } = 
       ctx.lineTo(at.p.x - a * Math.cos(dir - 0.5), at.p.y - a * Math.sin(dir - 0.5));
       ctx.lineTo(at.p.x - a * Math.cos(dir + 0.5), at.p.y - a * Math.sin(dir + 0.5));
       ctx.closePath(); ctx.fill();
-      if (tool && t != null) {
-        ctx.save(); ctx.shadowBlur = 0; ctx.font = (lw * 6) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-        ctx.fillText(tool, at.p.x + lw * 2.5, at.p.y - lw);
-        ctx.restore();
-        tool = '';
-      }
+      if (tool && t != null) { drawTool(ctx, tool, at.p.x + lw * 2.5, at.p.y - lw, lw); tool = ''; }
     }
   }
+  // 沒有路線的一步（沾取、點上）：工具在第一個點上輕輕上下
+  if (tool && t != null) {
+    const s = shapes.find((x) => x.type === 'dot') || shapes.find((x) => x.type === 'area');
+    const at = s?.at || (s && { x: s.pts.reduce((a, p) => a + p.x, 0) / s.pts.length, y: s.pts.reduce((a, p) => a + p.y, 0) / s.pts.length });
+    if (at) drawTool(ctx, tool, at.x + lw * 2.5, at.y - lw * (1 + 2.5 * Math.abs(Math.sin(t * Math.PI * 2))), lw);
+  }
   ctx.restore();
+}
+
+/** 工具：文字（emoji）或畫好的圖示（圖片）；圖片的右下角對準筆尖 */
+function drawTool(ctx, tool, x, y, lw) {
+  ctx.save(); ctx.shadowBlur = 0;
+  if (typeof tool === 'string') { ctx.font = (lw * 6) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(tool, x, y); }
+  else if (tool.complete !== false && (tool.width || tool.naturalWidth)) { const z = lw * 14; ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = lw * 2; ctx.drawImage(tool, x - z * 0.15, y - z * 0.85, z, z); }
+  ctx.restore();
+}
+
+/* ── 一步一步的畫法（化妝教學）────────────────────────────
+   先粗、再細還太籠統，拆成手實際要做的幾個小步驟。每一步：
+     id     文案鍵 teach.step.<part>.<id>
+     stage  屬於先粗還是再細（目標圖用）
+     upto   這一步做完，顏色到目標的幾成（示範時妝跟著工具一點一點出現）
+   畫在臉上的圖取自 coachShapes，同一套座標。 */
+export const TEACH_STEPS = {
+  base: [{ id: 'dots', stage: 'coarse', upto: 0 }, { id: 'spread', stage: 'coarse', upto: 0 }, { id: 'detail', stage: 'fine', upto: 0 }, { id: 'edge', stage: 'fine', upto: 0 }],
+  eye: [{ id: 'load', stage: 'coarse', upto: 0 }, { id: 'lay', stage: 'coarse', upto: 0.55 }, { id: 'line', stage: 'fine', upto: 0.85 }, { id: 'blend', stage: 'fine', upto: 1 }],
+  cheek: [{ id: 'load', stage: 'coarse', upto: 0 }, { id: 'place', stage: 'coarse', upto: 0.3 }, { id: 'sweep', stage: 'coarse', upto: 0.8 }, { id: 'blend', stage: 'fine', upto: 1 }],
+  lip: [{ id: 'load', stage: 'coarse', upto: 0 }, { id: 'center', stage: 'coarse', upto: 0.3 }, { id: 'spread', stage: 'coarse', upto: 0.75 }, { id: 'upper', stage: 'fine', upto: 0.9 }, { id: 'lower', stage: 'fine', upto: 1 }],
+};
+/** 示範時每一小步多久（毫秒） */
+export const TEACH_STEP_MS = 2800;
+
+/** 這一小步要畫什麼 */
+export function teachStepShapes(part, id, P) {
+  const coarse = coachShapes(part, 'coarse', P), fine = coachShapes(part, 'fine', P);
+  const of = (list, type) => list.filter((s) => s.type === type);
+  if (part === 'base') {
+    if (id === 'dots') return of(coarse, 'dot');
+    if (id === 'spread') return of(coarse, 'path');
+    if (id === 'detail') return of(fine, 'dot');
+    return of(fine, 'path');
+  }
+  if (part === 'eye') {
+    if (id === 'load') return of(coarse, 'area');
+    if (id === 'lay') return coarse;
+    return fine.filter((_, i) => (id === 'line' ? i % 2 === 0 : i % 2 === 1));   // 每隻眼：睫毛根一條、暈開一條
+  }
+  if (part === 'cheek') {
+    if (id === 'load' || id === 'place') return of(coarse, 'dot');
+    if (id === 'sweep') return of(coarse, 'path');
+    return fine;
+  }
+  if (part === 'lip') {
+    const fw = Math.hypot(P[454].x - P[234].x, P[454].y - P[234].y) || 1;
+    if (id === 'load' || id === 'center') return [lerpPt(P[0], P[13], 0.5), lerpPt(P[14], P[17], 0.5)].map((at) => ({ type: 'dot', at, r: fw * 0.02 }));
+    if (id === 'spread') return coarse;
+    return id === 'upper' ? fine.slice(0, 2) : fine.slice(2);
+  }
+  return [];
+}
+
+/** 示範到第幾步、這一步走到哪：elapsed 毫秒 → { i, k（0..1）, done } */
+export function demoAt(part, elapsed) {
+  const n = TEACH_STEPS[part].length, i = Math.floor(Math.max(0, elapsed) / TEACH_STEP_MS);
+  return i >= n ? { i: n - 1, k: 1, done: true } : { i, k: (Math.max(0, elapsed) % TEACH_STEP_MS) / TEACH_STEP_MS, done: false };
+}
+/** 示範時這個部位的顏色到目標的幾成：上一步做完的量 → 這一步做完的量 */
+export function demoAmount(part, i, k) {
+  const st = TEACH_STEPS[part], from = i ? st[i - 1].upto : 0, to = st[i].upto;
+  const e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;   // 起手慢、收尾慢
+  return from + (to - from) * e;
+}
+/** 工具圖示：齊全用對應的刷具，替代品是棉花棒／化妝棉，沒有工具是手指 */
+export function teachToolIcon(part, method) {
+  return method === 'none' ? 'hand' : method === 'sub' ? 'cotton' : PART_TOOL[part];
 }

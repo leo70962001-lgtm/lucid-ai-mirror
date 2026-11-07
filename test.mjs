@@ -18,6 +18,7 @@ import { pickSurprise, newCheer, cheerFor, CHEER_GAP_MS, GIFT_AR_MS, FIT_MAX, ai
 import { LIP_INSET } from './js/makeup-gl.js';
 import { pwaState, isIOS, isInApp } from './js/pwa.js';
 import { nextDuel, duelSides, duelLines, duelOpts, duelPicked, DUEL_AXES } from './js/duel.js';
+import { TEACH_STEPS, TEACH_STEP_MS, teachStepShapes, demoAt, demoAmount, teachToolIcon } from './js/coach.js';
 import { lessonChapters, modeFrom, lessonRegions, averageSamples, assessPart, LESSON_LEVELS } from './js/lesson.js';
 import { GROWTH_KEY, GROWTH_PARTS, addRecord, growthTrend, growthDelta, sparkPoints } from './js/growth.js';
 import { COACH_PARTS, COACH_MODES, COACH_TOOLS, COACH_GLYPH, coachMethod, coachPlan, coachShapes, coachRegion, drawCoachShapes } from './js/coach.js';
@@ -1807,7 +1808,7 @@ console.log('\n\x1b[1m46. 反饋：AI 問答、前後對比、過程、產品退
   const plan = coachPlan({ picks: resolveLook(LOOKS.find((l) => l.id === 'natural'), 'cool'), mode: 'none' });
   ok(plan.map((p) => p.part).join() === 'base,eye,cheek,lip' && plan.every((p) => p.method === 'none' && p.toolKey.startsWith('coach.none.')) && plan[0].product === null, '指南列出每個部位的化妝品、工具、手法');
   ok(/!S\.guideDone \? \[\{ kind: 'ask', key: 'adv\.guide\.ask'/.test(app), '每個人一進鏡子就邀請化妝教學（以前只問新手）');
-  ok(/T\.saved\[c\] \* \(T\.stage === 'coarse' \? COARSE_RATIO : 1\)/.test(app), '鏡子上也是先粗再細：先淡淡出現，再細才到位');
+  ok(/S\.amount\[cur\.id\] = T\.saved\[cur\.id\] \* \(d\.done \? 1 : demoAmount\(cur\.part, d\.i, d\.k\)\)/.test(app), '示範時妝跟著工具一點一點出現');
   const adv = dict.split(/\r?\n/).filter((l) => /^  '(coach|qa)\./.test(l));
   ok(!adv.some((l) => ['漂亮', '好看', '美麗', '顯瘦', 'pretty', 'beautiful', '美しい'].some((w) => l.includes(w))), '指導與問答只講做法，不評價長相');   // 「きれい」在這裡是乾淨的刷子，不算
 }
@@ -1853,7 +1854,7 @@ console.log('\n\x1b[1m47. 對話精簡；教學步驟畫出來\x1b[0m');
     const b = coachRegion(part, P, 640, 480);
     ok(b.x >= 0 && b.y >= 0 && b.x + b.w <= 640.01 && b.y + b.h <= 480.01 && Math.abs(b.w / b.h - 4 / 3) < 0.01, '手法圖的框不超出照片：' + part);
   }
-  ok(/drawCoach\(dctx, smooth, W, H\);/.test(app) && /calm\(\) \? \{ lw \}/.test(app), '鏡子每一幀畫；減少動態效果時是靜態圖');
+  ok(/drawCoach\(dctx, smooth, W, H\);/.test(app) && /calm\(\) \|\| k == null \? \{ lw \}/.test(app), '鏡子每一幀畫；減少動態效果時是靜態圖');
   ok(/fig\.appendChild\(howPic\(s\.part, stage\)\)/.test(app), '最後一頁的指南也是圖：先粗、再細各一張');
   const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
   ok(!/'coach\.[a-z]+\.(full|sub|none)\.(coarse|fine)': \['(先粗|再細)/.test(dict), '句首不再重複「先粗、再細」（卡片和圖已經標了）');
@@ -1908,6 +1909,31 @@ console.log('\n\x1b[1m48. 化妝教學獨立成一段；量真的臉；成長紀
   const pts = sparkPoints([{ at: 1, score: 0 }, { at: 2, score: 100 }], 120, 44);
   ok(pts[0].y === 38 && pts[1].y === 6 && pts[0].x === 6 && pts[1].x === 114, '折線縱軸固定 0–100，三個部位同一把尺');
   ok(sparkPoints([{ at: 1, score: 50 }], 120, 44)[0].x === 60, '只有一點時放中間');
+  // 一步一步的畫法：AI 先畫一次，再換你畫
+  for (const part of COACH_PARTS) {
+    const st = TEACH_STEPS[part];
+    ok(st.length >= 4 && st.every((s, i) => !i || s.upto >= st[i - 1].upto), '分成 4 步以上、顏色只會越來越多：' + part);
+    ok(part === 'base' || st[st.length - 1].upto === 1, '　最後一步到目標：' + part);
+    ok(st.every((s) => teachStepShapes(part, s.id, P).length > 0), '　每一步都有畫在臉上的圖：' + part);
+    ok(st.every((s, i) => !i || st[i - 1].stage === 'coarse' || s.stage === 'fine'), '　先粗再細：' + part);
+  }
+  ok(teachStepShapes('lip', 'upper', P).length === 2 && teachStepShapes('lip', 'lower', P).length === 2 && teachStepShapes('eye', 'line', P).length === 2, '唇峰、下唇線、兩眼的睫毛根各自一步');
+  const d0 = demoAt('lip', 0), dm = demoAt('lip', TEACH_STEP_MS * 2.5), dz = demoAt('lip', TEACH_STEP_MS * 99);
+  ok(d0.i === 0 && d0.k === 0 && dm.i === 2 && Math.abs(dm.k - 0.5) < 1e-9 && dz.done && dz.i === TEACH_STEPS.lip.length - 1, '示範照時間一步一步走，走完停在最後一步');
+  ok(demoAmount('lip', 0, 1) === 0 && Math.abs(demoAmount('lip', 2, 0) - 0.3) < 1e-9 && Math.abs(demoAmount('lip', 2, 1) - 0.75) < 1e-9 && demoAmount('lip', 2, 0.5) > 0.3 && demoAmount('lip', 2, 0.5) < 0.75, '示範的顏色從上一步接到這一步');
+  ok(teachToolIcon('eye', 'full') === 'eyeBrush' && teachToolIcon('eye', 'sub') === 'cotton' && teachToolIcon('lip', 'none') === 'hand', '工具圖示跟著手邊的工具');
+  ok(COACH_PARTS.every((p) => TEACH_STEPS[p].every((s) => ['coarse', 'fine'].includes(s.stage))), '每一步標好先粗或再細');
+  ok(/T\.view = 'demo'; T\.demo = \{ t0: performance\.now\(\), done: false \}/.test(app), '每個部位先看 AI 畫一次');
+  ok(/drawCoachShapes\(ctx, shapes, calm\(\) \|\| k == null \? \{ lw \} : \{ lw, t: k, glyph: tool \}\)/.test(app) && /const tool = toolImg\(/.test(app), '鏡子上的工具是畫出來的圖示，不是表情符號');
+  for (const part of COACH_PARTS) for (const s of TEACH_STEPS[part]) ok(/', '.*', '/.test(readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8').split(/\r?\n/).find((l) => l.startsWith("  'teach.step." + part + '.' + s.id + "':")) || ''), '步驟文案三種語言：' + part + '.' + s.id);
+  const calls2 = [];
+  const ctx2 = new Proxy({}, { get: (o, k) => (k in o ? o[k] : (...a) => { calls2.push(k); }), set: (o, k, v) => { o[k] = v; return true; } });
+  const fakeImg = { width: 40, height: 40, complete: true };
+  drawCoachShapes(ctx2, teachStepShapes('lip', 'spread', P), { lw: 3, t: 0.3, glyph: fakeImg });
+  ok(calls2.filter((c) => c === 'drawImage').length === 1, '工具圖示沿著路線走（只畫一支）');
+  calls2.length = 0;
+  drawCoachShapes(ctx2, teachStepShapes('cheek', 'load', P), { lw: 3, t: 0.3, glyph: fakeImg });
+  ok(calls2.includes('drawImage'), '沒有路線的一步（沾取、點上），工具也看得到');
   ok(GROWTH_KEY === 'lucid.growth' && GROWTH_PARTS.join() === 'eye,cheek,lip', '紀錄的部位：眼、頰、唇');
 
   // 接線
