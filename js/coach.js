@@ -211,13 +211,21 @@ function drawTool(ctx, tool, x, y, lw) {
      upto   這一步做完，顏色到目標的幾成（示範時妝跟著工具一點一點出現）
    畫在臉上的圖取自 coachShapes，同一套座標。 */
 export const TEACH_STEPS = {
-  base: [{ id: 'dots', stage: 'coarse', upto: 0 }, { id: 'spread', stage: 'coarse', upto: 0 }, { id: 'detail', stage: 'fine', upto: 0 }, { id: 'edge', stage: 'fine', upto: 0 }],
-  eye: [{ id: 'load', stage: 'coarse', upto: 0 }, { id: 'lay', stage: 'coarse', upto: 0.55 }, { id: 'line', stage: 'fine', upto: 0.85 }, { id: 'blend', stage: 'fine', upto: 1 }],
-  cheek: [{ id: 'load', stage: 'coarse', upto: 0 }, { id: 'place', stage: 'coarse', upto: 0.3 }, { id: 'sweep', stage: 'coarse', upto: 0.8 }, { id: 'blend', stage: 'fine', upto: 1 }],
-  lip: [{ id: 'load', stage: 'coarse', upto: 0 }, { id: 'center', stage: 'coarse', upto: 0.3 }, { id: 'spread', stage: 'coarse', upto: 0.75 }, { id: 'upper', stage: 'fine', upto: 0.9 }, { id: 'lower', stage: 'fine', upto: 1 }],
+  base: [{ id: 'dots', stage: 'coarse', upto: 0, motion: 'tap', reps: 1 }, { id: 'spread', stage: 'coarse', upto: 0, motion: 'stipple', reps: 1 },
+         { id: 'detail', stage: 'fine', upto: 0, motion: 'tap', reps: 2 }, { id: 'edge', stage: 'fine', upto: 0, motion: 'stipple', reps: 1 }],
+  eye: [{ id: 'load', stage: 'coarse', upto: 0, motion: 'tap', reps: 2 }, { id: 'lay', stage: 'coarse', upto: 0.55, motion: 'wiper', reps: 3 },
+        { id: 'line', stage: 'fine', upto: 0.85, motion: 'line', reps: 1 }, { id: 'blend', stage: 'fine', upto: 1, motion: 'wiper', reps: 3 }],
+  cheek: [{ id: 'load', stage: 'coarse', upto: 0, motion: 'tap', reps: 2 }, { id: 'place', stage: 'coarse', upto: 0.3, motion: 'tap', reps: 2 },
+          { id: 'sweep', stage: 'coarse', upto: 0.8, motion: 'sweep', reps: 2 }, { id: 'blend', stage: 'fine', upto: 1, motion: 'circle', reps: 1 }],
+  lip: [{ id: 'load', stage: 'coarse', upto: 0, motion: 'tap', reps: 1 }, { id: 'center', stage: 'coarse', upto: 0.3, motion: 'tap', reps: 2 },
+        { id: 'spread', stage: 'coarse', upto: 0.75, motion: 'sweep', reps: 2 }, { id: 'upper', stage: 'fine', upto: 0.9, motion: 'line', reps: 1 },
+        { id: 'lower', stage: 'fine', upto: 1, motion: 'line', reps: 1 }],
 };
-/** 示範時每一小步多久（毫秒） */
+/** 手法：點拍、按壓推開、來回刷（雨刷）、往外刷、描線、畫小圈 */
+export const TEACH_MOTIONS = ['tap', 'stipple', 'wiper', 'sweep', 'line', 'circle'];
+/** 示範時每一小步的基本長度（毫秒）；要重複幾次的步驟給長一點，新手才看得清楚 */
 export const TEACH_STEP_MS = 2800;
+export const stepMs = (s) => TEACH_STEP_MS + Math.max(0, (s.reps || 1) - 1) * 900;
 
 /** 這一小步要畫什麼 */
 export function teachStepShapes(part, id, P) {
@@ -250,8 +258,18 @@ export function teachStepShapes(part, id, P) {
 
 /** 示範到第幾步、這一步走到哪：elapsed 毫秒 → { i, k（0..1）, done } */
 export function demoAt(part, elapsed) {
-  const n = TEACH_STEPS[part].length, i = Math.floor(Math.max(0, elapsed) / TEACH_STEP_MS);
-  return i >= n ? { i: n - 1, k: 1, done: true } : { i, k: (Math.max(0, elapsed) % TEACH_STEP_MS) / TEACH_STEP_MS, done: false };
+  const st = TEACH_STEPS[part];
+  let left = Math.max(0, elapsed);
+  for (let i = 0; i < st.length; i++) {
+    const ms = stepMs(st[i]);
+    if (left < ms) return { i, k: left / ms, done: false };
+    left -= ms;
+  }
+  return { i: st.length - 1, k: 1, done: true };
+}
+/** 第 i 步從示範的第幾毫秒開始（點清單跳到那一步） */
+export function stepStart(part, i) {
+  return TEACH_STEPS[part].slice(0, i).reduce((a, s) => a + stepMs(s), 0);
 }
 /** 示範時這個部位的顏色到目標的幾成：上一步做完的量 → 這一步做完的量 */
 export function demoAmount(part, i, k) {
@@ -262,4 +280,126 @@ export function demoAmount(part, i, k) {
 /** 工具圖示：齊全用對應的刷具，替代品是棉花棒／化妝棉，沒有工具是手指 */
 export function teachToolIcon(part, method) {
   return method === 'none' ? 'hand' : method === 'sub' ? 'cotton' : PART_TOOL[part];
+}
+
+/* ── 教學的畫法動畫：比指南的靜態圖更顯眼 ─────────────────────
+   參考 AR 美妝教學的做法：只照亮要畫的地方、用化妝品的顏色畫範圍與筆跡、
+   手法看得出來（點拍有漣漪、雨刷式來回、按壓一路彈）、好幾條路線一筆一筆輪流畫、點標上順序。 */
+
+/** 聚光燈：這個部位的範圍（橢圓）。底妝是整張臉，不打聚光燈 */
+export function teachSpot(part, P) {
+  const fw = Math.hypot(P[454].x - P[234].x, P[454].y - P[234].y) || 1;
+  const box = (ids, padX, padY) => {
+    const xs = ids.map((i) => P[i].x), ys = ids.map((i) => P[i].y);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    return { x: (x0 + x1) / 2, y: (y0 + y1) / 2, rx: (x1 - x0) / 2 + fw * padX, ry: (y1 - y0) / 2 + fw * padY };
+  };
+  if (part === 'lip') return [box([61, 291, 0, 17], 0.06, 0.06)];
+  if (part === 'eye') return [box([33, 133, 46, 55, 145], 0.04, 0.04), box([263, 362, 276, 285, 374], 0.04, 0.04)];
+  if (part === 'cheek') return [box([50, 127, 205, 117], 0.05, 0.05), box([280, 356, 425, 346], 0.05, 0.05)];
+  return [];
+}
+
+const tri = (x) => { const m = x % 2; return m < 1 ? m : 2 - m; };
+function strokeTo(ctx, pts, k) {
+  const at = pathAt(pts, k);
+  ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i <= at.i; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.lineTo(at.p.x, at.p.y);
+  return at;
+}
+function arrowHead(ctx, tip, from, a) {
+  const dir = Math.atan2(tip.y - from.y, tip.x - from.x);
+  ctx.beginPath(); ctx.moveTo(tip.x, tip.y);
+  ctx.lineTo(tip.x - a * Math.cos(dir - 0.5), tip.y - a * Math.sin(dir - 0.5));
+  ctx.lineTo(tip.x - a * Math.cos(dir + 0.5), tip.y - a * Math.sin(dir + 0.5));
+  ctx.closePath(); ctx.fill();
+}
+
+/**
+ * 畫一小步。t = 這一步的進度（0..1），null = 靜態（路線畫完、沒有工具）。
+ * color：化妝品的顏色。motion / reps：手法與次數。spot：聚光燈橢圓。W、H：畫布大小（聚光燈用）。
+ */
+export function drawTeachStep(ctx, shapes, { lw = 3, t = null, tool = null, color = '#e39aa8', motion = 'sweep', reps = 1, spot = null, W = 0, H = 0 } = {}) {
+  ctx.save();
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const pulse = t == null ? 1 : 0.5 + 0.5 * Math.sin(t * Math.PI * 2 * Math.max(1, reps));
+  // 1. 聚光燈：其他地方暗下來，要畫的地方亮著、有一圈光
+  if (spot?.length && W && H) {
+    ctx.beginPath(); ctx.rect(0, 0, W, H);
+    for (const e of spot) { ctx.moveTo(e.x + e.rx, e.y); ctx.ellipse(e.x, e.y, e.rx, e.ry, 0, 0, Math.PI * 2, true); }
+    ctx.fillStyle = 'rgba(14,6,10,.46)'; ctx.fill('evenodd');
+    ctx.strokeStyle = 'rgba(255,255,255,' + (0.35 + 0.3 * pulse).toFixed(2) + ')'; ctx.lineWidth = lw * 0.7;
+    for (const e of spot) { ctx.beginPath(); ctx.ellipse(e.x, e.y, e.rx, e.ry, 0, 0, Math.PI * 2); ctx.stroke(); }
+  }
+  ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = lw * 1.4;
+  const areas = shapes.filter((x) => x.type === 'area'), paths = shapes.filter((x) => x.type === 'path'), dots = shapes.filter((x) => x.type === 'dot');
+  // 2. 範圍：化妝品的顏色，輕輕呼吸
+  for (const s of areas) {
+    ctx.beginPath(); s.pts.forEach((p, k) => (k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath();
+    ctx.save(); ctx.shadowBlur = 0; ctx.globalAlpha = 0.18 + 0.2 * pulse; ctx.fillStyle = color; ctx.fill(); ctx.restore();
+    ctx.save(); ctx.setLineDash([lw * 2, lw * 1.6]); ctx.lineWidth = lw * 0.7; ctx.strokeStyle = '#fff'; ctx.stroke(); ctx.restore();
+  }
+  // 3. 路線：先整條虛線＋終點箭頭（方向），再一筆一筆輪流畫上顏色
+  let toolAt = null, bounce = 0;
+  const n = paths.length, seg = t == null ? n : t * n, cur = Math.min(n - 1, Math.floor(seg)), kk = seg - cur;
+  paths.forEach((s, j) => {
+    ctx.save(); ctx.globalAlpha = 0.7; ctx.setLineDash([lw * 1.4, lw * 1.8]); ctx.lineWidth = lw * 0.8; ctx.strokeStyle = '#fff';
+    ctx.beginPath(); s.pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.stroke(); ctx.restore();
+    ctx.fillStyle = '#fff'; arrowHead(ctx, s.pts[s.pts.length - 1], s.pts[s.pts.length - 2], lw * 3);
+    let q;
+    if (t == null || j < cur) q = 1;
+    else if (j > cur) return;
+    else if (motion === 'wiper') q = tri(kk * reps * 2);
+    else q = Math.min(1, (kk * reps) % 1 + (kk >= 0.999 ? 1 : 0));
+    if (q <= 0) return;
+    // 筆跡：化妝品顏色的粗線＋白色細芯
+    ctx.save(); ctx.shadowBlur = 0;
+    ctx.globalAlpha = 0.85; ctx.strokeStyle = color; ctx.lineWidth = lw * 2.6; strokeTo(ctx, s.pts, motion === 'wiper' && j === cur ? Math.max(q, 0.0001) : q); ctx.stroke();
+    ctx.globalAlpha = 0.9; ctx.strokeStyle = '#fff'; ctx.lineWidth = lw * 0.7; const at = strokeTo(ctx, s.pts, q); ctx.stroke();
+    ctx.restore();
+    if (t != null && j === cur) {
+      toolAt = at.p;
+      if (motion === 'stipple') bounce = Math.abs(Math.sin(q * Math.PI * 7)) * lw * 3;
+    }
+  });
+  // 4. 點：標上順序；點拍時一個一個點，點下去有漣漪
+  const nd = dots.length, dSeg = t == null ? nd : t * nd, dCur = Math.min(nd - 1, Math.floor(dSeg)), dk = dSeg - dCur;
+  dots.forEach((s, j) => {
+    const visited = t == null || j < dCur || (j === dCur && !n);
+    ctx.save(); ctx.shadowBlur = 0;
+    ctx.globalAlpha = visited ? 0.85 : 0.35; ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(s.at.x, s.at.y, s.r * 0.75, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    ctx.lineWidth = lw * 0.8; ctx.strokeStyle = '#fff';
+    ctx.beginPath(); ctx.arc(s.at.x, s.at.y, s.r, 0, Math.PI * 2); ctx.stroke();
+    if (nd > 1) {
+      ctx.save(); ctx.shadowBlur = lw; ctx.fillStyle = '#fff'; ctx.font = 'bold ' + Math.round(lw * 4.2) + 'px sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(j + 1), s.at.x + s.r * 1.25, s.at.y - s.r * 1.25); ctx.restore();
+    }
+    if (t != null && !n && j === dCur) {
+      const ph = (dk * Math.max(1, reps)) % 1;
+      // 漣漪：點下去的那一下擴散
+      ctx.save(); ctx.shadowBlur = 0; ctx.globalAlpha = 1 - ph; ctx.lineWidth = lw * 0.9; ctx.strokeStyle = color;
+      ctx.beginPath(); ctx.arc(s.at.x, s.at.y, s.r * (1 + ph * 1.6), 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+      toolAt = s.at; bounce = Math.abs(Math.sin(ph * Math.PI)) * lw * 4;
+    }
+  });
+  // 只有範圍（沾取）：工具在範圍中間點兩下
+  if (t != null && !toolAt && areas.length) {
+    const pts = areas[0].pts;
+    toolAt = { x: pts.reduce((a, p) => a + p.x, 0) / pts.length, y: pts.reduce((a, p) => a + p.y, 0) / pts.length };
+    bounce = Math.abs(Math.sin(t * Math.PI * Math.max(1, reps))) * lw * 4;
+  }
+  // 5. 工具＋筆尖的小亮粉（化妝品的顏色）
+  if (toolAt && tool) {
+    ctx.save(); ctx.shadowBlur = 0;
+    for (let i = 0; i < 5; i++) {
+      const ang = i * 1.26 + t * 9, r = lw * (1.5 + ((t * 7 + i * 0.37) % 1) * 3);
+      ctx.globalAlpha = 0.7 * (1 - ((t * 7 + i * 0.37) % 1)); ctx.fillStyle = i % 2 ? '#fff' : color;
+      ctx.beginPath(); ctx.arc(toolAt.x + Math.cos(ang) * r, toolAt.y + Math.sin(ang) * r, lw * 0.55, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+    drawTool(ctx, tool, toolAt.x + lw * 2.5, toolAt.y - lw - bounce, lw);
+  }
+  ctx.restore();
 }

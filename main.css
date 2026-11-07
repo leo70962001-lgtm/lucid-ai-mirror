@@ -2284,3 +2284,22 @@ body {
 .teach-cap span { flex:none; font-variant-numeric:tabular-nums; opacity:.8; }
 @media (prefers-reduced-motion: reduce) { .teach .steps li.on::after, .teach .step-ctl.ready .turn { animation:none; } }
 #s4.teach-mode > .frame > canvas#ar { transition:none; }
+/* ── 教學動畫：字幕兩行（步驟＋手法），慢速、暫停、語音 ── */
+.teach-cap { flex-direction:column; align-items:stretch; gap:4px; padding:6px 8px 6px 10px; }
+.teach-cap .l1 { display:flex; align-items:center; gap:6px; min-width:0; }
+.teach-cap .l1 .tx { min-width:0; }
+.teach-cap .l2 { display:flex; align-items:center; justify-content:space-between; gap:6px; }
+.teach-cap .mo { display:inline-flex; align-items:center; gap:4px; padding:1px 8px 1px 5px; border-radius:9px; font-size:12px; color:#3a2a30; background:#fff; }
+.teach-cap .mo svg { width:16px; height:16px; color:var(--primary-2); }
+.teach-cap .btns { display:flex; gap:4px; }
+.teach-cap .btns button { width:32px; height:28px; padding:0; border:0; border-radius:9px; font-size:14px; line-height:28px; cursor:pointer; background:rgba(255,255,255,.18); color:#fff; }
+.teach-cap .btns button.on { background:#fff; }
+.teach .steps .tx small { display:flex; align-items:center; gap:3px; margin-top:1px; font-size:11px; font-weight:600; color:var(--ink-3); }
+.teach .steps .tx small svg { width:13px; height:13px; }
+.teach .steps li.on .tx small { color:var(--primary-2); }
+#s4.demo-paused .teach .steps li.on::after { animation-play-state:paused; }
+.teach .mistake { display:grid; gap:3px; padding:7px 10px; border-radius:12px; background:#fff; box-shadow:0 0 0 1px var(--line); font-size:12.5px; line-height:1.4; }
+.teach .mistake p { display:flex; gap:6px; margin:0; }
+.teach .mistake b { flex:none; display:grid; place-items:center; width:18px; height:18px; border-radius:50%; font-size:11px; color:#fff; }
+.teach .mistake .x b { background:#c0505c; }
+.teach .mistake .o b { background:#2f8a62; }

@@ -18,7 +18,7 @@ import { pickSurprise, newCheer, cheerFor, CHEER_GAP_MS, GIFT_AR_MS, FIT_MAX, ai
 import { LIP_INSET } from './js/makeup-gl.js';
 import { pwaState, isIOS, isInApp } from './js/pwa.js';
 import { nextDuel, duelSides, duelLines, duelOpts, duelPicked, DUEL_AXES } from './js/duel.js';
-import { TEACH_STEPS, TEACH_STEP_MS, teachStepShapes, demoAt, demoAmount, teachToolIcon } from './js/coach.js';
+import { TEACH_STEPS, TEACH_STEP_MS, TEACH_MOTIONS, stepMs, stepStart, drawTeachStep, teachSpot, teachStepShapes, demoAt, demoAmount, teachToolIcon } from './js/coach.js';
 import { lessonChapters, modeFrom, lessonRegions, averageSamples, assessPart, LESSON_LEVELS } from './js/lesson.js';
 import { GROWTH_KEY, GROWTH_PARTS, addRecord, growthTrend, growthDelta, sparkPoints } from './js/growth.js';
 import { COACH_PARTS, COACH_MODES, COACH_TOOLS, COACH_GLYPH, coachMethod, coachPlan, coachShapes, coachRegion, drawCoachShapes } from './js/coach.js';
@@ -1766,7 +1766,7 @@ console.log('\n\x1b[1m46. 反饋：AI 問答、前後對比、過程、產品退
     for (const m of src.matchAll(/(?:const|let)\s*[\[{]([^\]}=]*)[\]}]\s*=/g)) m[1].split(',').forEach((n) => declared.add(n.split(':').pop().split('=')[0].trim()));
     for (const m of src.matchAll(/\(([^()]*)\)\s*=>|function[^(]*\(([^()]*)\)|\b([A-Za-z_$][\w$]*)\s*=>/g)) (m[1] || m[2] || m[3] || '').split(',').forEach((n) => declared.add(n.replace(/[{}\[\]\s]/g, '').split('=')[0]));
     // analyse、fast：掃描用的是粗略的去字串，這兩個是誤判（analyse 有定義；fast 是正規式裡的字）
-    const known = new Set(['analyse', 'fast', 'if', 'for', 'while', 'switch', 'catch', 'return', 'function', 'typeof', 'await', 'import', 'super', 'parseInt', 'parseFloat', 'isFinite', 'isNaN', 'String', 'Number', 'Boolean', 'Array', 'Object', 'Set', 'Map', 'Date', 'Math', 'JSON', 'Promise', 'RegExp', 'Error', 'Symbol', 'Uint8Array', 'Uint8ClampedArray', 'Float32Array', 'Image', 'Blob', 'URL', 'File', 'FileReader', 'MediaRecorder', 'MediaStream', 'ResizeObserver', 'PointerEvent', 'Event', 'requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'addEventListener', 'removeEventListener', 'fetch', 'atob', 'btoa', 'alert', 'confirm', 'prompt', 'matchMedia', 'getComputedStyle', 'encodeURIComponent', 'decodeURIComponent', 'createImageBitmap', 'OffscreenCanvas', 'structuredClone', 'AudioContext']);
+    const known = new Set(['analyse', 'fast', 'SpeechSynthesisUtterance', 'if', 'for', 'while', 'switch', 'catch', 'return', 'function', 'typeof', 'await', 'import', 'super', 'parseInt', 'parseFloat', 'isFinite', 'isNaN', 'String', 'Number', 'Boolean', 'Array', 'Object', 'Set', 'Map', 'Date', 'Math', 'JSON', 'Promise', 'RegExp', 'Error', 'Symbol', 'Uint8Array', 'Uint8ClampedArray', 'Float32Array', 'Image', 'Blob', 'URL', 'File', 'FileReader', 'MediaRecorder', 'MediaStream', 'ResizeObserver', 'PointerEvent', 'Event', 'requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'addEventListener', 'removeEventListener', 'fetch', 'atob', 'btoa', 'alert', 'confirm', 'prompt', 'matchMedia', 'getComputedStyle', 'encodeURIComponent', 'decodeURIComponent', 'createImageBitmap', 'OffscreenCanvas', 'structuredClone', 'AudioContext']);
     const missing = [...new Set([...src.matchAll(/(?<![.\w$])([A-Za-z_$][\w$]*)\(/g)].map((m) => m[1]))].filter((n) => !declared.has(n) && !known.has(n));
     ok(missing.length === 0, 'app.js 呼叫的函式都存在' + (missing.length ? ' 找不到：' + missing.join() : ''));
   }
@@ -1854,7 +1854,7 @@ console.log('\n\x1b[1m47. 對話精簡；教學步驟畫出來\x1b[0m');
     const b = coachRegion(part, P, 640, 480);
     ok(b.x >= 0 && b.y >= 0 && b.x + b.w <= 640.01 && b.y + b.h <= 480.01 && Math.abs(b.w / b.h - 4 / 3) < 0.01, '手法圖的框不超出照片：' + part);
   }
-  ok(/drawCoach\(dctx, smooth, W, H\);/.test(app) && /calm\(\) \|\| k == null \? \{ lw \}/.test(app), '鏡子每一幀畫；減少動態效果時是靜態圖');
+  ok(/drawCoach\(dctx, smooth, W, H\);/.test(app) && /t: calm\(\) \? null : k/.test(app), '鏡子每一幀畫；減少動態效果時是靜態圖');
   ok(/fig\.appendChild\(howPic\(s\.part, stage\)\)/.test(app), '最後一頁的指南也是圖：先粗、再細各一張');
   const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
   ok(!/'coach\.[a-z]+\.(full|sub|none)\.(coarse|fine)': \['(先粗|再細)/.test(dict), '句首不再重複「先粗、再細」（卡片和圖已經標了）');
@@ -1918,13 +1918,38 @@ console.log('\n\x1b[1m48. 化妝教學獨立成一段；量真的臉；成長紀
     ok(st.every((s, i) => !i || st[i - 1].stage === 'coarse' || s.stage === 'fine'), '　先粗再細：' + part);
   }
   ok(teachStepShapes('lip', 'upper', P).length === 2 && teachStepShapes('lip', 'lower', P).length === 2 && teachStepShapes('eye', 'line', P).length === 2, '唇峰、下唇線、兩眼的睫毛根各自一步');
-  const d0 = demoAt('lip', 0), dm = demoAt('lip', TEACH_STEP_MS * 2.5), dz = demoAt('lip', TEACH_STEP_MS * 99);
+  const d0 = demoAt('lip', 0), dm = demoAt('lip', stepStart('lip', 2) + stepMs(TEACH_STEPS.lip[2]) / 2), dz = demoAt('lip', 1e9);
   ok(d0.i === 0 && d0.k === 0 && dm.i === 2 && Math.abs(dm.k - 0.5) < 1e-9 && dz.done && dz.i === TEACH_STEPS.lip.length - 1, '示範照時間一步一步走，走完停在最後一步');
   ok(demoAmount('lip', 0, 1) === 0 && Math.abs(demoAmount('lip', 2, 0) - 0.3) < 1e-9 && Math.abs(demoAmount('lip', 2, 1) - 0.75) < 1e-9 && demoAmount('lip', 2, 0.5) > 0.3 && demoAmount('lip', 2, 0.5) < 0.75, '示範的顏色從上一步接到這一步');
   ok(teachToolIcon('eye', 'full') === 'eyeBrush' && teachToolIcon('eye', 'sub') === 'cotton' && teachToolIcon('lip', 'none') === 'hand', '工具圖示跟著手邊的工具');
   ok(COACH_PARTS.every((p) => TEACH_STEPS[p].every((s) => ['coarse', 'fine'].includes(s.stage))), '每一步標好先粗或再細');
-  ok(/T\.view = 'demo'; T\.demo = \{ t0: performance\.now\(\), done: false \}/.test(app), '每個部位先看 AI 畫一次');
-  ok(/drawCoachShapes\(ctx, shapes, calm\(\) \|\| k == null \? \{ lw \} : \{ lw, t: k, glyph: tool \}\)/.test(app) && /const tool = toolImg\(/.test(app), '鏡子上的工具是畫出來的圖示，不是表情符號');
+  ok(/T\.view = 'demo'; T\.demo = newDemo\(\);/.test(app), '每個部位先看 AI 畫一次');
+  ok(/drawTeachStep\(ctx, shapes, \{ lw, t: calm\(\) \? null : k, tool: toolImg\(/.test(app), '鏡子上的工具是畫出來的圖示，不是表情符號');
+  // 更顯眼、新手好懂的動畫
+  ok(COACH_PARTS.every((p) => TEACH_STEPS[p].every((s) => TEACH_MOTIONS.includes(s.motion) && s.reps >= 1)), '每一步標好手法（點拍、按壓、來回、往外、描線、小圈）與次數');
+  ok(stepMs(TEACH_STEPS.eye[1]) > stepMs(TEACH_STEPS.eye[2]), '要來回好幾次的步驟示範久一點');
+  ok(stepStart('lip', 0) === 0 && stepStart('lip', 2) === stepMs(TEACH_STEPS.lip[0]) + stepMs(TEACH_STEPS.lip[1]), '點清單跳到某一步，從那一步開始播');
+  ok(teachSpot('lip', P).length === 1 && teachSpot('eye', P).length === 2 && teachSpot('cheek', P).length === 2 && teachSpot('base', P).length === 0, '聚光燈：唇一區、眼與頰左右各一區、底妝整張臉不打');
+  const rec2 = [];
+  const ctx3 = new Proxy({}, { get: (o, k) => (k in o ? o[k] : (...a) => { rec2.push([k, ...a]); }), set: (o, k, v) => { o[k] = v; return true; } });
+  const img2 = { width: 40, height: 40, complete: true };
+  drawTeachStep(ctx3, teachStepShapes('lip', 'spread', P), { lw: 3, t: 0.3, tool: img2, color: '#c0293e', motion: 'sweep', reps: 2, spot: teachSpot('lip', P), W: 640, H: 480 });
+  ok(rec2.some((r) => r[0] === 'fill' && r[1] === 'evenodd'), '聚光燈：其他地方暗下來');
+  ok(rec2.filter((r) => r[0] === 'drawImage').length === 1, '工具只畫一支');
+  rec2.length = 0;
+  drawTeachStep(ctx3, teachStepShapes('lip', 'center', P), { lw: 3, t: 0.2, tool: img2, color: '#c0293e', motion: 'tap', reps: 2 });
+  ok(rec2.some((r) => r[0] === 'fillText' && r[1] === '1') && rec2.some((r) => r[0] === 'fillText' && r[1] === '2'), '點標上順序 1、2');
+  ok(rec2.filter((r) => r[0] === 'drawImage').length === 1, '點拍時工具也看得到');
+  rec2.length = 0;
+  drawTeachStep(ctx3, teachStepShapes('eye', 'lay', P), { lw: 3, t: null, tool: img2, color: '#a07080', motion: 'wiper', reps: 3 });
+  ok(!rec2.some((r) => r[0] === 'drawImage') && rec2.some((r) => r[0] === 'stroke'), '靜態（減少動態效果、示範播完）：路線畫完、不畫工具');
+  let threw2 = false;
+  try { for (const p of COACH_PARTS) for (const s of TEACH_STEPS[p]) for (const tt of [0, 0.37, 0.999, 1, null]) drawTeachStep(ctx3, teachStepShapes(p, s.id, P), { lw: 3, t: tt, tool: img2, motion: s.motion, reps: s.reps, spot: teachSpot(p, P), W: 640, H: 480 }); } catch { threw2 = true; }
+  ok(!threw2, '每個部位、每一步、每種進度都畫得出來');
+  const dictF = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8').split(/\r?\n/);
+  const has3m = (k) => /', '.*', '/.test(dictF.find((l) => l.startsWith("  '" + k + "':")) || '');
+  ok([...TEACH_MOTIONS.map((m) => 'teach.motion.' + m), ...COACH_PARTS.flatMap((p) => ['teach.wrong.' + p, 'teach.right.' + p]), 'teach.slow', 'teach.pause', 'teach.play', 'teach.voice'].every(has3m), '手法、常見錯誤與正確做法、慢速暫停語音：三種語言');
+  ok(/u\.lang = \{ zh: 'zh-TW', en: 'en-US', ja: 'ja-JP' \}/.test(app) && /localStorage\.getItem\('lucid\.voice'\) === '1'/.test(app), '語音唸步驟，預設關閉、記得使用者的選擇');
   for (const part of COACH_PARTS) for (const s of TEACH_STEPS[part]) ok(/', '.*', '/.test(readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8').split(/\r?\n/).find((l) => l.startsWith("  'teach.step." + part + '.' + s.id + "':")) || ''), '步驟文案三種語言：' + part + '.' + s.id);
   const calls2 = [];
   const ctx2 = new Proxy({}, { get: (o, k) => (k in o ? o[k] : (...a) => { calls2.push(k); }), set: (o, k, v) => { o[k] = v; return true; } });
