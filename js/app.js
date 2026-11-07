@@ -34,7 +34,7 @@ import { pickLesson, lessonLines, nextQuiz, onQuizAnswer, learnRecap } from './l
 import { newTaste, noteTaste, tasteRead, tasteSuggest, tasteSummary, describeLip, LIP_FAMILIES } from './lipcolor.js';
 import { TRENDS, TREND_PACK, trendsFor, trendPlan, trendLines, trendStale, trendStaleLines } from './trends.js';
 import { COACH_MODES, COACH_TOOLS, COARSE_RATIO, COACH_GLYPH, coachMethod, coachToolKey, coachPlan, coachShapes, coachRegion, drawCoachShapes,
-         TEACH_STEPS, TEACH_STEP_MS, teachStepShapes, demoAt, demoAmount, teachToolIcon } from './coach.js';
+         TEACH_STEPS, teachStepShapes, demoAt, demoAmount, teachToolIcon, stepMs, stepStart, drawTeachStep, teachSpot } from './coach.js';
 import { lessonChapters, modeFrom, lessonRegions, lessonSample, averageSamples, assessPart } from './lesson.js';
 import { GROWTH_KEY, GROWTH_PARTS, addRecord, growthTrend, growthDelta, sparkPoints } from './growth.js';
 import { QA_TAGS, QA_KB, qaSearch, qaByTag, qaLines } from './qa.js';
@@ -1239,7 +1239,9 @@ function enterTeach() {
   if (S.tab === 'paint') exitPaint(true);
   S.mode = 'full'; S.zoom = false;
   S.teach = { ch: 0, chapters: lessonChapters({ picks: S.picks, amount: S.amount }), stage: 'coarse', view: 'demo', owned: new Set(), hasSub: true,
-              saved: { ...S.amount }, base: {}, results: {}, qa: false, qaAns: null, before: null, after: null, photo: false, stored: false, busy: false };
+              saved: { ...S.amount }, base: {}, results: {}, qa: false, qaAns: null, before: null, after: null, photo: false, stored: false, busy: false,
+              slow: false, paused: false, voice: voicePref() };
+  $('#teach-cap').onclick = teachCapClick;
   // 手法圖要畫在「完成的妝」上
   const tmp = el('canvas');
   renderOnPhoto(tmp, S.picks, S.amount, S.look, false);
@@ -1256,7 +1258,8 @@ function leaveTeach() {
   S.teach = null; S.guideDone = true;
   $('#s4').classList.remove('teach-mode');
   $('#teach').hidden = true;
-  $('#teach-target').hidden = true; $('#teach-cap').hidden = true; $('#s4').classList.remove('demo-run'); teachUnzoom();
+  $('#teach-target').hidden = true; $('#teach-cap').hidden = true; $('#s4').classList.remove('demo-run', 'demo-paused'); teachUnzoom();
+  try { speechSynthesis.cancel(); } catch { /* 沒有語音功能 */ }
 }
 function teachToAR() {
   leaveTeach();
@@ -1282,7 +1285,7 @@ function teachSync() {
 function teachGo(i) {
   const T = S.teach;
   T.ch = Math.max(0, Math.min(T.chapters.length - 1, i));
-  T.step = 0; T.view = 'demo'; T.demo = { t0: performance.now(), done: false }; T.baseDone = false; T.qaAns = null;   // 每個部位都先看 AI 畫一次
+  T.step = 0; T.view = 'demo'; T.demo = newDemo(); T.paused = false; T.loopEl = 0; T.baseDone = false; T.qaAns = null;   // 每個部位都先看 AI 畫一次
   S.coach = { mode: modeFrom(T.owned, T.hasSub), owned: new Set(T.owned), hasSub: T.hasSub };
   if (teachCh().id === 'end' && T.before && !T.stored) T.after = faceShot();   // 回頭補過再回來，AFTER 要是最新的
   mountTeach();
@@ -1321,7 +1324,8 @@ async function teachSample(part) {
 async function teachSetView(view) {
   const T = S.teach, cur = teachCh();
   T.view = view; T.step = 0;
-  if (view === 'demo') T.demo = { t0: performance.now(), done: false };
+  T.paused = false; T.loopEl = 0;
+  if (view === 'demo') T.demo = newDemo();
   mountTeach();
   if (view !== 'self') return;
   if (!T.before) T.before = faceShot();
@@ -1422,7 +1426,7 @@ function teachPart(box) {
   // 步驟清單：每一步一個工具圖示＋一句話；做完的打勾，現在這步亮起來
   const ol = el('ol', 'steps');
   steps.forEach((s, i) => {
-    const li = el('li', '', `<span class="n">${i + 1}</span><span class="ic">${toolIcon(icon)}</span><span class="tx">${t(`teach.step.${cur.part}.${s.id}`)}</span>${i && steps[i - 1].stage !== s.stage ? `<em>${t('coach.stage.fine')}</em>` : ''}`);
+    const li = el('li', '', `<span class="n">${i + 1}</span><span class="ic">${toolIcon(icon)}</span><span class="tx">${t(`teach.step.${cur.part}.${s.id}`)}<small>${motionTag(s)}</small></span>${i && steps[i - 1].stage !== s.stage ? `<em>${t('coach.stage.fine')}</em>` : ''}`);
     li.onclick = () => teachStepTo(i);
     ol.appendChild(li);
   });
@@ -1430,7 +1434,7 @@ function teachPart(box) {
   const btn = (key, cls, on, dis = false) => { const b = el('button', cls, t(key)); b.type = 'button'; b.disabled = dis; b.onclick = on; ctl.appendChild(b); return b; };
   if (T.view === 'demo') {
     ctl.dataset.demo = '1';
-    btn('teach.watchAgain', 'ghost again', () => { T.demo = { t0: performance.now(), done: false }; T.step = 0; teachStepUI(); });
+    btn('teach.watchAgain', 'ghost again', () => { T.demo = newDemo(); T.step = 0; T.paused = false; teachStepUI(); });
     btn('teach.yourTurn', 'primary turn', () => teachSetView('self'));
   } else {
     const last = T.step === steps.length - 1;
@@ -1440,6 +1444,8 @@ function teachPart(box) {
     else btn('teach.stepDone', 'primary', () => { T.baseDone = true; mountTeach(); });
   }
   box.append(ctl, ol);
+  // 新手最常犯的錯，跟正確做法並排
+  box.appendChild(el('div', 'mistake', `<p class="x"><b>✗</b>${t('teach.wrong.' + cur.part)}</p><p class="o"><b>✓</b>${t('teach.right.' + cur.part)}</p>`));
   if (method !== 'full') box.appendChild(el('p', 'tip', t(`coach.${cur.part}.${method}.${steps[T.step].stage}`)));
   if (T.view === 'self' && T.step === steps.length - 1) {
     box.appendChild(el('p', 'tip', t(`coach.${cur.part}.tip`)));
@@ -1458,8 +1464,45 @@ function teachPart(box) {
 function teachStepTo(i) {
   const T = S.teach, n = TEACH_STEPS[teachCh().part].length;
   T.step = Math.max(0, Math.min(n - 1, i));
-  if (T.view === 'demo') T.demo = { t0: performance.now() - T.step * TEACH_STEP_MS, done: false };
+  T.loopEl = 0;
+  if (T.view === 'demo') T.demo = newDemo(stepStart(teachCh().part, T.step));
   mountTeach();
+}
+/** 手法的小圖示：點拍、按壓推開、來回刷、往外刷、描線、畫小圈 */
+const MOTION_ICONS = {
+  tap: '<circle cx="12" cy="15" r="2.6"/><path d="M6.5 15a5.5 5.5 0 0 1 11 0"/><path d="M12 3v6M9.5 6.5 12 9l2.5-2.5"/>',
+  stipple: '<path d="M3 17h2M8 14h2M13 11h2"/><path d="M17 6h4v4M21 6l-4 4"/>',
+  wiper: '<path d="M4 17a9 9 0 0 1 16 0"/><path d="M4 17l-.5-4M4 17l4-.5M20 17l.5-4M20 17l-4-.5"/>',
+  sweep: '<path d="M4 19 18 6"/><path d="M11 5h8v8"/>',
+  line: '<path d="M3 17c3-5 6 1 9-3s6-4 9-3"/><path d="M18 8l3 3-3 3"/>',
+  circle: '<path d="M19 12a7 7 0 1 1-2.6-5.4"/><path d="M17 2.5V7h4.5"/>',
+};
+const motionIcon = (m) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${MOTION_ICONS[m]}</svg>`;
+const motionTag = (s) => motionIcon(s.motion) + t('teach.motion.' + s.motion) + (s.reps > 1 ? ' ×' + s.reps : '');
+const newDemo = (el = 0) => ({ el, done: false });
+function voicePref() { try { return localStorage.getItem('lucid.voice') === '1'; } catch { return false; } }
+/** 語音唸步驟（裝置內建的語音，離線也能用）；預設關著，按 🔈 打開 */
+function teachSay(text) {
+  if (!S.teach?.voice || !('speechSynthesis' in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = { zh: 'zh-TW', en: 'en-US', ja: 'ja-JP' }[getLang()] || 'zh-TW';
+    u.rate = S.teach.slow ? 0.8 : 0.95;
+    speechSynthesis.speak(u);
+  } catch { /* 沒有語音功能就只看字 */ }
+}
+/** 鏡子字幕上的按鈕：慢速、暫停、語音 */
+function teachCapClick(e) {
+  const b = e.target.closest('button'), T = S.teach; if (!b || !T) return;
+  if (b.dataset.act === 'slow') T.slow = !T.slow;
+  else if (b.dataset.act === 'pause') T.paused = !T.paused;
+  else if (b.dataset.act === 'voice') {
+    T.voice = !T.voice;
+    try { localStorage.setItem('lucid.voice', T.voice ? '1' : '0'); } catch { /* 記不住也沒關係 */ }
+    if (T.voice) { T.saidKey = ''; } else { try { speechSynthesis.cancel(); } catch { /* 沒有語音功能 */ } }
+  }
+  teachStepUI();
 }
 /** 只更新亮起來的那一步與鏡子上的字幕（示範每一幀都可能換步，不重畫整個面板） */
 function teachStepUI() {
@@ -1467,14 +1510,20 @@ function teachStepUI() {
   const steps = TEACH_STEPS[cur.part], s = steps[T.step];
   document.querySelectorAll('#teach .steps li').forEach((li, i) => {
     li.className = i === T.step ? 'on' : i < T.step || (T.view === 'demo' && T.demo?.done) ? 'done' : '';
-    li.style.setProperty('--dur', TEACH_STEP_MS + 'ms');
+    li.style.setProperty('--dur', stepMs(steps[i]) * (T.slow ? 2 : 1) + 'ms');
   });
   const ctl = $('#teach .step-ctl');
   if (ctl?.dataset.demo) ctl.classList.toggle('ready', !!T.demo?.done);
   $('#s4').classList.toggle('demo-run', T.view === 'demo' && !T.demo?.done);
+  $('#s4').classList.toggle('demo-paused', !!T.paused);
   const cap = $('#teach-cap');
   cap.hidden = false;
-  cap.innerHTML = `<b>${T.view === 'demo' ? t('teach.demoing') : t('teach.view.self')}</b><span>${T.step + 1}/${steps.length}</span>${t(`teach.step.${cur.part}.${s.id}`)}`;
+  const text = t(`teach.step.${cur.part}.${s.id}`);
+  const tb = (act, on, label, glyph) => `<button type="button" data-act="${act}" aria-pressed="${on}" aria-label="${label}" title="${label}" class="${on ? 'on' : ''}">${glyph}</button>`;
+  cap.innerHTML = `<div class="l1"><b>${T.view === 'demo' ? t('teach.demoing') : t('teach.view.self')}</b><span class="n">${T.step + 1}/${steps.length}</span><span class="tx">${text}</span></div>
+    <div class="l2"><span class="mo">${motionTag(s)}</span><span class="btns">${tb('slow', T.slow, t('teach.slow'), '🐢')}${tb('pause', T.paused, t(T.paused ? 'teach.play' : 'teach.pause'), T.paused ? '▶' : '⏸')}${tb('voice', T.voice, t('teach.voice'), T.voice ? '🔊' : '🔈')}</span></div>`;
+  const key = cur.id + ':' + T.view + ':' + T.step;
+  if (T.saidKey !== key) { T.saidKey = key; teachSay(text + '。' + t('teach.motion.' + s.motion)); }
 }
 function teachEnd(box) {
   const T = S.teach;
@@ -1565,25 +1614,31 @@ function teachUnzoom() {
   zoomNow = null;
   const c = $('#ar'); if (c) { c.style.transform = ''; c.style.transformOrigin = ''; }
 }
-/** 鏡子上：AI 先畫一次（工具沿路線走、妝一點一點出現），換你畫時只留這一步的路線 */
+/** 鏡子上：AI 先畫一次（聚光燈照著要畫的地方、工具照手法走、妝一點一點出現），換你畫時同一段動作一直重播 */
 function drawCoach(ctx, lm, W, H) {
   const T = S.teach; if (!T || !lm) return;
   const cur = teachCh(); if (!cur.part) { if (zoomNow) teachUnzoom(); return; }
-  const now = performance.now();
-  let k = (now % 1900) / 1900;
+  const now = performance.now(), st = TEACH_STEPS[cur.part];
+  const dt = T.lastT == null ? 0 : Math.min(100, now - T.lastT); T.lastT = now;
+  const adv = T.paused ? 0 : dt * (T.slow ? 0.5 : 1);           // 慢速：一半的速度
+  let k;
   if (T.view === 'demo' && T.demo) {
-    const d = demoAt(cur.part, now - T.demo.t0);
+    T.demo.el += adv;
+    const d = demoAt(cur.part, T.demo.el);
     k = d.done ? null : d.k;
     if (d.i !== T.step || d.done !== T.demo.done) { T.step = d.i; T.demo.done = d.done; teachStepUI(); }
     if (cur.product) S.amount[cur.id] = T.saved[cur.id] * (d.done ? 1 : demoAmount(cur.part, d.i, d.k));
+  } else {
+    T.loopEl = (T.loopEl || 0) + adv;
+    const ms = stepMs(st[T.step]);
+    k = Math.min(1, (T.loopEl % (ms + 700)) / ms);              // 畫完停一下再重來
   }
-  const s = TEACH_STEPS[cur.part][T.step];
-  const P = toPixels(lm, W, H);
+  const s = st[T.step], P = toPixels(lm, W, H);
   const shapes = teachStepShapes(cur.part, s.id, P);
   const z = teachZoom(cur.part, P, W, H);
   const lw = Math.max(2, Math.min(W, H) * 0.0055) / z;      // 放大後線條不要跟著變粗
-  const tool = toolImg(teachToolIcon(cur.part, teachMethod(cur.part)));
-  drawCoachShapes(ctx, shapes, calm() || k == null ? { lw } : { lw, t: k, glyph: tool });
+  drawTeachStep(ctx, shapes, { lw, t: calm() ? null : k, tool: toolImg(teachToolIcon(cur.part, teachMethod(cur.part))),
+    color: cur.product?.color || '#e2b59a', motion: s.motion, reps: s.reps, spot: teachSpot(cur.part, P), W, H });
 }
 
 /* ── 我的成長紀錄 ───────────────────────────────────────────
