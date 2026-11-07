@@ -11,7 +11,7 @@
  *   大型檔（模型、WASM、商品照、圖示）→ 先用存起來的，沒有才下載並存起來。
  *     第一次開機載入過，之後就算沒網路也開得起來。
  */
-const VERSION = 'd81498b035c9';
+const VERSION = 'acc98822946e';
 const SHELL = ["./","index.html","main.css","js/i18n.js","js/products.js","js/context.js","js/analysis.js","js/season.js","js/lipcolor.js","js/trends.js","js/coach.js","js/lesson.js","js/growth.js","js/skincond.js","js/duel.js","js/fit.js","js/live.js","js/pwa.js","js/learn.js","js/qa.js","js/advisor.js","js/emoji.js","js/gender.js","js/chart.js","js/faceshape.js","js/face-mesh.js","js/makeup.js","js/makeup-gl.js","js/calib.js","js/selftest-face.js","js/face.js","js/app.js","images/products/C01.png","images/products/C02.png","images/products/C03.png","images/products/E01.png","images/products/E02.png","images/products/E03.png","images/products/L118.png","images/products/L204.png","images/products/L307.png","images/products/L455.png","images/products/L512.png","images/products/L620.png","images/products/README.md","manifest.webmanifest","icons/apple-touch-icon.png","icons/favicon-32.png","icons/icon-192.png","icons/icon-512.png","icons/icon-maskable-512.png","images/products/index.json"];
 const CACHE = 'lucid-' + VERSION;
 const BIG = /\/(vendor|models|images|icons)\//;

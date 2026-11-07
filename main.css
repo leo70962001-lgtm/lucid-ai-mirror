@@ -2254,3 +2254,33 @@ body {
 #s2 #adv2 .log { flex:0 1 auto; max-height:132px; margin-top:auto; }
 .grow-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
 .grow-start { padding:6px 14px; border:0; border-radius:12px; font-size:13px; font-weight:700; color:#fff; cursor:pointer; background:linear-gradient(180deg, var(--primary-1), var(--primary-2)); }
+/* ── 教學：一步一步的畫法 ── */
+.teach .part-head { align-items:center; }
+.teach .tool-chip svg { width:16px; height:16px; color:var(--primary-2); }
+.teach .steps { list-style:none; margin:0; padding:0; display:grid; gap:4px; }
+.teach .steps li { position:relative; display:grid; grid-template-columns:22px 26px minmax(0, 1fr) auto; align-items:center; gap:7px; padding:6px 9px; border-radius:12px; font-size:13px; line-height:1.35; color:var(--ink-3); background:#fff; box-shadow:0 0 0 1px var(--line); cursor:pointer; overflow:hidden; }
+.teach .steps .n { display:grid; place-items:center; width:22px; height:22px; border-radius:50%; font-size:12px; font-weight:800; color:var(--ink-3); background:var(--line); }
+.teach .steps .ic svg { display:block; width:24px; height:24px; color:var(--ink-3); }
+.teach .steps em { font-style:normal; font-size:10.5px; font-weight:800; color:var(--ink-3); }
+.teach .steps li.on { color:#3a2a30; font-weight:700; box-shadow:0 0 0 2px var(--primary-2); }
+.teach .steps li.on .n { color:#fff; background:var(--primary-2); }
+.teach .steps li.on .ic svg { color:var(--primary-2); }
+.teach .steps li.done .n { color:#14402e; background:#c5ecd9; font-size:0; }
+.teach .steps li.done .n::after { content:'✓'; font-size:12px; }
+.teach .steps li.on::after { content:''; position:absolute; left:0; bottom:0; height:3px; width:100%; background:var(--primary-2); transform-origin:left; animation:step-run var(--dur, 2800ms) linear; }
+#s4:not(.demo-run) .teach .steps li.on::after { display:none; }
+@keyframes step-run { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+.teach .step-ctl { display:flex; gap:8px; }
+.teach .step-ctl button { flex:1; padding:9px; border-radius:14px; font-size:13.5px; font-weight:700; cursor:pointer; border:1px solid var(--line); background:#fff; color:var(--ink-2, #5a4650); }
+.teach .step-ctl button.primary { border:0; color:#fff; background:linear-gradient(180deg, var(--primary-1), var(--primary-2)); }
+.teach .step-ctl button:disabled { opacity:.45; }
+.teach .step-ctl[data-demo] .again { flex:0 0 auto; }
+.teach .step-ctl[data-demo]:not(.ready) .turn { opacity:.75; }
+.teach .step-ctl.ready .turn { animation:turn-pop 1.2s ease-in-out 2; }
+@keyframes turn-pop { 50% { transform:scale(1.04); box-shadow:0 0 0 4px rgba(201,79,124,.25); } }
+.teach-cap { position:absolute; left:8px; right:8px; bottom:8px; z-index:6; display:flex; align-items:center; gap:6px; padding:6px 10px; border-radius:12px; font-size:13px; font-weight:700; color:#fff; background:rgba(18,10,14,.55); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }
+.teach-cap[hidden] { display:none; }
+.teach-cap b { flex:none; padding:1px 7px; border-radius:8px; font-size:11px; background:var(--primary-2); }
+.teach-cap span { flex:none; font-variant-numeric:tabular-nums; opacity:.8; }
+@media (prefers-reduced-motion: reduce) { .teach .steps li.on::after, .teach .step-ctl.ready .turn { animation:none; } }
+#s4.teach-mode > .frame > canvas#ar { transition:none; }
