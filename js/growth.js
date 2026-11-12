@@ -39,3 +39,46 @@ export function sparkPoints(trend, w, h, pad = 6) {
     score: p.score, at: p.at,
   }));
 }
+
+/* ── 練完的分析：下次怎麼做會更好 ──────────────────────────
+   只看手上的動作（太深、太淡、左右不一樣、跟上次比），不評論長相。
+   每一條建議連到該重練的那一步（TEACH_STEPS 的 id），畫面上會附那一步的圖解。 */
+/** 要重練哪一步：太深 → 取色（量的問題）；太淡 → 主要上色那步；左右不一樣 → 推開／暈開那步 */
+export const FIX_STEP = {
+  eye: { heavy: 'load', light: 'lay', none: 'lay', uneven: 'blend' },
+  cheek: { heavy: 'load', light: 'place', none: 'place', uneven: 'sweep' },
+  lip: { heavy: 'load', light: 'spread', none: 'center', uneven: 'spread' },
+};
+
+/**
+ * @param results 這次各部位的量測 { eye: { level, score, uneven } … }（沒量到的不放）
+ * @param prev    之前的紀錄（不含這次）
+ * @param planned 這次有教的部位（用來提醒沒量到的）
+ * @returns 依重要性排好的建議：fix 要修的 → up/down 跟上次比 → focus 下次先練 → keep 保留的 → check 沒量到
+ */
+export function practiceAdvice(results = {}, prev = [], planned = []) {
+  const out = [];
+  const parts = GROWTH_PARTS.filter((p) => results[p]?.score != null);
+  for (const p of parts) {
+    const r = results[p];
+    if (r.uneven != null) out.push({ kind: 'fix', part: p, key: 'adv2.uneven', side: r.uneven, step: FIX_STEP[p].uneven });
+    else if (r.level === 'heavy') out.push({ kind: 'fix', part: p, key: 'adv2.heavy.' + p, step: FIX_STEP[p].heavy });
+    else if (r.level === 'light' || r.level === 'none') out.push({ kind: 'fix', part: p, key: 'adv2.light.' + p, step: FIX_STEP[p][r.level] });
+  }
+  for (const p of parts) {
+    const before = growthTrend(prev, p);
+    if (!before.length) continue;
+    const d = results[p].score - before[before.length - 1].score;
+    if (d >= 5) out.push({ kind: 'up', part: p, key: 'adv2.up', d });
+    else if (d <= -5) out.push({ kind: 'down', part: p, key: 'adv2.down', d });
+  }
+  if (parts.length > 1) {
+    const low = parts.reduce((a, b) => (results[b].score < results[a].score ? b : a));
+    if (results[low].score < 80) out.push({ kind: 'focus', part: low, key: 'adv2.focus' });
+  }
+  for (const p of parts) if (results[p].level === 'good' && results[p].uneven == null) out.push({ kind: 'keep', part: p, key: 'adv2.good' });
+  const missed = planned.filter((p) => GROWTH_PARTS.includes(p) && results[p]?.score == null);
+  if (missed.length) out.push({ kind: 'check', parts: missed, key: parts.length ? 'adv2.check' : 'adv2.none' });
+  const rank = { fix: 0, up: 1, down: 2, focus: 3, keep: 4, check: 5 };
+  return out.map((x, i) => [x, i]).sort((a, b) => rank[a[0].kind] - rank[b[0].kind] || a[1] - b[1]).map((x) => x[0]);
+}

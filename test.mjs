@@ -20,7 +20,7 @@ import { pwaState, isIOS, isInApp } from './js/pwa.js';
 import { nextDuel, duelSides, duelLines, duelOpts, duelPicked, DUEL_AXES } from './js/duel.js';
 import { TEACH_STEPS, TEACH_STEP_MS, TEACH_MOTIONS, stepMs, stepStart, drawTeachStep, teachSpot, teachStepShapes, demoAt, demoAmount, teachToolIcon } from './js/coach.js';
 import { lessonChapters, modeFrom, lessonRegions, averageSamples, assessPart, LESSON_LEVELS } from './js/lesson.js';
-import { GROWTH_KEY, GROWTH_PARTS, addRecord, growthTrend, growthDelta, sparkPoints } from './js/growth.js';
+import { GROWTH_KEY, GROWTH_PARTS, addRecord, growthTrend, growthDelta, sparkPoints, practiceAdvice, FIX_STEP } from './js/growth.js';
 import { COACH_PARTS, COACH_MODES, COACH_TOOLS, COACH_GLYPH, coachMethod, coachPlan, coachShapes, coachRegion, drawCoachShapes } from './js/coach.js';
 import { QA_TAGS, QA_KB, qaSearch, qaByTag, qaLines, qaMethod } from './js/qa.js';
 import { TRENDS, TREND_PACK, TREND_STALE_DAYS, trendsFor, trendPlan, trendPick, trendLines,
@@ -1855,7 +1855,7 @@ console.log('\n\x1b[1m47. 對話精簡；教學步驟畫出來\x1b[0m');
     ok(b.x >= 0 && b.y >= 0 && b.x + b.w <= 640.01 && b.y + b.h <= 480.01 && Math.abs(b.w / b.h - 4 / 3) < 0.01, '手法圖的框不超出照片：' + part);
   }
   ok(/drawCoach\(dctx, smooth, W, H\);/.test(app) && /t: calm\(\) \? null : k/.test(app), '鏡子每一幀畫；減少動態效果時是靜態圖');
-  ok(/fig\.appendChild\(howPic\(s\.part, stage\)\)/.test(app), '最後一頁的指南也是圖：先粗、再細各一張');
+  ok(/const shots = stepShots\(s\.part\), steps = TEACH_STEPS\[s\.part\];/.test(app) && /card\.appendChild\(saveCardBtn\(s\.part, s\.method\)\)/.test(app), '最後一頁的指南也是圖解：每一步一格，可以存成圖片');
   const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
   ok(!/'coach\.[a-z]+\.(full|sub|none)\.(coarse|fine)': \['(先粗|再細)/.test(dict), '句首不再重複「先粗、再細」（卡片和圖已經標了）');
 }
@@ -1959,6 +1959,34 @@ console.log('\n\x1b[1m48. 化妝教學獨立成一段；量真的臉；成長紀
   calls2.length = 0;
   drawCoachShapes(ctx2, teachStepShapes('cheek', 'load', P), { lw: 3, t: 0.3, glyph: fakeImg });
   ok(calls2.includes('drawImage'), '沒有路線的一步（沾取、點上），工具也看得到');
+  // 練完的分析：下次怎麼做會更好
+  const R = (score, level, uneven = null) => ({ score, level, uneven });
+  const adv = practiceAdvice({ lip: R(30, 'heavy'), eye: R(85, 'good'), cheek: R(40, 'good', 1) }, [{ at: 1, scores: { lip: 50, eye: 60 } }], ['lip', 'eye', 'cheek']);
+  console.log('  ' + adv.map((a) => a.kind + ':' + (a.part || a.parts)).join(' '));
+  const fl = adv.find((a) => a.kind === 'fix' && a.part === 'lip'), fc = adv.find((a) => a.kind === 'fix' && a.part === 'cheek');
+  ok(fl && fl.step === 'load' && fl.key === 'adv2.heavy.lip', '太深：建議回到取色那一步（量的問題）');
+  ok(fc && fc.key === 'adv2.uneven' && fc.side === 1 && fc.step === 'sweep', '左右不一樣：指出哪一邊，回到刷開那一步');
+  ok(adv.some((a) => a.kind === 'up' && a.part === 'eye' && a.d === 25) && adv.some((a) => a.kind === 'down' && a.part === 'lip' && a.d === -20), '跟上次比：進步與退步都講');
+  ok(adv.some((a) => a.kind === 'focus' && a.part === 'lip'), '下次先練分數最低的部位');
+  ok(adv.some((a) => a.kind === 'keep' && a.part === 'eye') && !adv.some((a) => a.kind === 'keep' && a.part === 'cheek'), '做得好的保留；左右不一樣的不算做得好');
+  const order = { fix: 0, up: 1, down: 2, focus: 3, keep: 4, check: 5 };
+  ok(adv.every((a, k) => !k || order[adv[k - 1].kind] <= order[a.kind]), '要修的排最前面');
+  ok(practiceAdvice({ lip: R(50, 'light') }, [], ['lip', 'eye']).some((a) => a.kind === 'check' && a.parts.join() === 'eye' && a.key === 'adv2.check'), '沒量到的部位提醒下次按幫我看看');
+  ok(practiceAdvice({}, [], ['lip']).map((a) => a.key).join() === 'adv2.none', '完全沒量：只說怎麼樣才分析得到');
+  ok(practiceAdvice({ lip: R(null, 'small') }, [], []).length === 0, '量不出來的不給建議');
+  ok(Object.entries(FIX_STEP).every(([p, m]) => Object.values(m).every((id) => TEACH_STEPS[p].some((s) => s.id === id))), '建議連到的步驟都存在');
+  const dictA = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8').split(/\r?\n/);
+  const has3a = (k) => /', '.*', '/.test(dictA.find((l) => l.startsWith("  '" + k + "':")) || '');
+  const advKeys = ['adv2.title', 'adv2.next', 'adv2.again', 'adv2.stepRef', 'adv2.uneven', 'adv2.good', 'adv2.up', 'adv2.down', 'adv2.focus', 'adv2.check', 'adv2.none',
+    ...GROWTH_PARTS.flatMap((p) => ['adv2.heavy.' + p, 'adv2.light.' + p]), 'card.formula', 'card.done', 'card.mistake', 'card.save',
+    ...COACH_PARTS.map((p) => 'teach.formula.' + p), ...COACH_PARTS.flatMap((p) => TEACH_STEPS[p].map((s) => 'teach.verb.' + p + '.' + s.id))];
+  const missA = advKeys.filter((k) => !has3a(k));
+  ok(missA.length === 0, '圖解與建議的文案三種語言齊全（' + advKeys.length + ' 句）' + (missA.length ? ' 缺：' + missA.join() : ''));
+  ok(!dictA.filter((l) => /^  'adv2\./.test(l)).some((l) => /漂亮|好看|難看|醜|beautiful|ugly|pretty/.test(l)), '建議只談手上的動作，不評論長相');
+  // 圖解接線
+  ok(/const ol = el\('ol', 'steps grid'\);/.test(app) && /stepShots\(cur\.part\)/.test(app), '教學面板的步驟是圖解格子（自己的照片、這一步做完的樣子）');
+  ok(/detail: Object\.fromEntries\(scored\.map/.test(app) && /prevGrowth: loadGrowth\(\)/.test(app), '存紀錄時一起存判斷，分析跟上一次比');
+  ok(/adviceCard\(tips, false, 'adv2\.next'\)/.test(app), '最後一頁的紀錄上方有下次練習重點');
   ok(GROWTH_KEY === 'lucid.growth' && GROWTH_PARTS.join() === 'eye,cheek,lip', '紀錄的部位：眼、頰、唇');
 
   // 接線

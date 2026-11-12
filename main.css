@@ -2303,3 +2303,36 @@ body {
 .teach .mistake b { flex:none; display:grid; place-items:center; width:18px; height:18px; border-radius:50%; font-size:11px; color:#fff; }
 .teach .mistake .x b { background:#c0505c; }
 .teach .mistake .o b { background:#2f8a62; }
+/* ── 圖解：每一步一格（參考小紅書圖解版）── */
+.teach .formula { margin:0; font-size:12.5px; color:var(--ink-2, #5a4650); }
+.teach .formula b { margin-right:6px; padding:1px 7px; border-radius:8px; font-size:11px; color:#fff; background:#5b3944; }
+.teach .steps.grid { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+.teach .steps.grid li { display:block; padding:0 0 6px; }
+.teach .steps.grid figure { position:relative; margin:0; }
+.teach .steps.grid img { display:block; width:100%; aspect-ratio:4 / 3; object-fit:cover; border-radius:12px 12px 0 0; }
+.teach .steps.grid .num { position:absolute; left:6px; top:6px; display:grid; place-items:center; width:22px; height:22px; border-radius:50%; font-size:12px; font-weight:800; color:#fff; background:#c94f7c; }
+.teach .steps.grid .verb { position:absolute; left:32px; top:5px; font-size:15px; font-weight:900; color:#fff; text-shadow:0 1px 3px rgba(40,20,28,.8), 0 0 8px rgba(40,20,28,.5); }
+.teach .steps.grid .fin .verb { left:8px; }
+.teach .steps.grid .tl { position:absolute; right:6px; bottom:6px; display:grid; place-items:center; width:26px; height:26px; border-radius:50%; background:#fff; }
+.teach .steps.grid .tl svg { width:18px; height:18px; color:#c94f7c; }
+.teach .steps.grid .tx { display:block; padding:5px 8px 0; font-size:12px; line-height:1.35; }
+.teach .steps.grid li.done .num { background:#2f8a62; font-size:0; }
+.teach .steps.grid li.done .num::after { content:'✓'; font-size:12px; }
+.teach .steps.grid li.fin { cursor:default; }
+.teach .steps.grid li.fin.done { box-shadow:0 0 0 2px #2f8a62; }
+.save-card { align-self:flex-start; padding:6px 12px; border:1px solid var(--line); border-radius:12px; background:#fff; font-size:12.5px; font-weight:700; color:var(--primary-2); cursor:pointer; }
+/* 最後一頁的指南也是圖解格子 */
+.how .steps-mini { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; }
+.how .steps-mini figure { margin:0; }
+.how .steps-mini img { display:block; width:100%; aspect-ratio:4 / 3; object-fit:cover; border-radius:8px; }
+.how .steps-mini figcaption { font-size:11px; line-height:1.3; color:var(--ink-3); }
+.how .steps-mini figcaption b { display:block; color:#3a2a30; }
+/* 練完的分析與建議 */
+.advice { display:grid; gap:6px; padding:10px; border-radius:14px; background:#fff; box-shadow:0 0 0 1px var(--line); }
+.advice h4 { margin:0; font-size:14px; }
+.adv-row { display:flex; gap:8px; align-items:flex-start; font-size:13px; line-height:1.45; }
+.adv-row img { flex:none; width:72px; aspect-ratio:4 / 3; object-fit:cover; border-radius:8px; }
+.adv-row p { margin:0; }
+.adv-row small { display:block; font-size:11px; color:var(--ink-3); }
+.adv-row .again { margin-top:4px; padding:3px 10px; border:0; border-radius:10px; font-size:12px; font-weight:700; color:#fff; cursor:pointer; background:var(--primary-2); }
+#grow-body .advice { margin-bottom:10px; }
