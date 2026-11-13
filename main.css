@@ -2336,3 +2336,9 @@ body {
 .adv-row small { display:block; font-size:11px; color:var(--ink-3); }
 .adv-row .again { margin-top:4px; padding:3px 10px; border:0; border-radius:10px; font-size:12px; font-weight:700; color:#fff; cursor:pointer; background:var(--primary-2); }
 #grow-body .advice { margin-bottom:10px; }
+/* ── 眼影畫法選擇 ── */
+.teach .emethods { display:flex; flex-wrap:wrap; align-items:center; gap:5px; }
+.teach .emethods .lb { font-size:12px; font-weight:700; color:var(--ink-3); margin-right:2px; }
+.teach .emethods button { padding:4px 10px; border:1px solid var(--line); border-radius:12px; background:#fff; font-size:12.5px; font-weight:700; color:var(--ink-2, #5a4650); cursor:pointer; }
+.teach .emethods button.on { color:#fff; border-color:transparent; background:#5b3944; }
+.teach-cap .btns button.on { color:#5b3944; }
