@@ -213,14 +213,34 @@ function drawTool(ctx, tool, x, y, lw) {
 export const TEACH_STEPS = {
   base: [{ id: 'dots', stage: 'coarse', upto: 0, motion: 'tap', reps: 1 }, { id: 'spread', stage: 'coarse', upto: 0, motion: 'stipple', reps: 1 },
          { id: 'detail', stage: 'fine', upto: 0, motion: 'tap', reps: 2 }, { id: 'edge', stage: 'fine', upto: 0, motion: 'stipple', reps: 1 }],
-  eye: [{ id: 'load', stage: 'coarse', upto: 0, motion: 'tap', reps: 2 }, { id: 'lay', stage: 'coarse', upto: 0.55, motion: 'wiper', reps: 3 },
-        { id: 'line', stage: 'fine', upto: 0.85, motion: 'line', reps: 1 }, { id: 'blend', stage: 'fine', upto: 1, motion: 'wiper', reps: 3 }],
+  // 眼影的分區寫法：zones = [分區, 顏色角色, 編號]，paths = 手要走的路線，guides = 範圍上限的輔助線
+  eye: [{ id: 'load', stage: 'coarse', upto: 0, motion: 'tap', reps: 2, zones: [['lid', 'base', 1]] },
+        { id: 'lay', stage: 'coarse', upto: 0.55, motion: 'wiper', reps: 3, zones: [['lid', 'base', 1]], paths: ['lidMid'], guides: true },
+        { id: 'line', stage: 'fine', upto: 0.85, motion: 'line', reps: 1, zones: [['band', 'deep', 2]], paths: ['lash'] },
+        { id: 'blend', stage: 'fine', upto: 1, motion: 'wiper', reps: 3, zones: [['lid', 'base', 1], ['band', 'deep', 2]], paths: ['blendUp'] }],
+  // 其他眼影畫法（參考小紅書新手眼影公式與「無眼影 3 步」）
+  'eye.mono': [{ id: 'find', stage: 'coarse', upto: 0, motion: 'tap', reps: 1, zones: [['lid', 'main', 1]], guides: true },
+               { id: 'lay', stage: 'coarse', upto: 0.7, motion: 'wiper', reps: 3, zones: [['lid', 'main', 1]], paths: ['lidMid'] },
+               { id: 'edge', stage: 'fine', upto: 0.9, motion: 'sweep', reps: 2, zones: [['lid', 'main', 1]], paths: ['edge'] },
+               { id: 'check', stage: 'fine', upto: 1, motion: 'tap', reps: 1, zones: [['lid', 'main', 1]] }],
+  'eye.outer': [{ id: 'base', stage: 'coarse', upto: 0.4, motion: 'wiper', reps: 3, zones: [['lid', 'base', 1]], paths: ['lidMid'], guides: true },
+                { id: 'place', stage: 'coarse', upto: 0.7, motion: 'tap', reps: 2, zones: [['lid', 'base', 1], ['outer', 'deep', 2]] },
+                { id: 'blend', stage: 'fine', upto: 0.9, motion: 'sweep', reps: 2, zones: [['outer', 'deep', 2]], paths: ['outerIn'] },
+                { id: 'lower', stage: 'fine', upto: 1, motion: 'line', reps: 1, zones: [['outer', 'deep', 2], ['lowOut', 'lower', 2]], paths: ['lowerOut'] }],
+  'eye.liner': [{ id: 'liner', stage: 'coarse', upto: 0, motion: 'line', reps: 1, zones: [], paths: ['linerExt'], labels: ['liner'] },
+                { id: 'aegyo', stage: 'fine', upto: 0, motion: 'tap', reps: 2, zones: [['aegyoShade', 'shade', 1], ['aegyo', 'shine', 2]] },
+                { id: 'lash', stage: 'fine', upto: 0, motion: 'sweep', reps: 1, zones: [], paths: ['lashTicks'], labels: ['lash'] }],
   cheek: [{ id: 'load', stage: 'coarse', upto: 0, motion: 'tap', reps: 2 }, { id: 'place', stage: 'coarse', upto: 0.3, motion: 'tap', reps: 2 },
           { id: 'sweep', stage: 'coarse', upto: 0.8, motion: 'sweep', reps: 2 }, { id: 'blend', stage: 'fine', upto: 1, motion: 'circle', reps: 1 }],
   lip: [{ id: 'load', stage: 'coarse', upto: 0, motion: 'tap', reps: 1 }, { id: 'center', stage: 'coarse', upto: 0.3, motion: 'tap', reps: 2 },
         { id: 'spread', stage: 'coarse', upto: 0.75, motion: 'sweep', reps: 2 }, { id: 'upper', stage: 'fine', upto: 0.9, motion: 'line', reps: 1 },
         { id: 'lower', stage: 'fine', upto: 1, motion: 'line', reps: 1 }],
 };
+/** 眼影畫法：雙色漸層（預設）、單色平鋪、眼尾加深、無眼影 3 步（眼線＋臥蠶＋睫毛） */
+export const EYE_METHODS = ['duo', 'mono', 'outer', 'liner'];
+export const eyeKey = (m) => (!m || m === 'duo' ? 'eye' : 'eye.' + m);
+/** 這個畫法量不量得到：無眼影 3 步沒有眼影色，鏡頭比對沒有意義 */
+export const eyeMeasurable = (key) => TEACH_STEPS[key].some((st) => st.upto > 0);
 /** 手法：點拍、按壓推開、來回刷（雨刷）、往外刷、描線、畫小圈 */
 export const TEACH_MOTIONS = ['tap', 'stipple', 'wiper', 'sweep', 'line', 'circle'];
 /** 示範時每一小步的基本長度（毫秒）；要重複幾次的步驟給長一點，新手才看得清楚 */
@@ -229,6 +249,10 @@ export const stepMs = (s) => TEACH_STEP_MS + Math.max(0, (s.reps || 1) - 1) * 90
 
 /** 這一小步要畫什麼 */
 export function teachStepShapes(part, id, P) {
+  if (part === 'eye' || part.startsWith('eye.')) {
+    const st = TEACH_STEPS[part]?.find((x) => x.id === id);
+    if (st) return eyeStepShapes(st, P);
+  }
   const coarse = coachShapes(part, 'coarse', P), fine = coachShapes(part, 'fine', P);
   const of = (list, type) => list.filter((s) => s.type === type);
   if (part === 'base') {
@@ -295,7 +319,7 @@ export function teachSpot(part, P) {
     return { x: (x0 + x1) / 2, y: (y0 + y1) / 2, rx: (x1 - x0) / 2 + fw * padX, ry: (y1 - y0) / 2 + fw * padY };
   };
   if (part === 'lip') return [box([61, 291, 0, 17], 0.06, 0.06)];
-  if (part === 'eye') return [box([33, 133, 46, 55, 145], 0.04, 0.04), box([263, 362, 276, 285, 374], 0.04, 0.04)];
+  if (part === 'eye') return [box([33, 133, 46, 55, 145], 0.05, 0.065), box([263, 362, 276, 285, 374], 0.05, 0.065)];   // 下面留到臥蠶
   if (part === 'cheek') return [box([50, 127, 205, 117], 0.05, 0.05), box([280, 356, 425, 346], 0.05, 0.05)];
   return [];
 }
@@ -320,7 +344,7 @@ function arrowHead(ctx, tip, from, a) {
  * 畫一小步。t = 這一步的進度（0..1），null = 靜態（路線畫完、沒有工具）。
  * color：化妝品的顏色。motion / reps：手法與次數。spot：聚光燈橢圓。W、H：畫布大小（聚光燈用）。
  */
-export function drawTeachStep(ctx, shapes, { lw = 3, t = null, tool = null, color = '#e39aa8', motion = 'sweep', reps = 1, spot = null, W = 0, H = 0 } = {}) {
+export function drawTeachStep(ctx, shapes, { lw = 3, t = null, tool = null, color = '#e39aa8', motion = 'sweep', reps = 1, spot = null, W = 0, H = 0, labels = null } = {}) {
   ctx.save();
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   const pulse = t == null ? 1 : 0.5 + 0.5 * Math.sin(t * Math.PI * 2 * Math.max(1, reps));
@@ -334,6 +358,33 @@ export function drawTeachStep(ctx, shapes, { lw = 3, t = null, tool = null, colo
   }
   ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = lw * 1.4;
   const areas = shapes.filter((x) => x.type === 'area'), paths = shapes.filter((x) => x.type === 'path'), dots = shapes.filter((x) => x.type === 'dot');
+  const zones = shapes.filter((x) => x.type === 'zone'), guides = shapes.filter((x) => x.type === 'guide'), tags = shapes.filter((x) => x.type === 'tag');
+  // 範圍上限：紅色虛線（眉頭→眼頭、眼尾平拉、眼眶骨）
+  for (const g of guides) {
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = lw; ctx.strokeStyle = '#ff6b84'; ctx.lineWidth = lw * 1.1; ctx.setLineDash([lw * 2.4, lw * 1.5]);
+    ctx.beginPath(); g.pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.stroke(); ctx.restore();
+    if (g.label && labels) { const top = g.pts.reduce((m, p) => (p.y < m.y ? p : m), g.pts[0]); pill(ctx, labels[g.label] || g.label, top.x, top.y - lw * 5, lw, '#ff6b84'); }   // 標在眼眶骨最高點上方，不跟分區的字疊在一起
+  }
+  // 分區：用顏色角色填色、白色虛線框、編號；畫面左邊那隻眼拉一條引線寫「打底」「加深」
+  for (const z of zones) {
+    ctx.beginPath(); z.pts.forEach((p, k) => (k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath();
+    ctx.save(); ctx.shadowBlur = 0; ctx.globalAlpha = 0.3 + 0.18 * pulse; ctx.fillStyle = roleColor(z.role, color); ctx.fill(); ctx.restore();
+    ctx.save(); ctx.setLineDash([lw * 1.8, lw * 1.4]); ctx.lineWidth = lw * 0.7; ctx.strokeStyle = '#fff'; ctx.stroke(); ctx.restore();
+  }
+  for (const z of zones) {
+    if (z.label && labels) {
+      ctx.save(); ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = lw * 0.5;
+      ctx.beginPath(); ctx.moveTo(z.c.x, z.c.y); ctx.lineTo(z.lp.x, z.lp.y); ctx.stroke(); ctx.restore();
+      pill(ctx, (z.n ? z.n + ' ' : '') + (labels[z.role] || z.role), z.lp.x, z.lp.y, lw, roleColor(z.role, color));
+    }
+    if (z.n) badge(ctx, String(z.n), z.c.x, z.c.y, lw);
+  }
+  for (const g of tags) {
+    if (!labels) continue;
+    ctx.save(); ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = lw * 0.5;
+    ctx.beginPath(); ctx.moveTo(g.at.x, g.at.y); ctx.lineTo(g.lp.x, g.lp.y); ctx.stroke(); ctx.restore();
+    pill(ctx, labels[g.label] || g.label, g.lp.x, g.lp.y, lw, '#5b3944');
+  }
   // 2. 範圍：化妝品的顏色，輕輕呼吸
   for (const s of areas) {
     ctx.beginPath(); s.pts.forEach((p, k) => (k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath();
@@ -385,8 +436,8 @@ export function drawTeachStep(ctx, shapes, { lw = 3, t = null, tool = null, colo
     }
   });
   // 只有範圍（沾取）：工具在範圍中間點兩下
-  if (t != null && !toolAt && areas.length) {
-    const pts = areas[0].pts;
+  if (t != null && !toolAt && (areas.length || zones.length)) {
+    const pts = (areas[0] || zones[0]).pts;
     toolAt = { x: pts.reduce((a, p) => a + p.x, 0) / pts.length, y: pts.reduce((a, p) => a + p.y, 0) / pts.length };
     bounce = Math.abs(Math.sin(t * Math.PI * Math.max(1, reps))) * lw * 4;
   }
@@ -401,5 +452,121 @@ export function drawTeachStep(ctx, shapes, { lw = 3, t = null, tool = null, colo
     ctx.restore();
     drawTool(ctx, tool, toolAt.x + lw * 2.5, toolAt.y - lw - bounce, lw);
   }
+  ctx.restore();
+}
+
+/* ── 眼睛的分區（小紅書圖解版的做法）────────────────────────────
+   以睫毛根為 0、眉毛為 1 量高度，以眼尾為 0、眼頭為 1 量前後，分區都用這兩個比例切出來。
+   zone 有顏色角色（打底、主色、加深、提亮…）、編號與引線文字；guide 是範圍上限的紅色虛線。 */
+const LOW_LASH = [[33, 7, 163, 144, 145, 153, 154, 155, 133], [263, 249, 390, 373, 374, 380, 381, 382, 362]];
+function along(arr, u) {
+  const f = Math.max(0, Math.min(1, u)) * (arr.length - 1), i = Math.min(arr.length - 2, Math.floor(f));
+  return lerpPt(arr[i], arr[i + 1], f - i);
+}
+function eyeGeo(P) {
+  const fw = Math.hypot(P[454].x - P[234].x, P[454].y - P[234].y) || 1;
+  return EYES.map((e, k) => {
+    const lash = e.up.map((i) => P[i]);
+    const brow = e.up.map((_, j) => P[e.brow[Math.round(j * (e.brow.length - 1) / (e.up.length - 1))]]);
+    const at = (h) => lash.map((p, j) => lerpPt(p, brow[j], h));
+    const low = LOW_LASH[k].map((i) => P[i]);
+    const lowAt = (d) => low.map((p) => ({ x: p.x, y: p.y + fw * d }));
+    return { k, fw, lash, at, low, lowAt, outer: lash[0], inner: lash[lash.length - 1], browIn: P[e.brow[e.brow.length - 1]] };
+  });
+}
+const samples = (t0, t1, n = 8) => Array.from({ length: n + 1 }, (_, i) => t0 + (t1 - t0) * i / n);
+function band(g, t0, t1, h0, h1) {
+  const top = g.at(h1), bot = h0 > 0 ? g.at(h0) : g.lash;
+  return [...samples(t0, t1).map((u) => along(top, u)), ...samples(t0, t1).reverse().map((u) => along(bot, u))];
+}
+function lowBand(g, t0, t1, d0, d1) {
+  return [...samples(t0, t1).map((u) => along(g.lowAt(d0), u)), ...samples(t0, t1).reverse().map((u) => along(g.lowAt(d1), u))];
+}
+const ZONES = {
+  lid: (g) => band(g, 0, 1, 0, 0.6),
+  band: (g) => band(g, 0, 1, 0, 0.3),
+  outer: (g) => band(g, 0, 0.38, 0, 0.55),
+  lowOut: (g) => lowBand(g, 0, 0.38, 0.004, 0.034),
+  aegyo: (g) => lowBand(g, 0.12, 0.85, 0.004, 0.026),
+  aegyoShade: (g) => lowBand(g, 0.12, 0.85, 0.026, 0.04),
+};
+const PATHS = {
+  lidMid: (g) => [samples(1, 0, 6).map((u) => along(g.at(0.3), u))],
+  lash: (g) => [samples(1, 0, 6).map((u) => along(g.at(0.03), u))],
+  blendUp: (g) => [[along(g.at(0.25), 0.5), along(g.at(0.62), 0.45)]],
+  edge: (g) => [samples(0, 1, 6).map((u) => along(g.at(0.6), u))],
+  outerIn: (g) => [[along(g.at(0.3), 0.05), along(g.at(0.35), 0.5)]],
+  lowerOut: (g) => [samples(0, 0.38, 4).map((u) => along(g.lowAt(0.016), u))],
+  linerExt: (g) => {
+    const p = samples(1, 0, 6).map((u) => along(g.lash, u)), o = g.outer, q = along(g.lash, 0.15);
+    const d = Math.hypot(o.x - q.x, o.y - q.y) || 1;
+    return [[...p, { x: o.x + (o.x - q.x) / d * g.fw * 0.035, y: o.y + (o.y - q.y) / d * g.fw * 0.035 - g.fw * 0.01 }]];
+  },
+  lashTicks: (g) => samples(0.1, 0.9, 4).map((u) => { const a = along(g.lash, u), b = along(g.at(0.25), u); return [a, lerpPt(a, b, 0.6)]; }),
+};
+/** 眼睛的一小步：分區（顏色、編號、引線文字只標在畫面左邊那隻眼）、路線、範圍上限 */
+export function eyeStepShapes(st, P) {
+  const geo = eyeGeo(P), out = [];
+  const leftIdx = geo[0].outer.x < geo[1].outer.x ? 0 : 1;
+  for (const g of geo) {
+    const lab = g.k === leftIdx, side = Math.sign(g.outer.x - g.inner.x) || -1;   // 引線往眼尾那側拉出去
+    if (st.guides) {
+      const lim = [
+        { type: 'guide', pts: [g.browIn, g.inner] },                                                       // 眉頭 → 眼頭
+        { type: 'guide', pts: [g.outer, { x: g.outer.x + side * g.fw * 0.09, y: g.outer.y - g.fw * 0.03 }] },  // 眼尾平拉
+        { type: 'guide', pts: g.at(0.82), label: lab ? 'limit' : null },                                      // 眼眶骨
+      ];
+      out.push(...lim);
+    }
+    (st.zones || []).forEach(([z, role, n], i) => {
+      const pts = ZONES[z](g);
+      const c = { x: pts.reduce((a, p) => a + p.x, 0) / pts.length, y: pts.reduce((a, p) => a + p.y, 0) / pts.length };
+      out.push({ type: 'zone', pts, role, n, c, label: lab ? role : null,
+                 lp: { x: g.outer.x + side * g.fw * (0.12 + 0.02 * i), y: c.y + (i - (st.zones.length - 1) / 2) * g.fw * 0.085 } });
+    });
+    for (const pid of st.paths || []) for (const pts of PATHS[pid](g)) out.push({ type: 'path', pts });
+    if (lab) for (const l of st.labels || []) {
+      const p = l === 'liner' ? along(g.lash, 0.2) : along(g.at(0.2), 0.5);
+      out.push({ type: 'tag', at: p, label: l, lp: { x: g.outer.x + side * g.fw * 0.12, y: p.y - g.fw * 0.02 } });
+    }
+  }
+  return out;
+}
+
+/** 顏色角色：打底比化妝品淡、加深比它深、提亮是香檳色 */
+function mixHex(a, b, k) {
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const ch = (p, sh) => (p >> sh) & 255;
+  const m = (sh) => Math.round(ch(pa, sh) + (ch(pb, sh) - ch(pa, sh)) * k);
+  return '#' + ((m(16) << 16) | (m(8) << 8) | m(0)).toString(16).padStart(6, '0');
+}
+export function roleColor(role, color) {
+  const c = /^#[0-9a-f]{6}$/i.test(color || '') ? color : '#c98f86';
+  if (role === 'base') return mixHex(c, '#ffffff', 0.5);
+  if (role === 'deep' || role === 'lower' || role === 'shade') return mixHex(c, '#2a1414', 0.35);
+  if (role === 'shine') return '#f2d9ac';
+  return c;
+}
+
+/** 引線文字：深色底的小標籤（不會被眼妝的顏色吃掉） */
+function pill(ctx, text, x, y, lw, dot) {
+  ctx.save(); ctx.shadowBlur = 0;
+  const fs = Math.max(11, lw * 5.6);
+  ctx.font = '700 ' + fs + 'px "PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif';
+  const w = ctx.measureText(text).width + fs * 1.4, h = fs * 1.5;
+  const cw = ctx.canvas?.width || Infinity, x0 = Math.max(2, Math.min(cw - w - 2, x - w / 2));
+  ctx.fillStyle = 'rgba(30,16,22,.78)';
+  ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x0, y - h / 2, w, h, h / 2); else ctx.rect(x0, y - h / 2, w, h); ctx.fill();
+  ctx.fillStyle = dot; ctx.beginPath(); ctx.arc(x0 + fs * 0.62, y, fs * 0.28, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(text, x0 + fs * 1.05, y + fs * 0.04);
+  ctx.restore();
+}
+/** 分區的編號：白底圓章 */
+function badge(ctx, text, x, y, lw) {
+  ctx.save(); ctx.shadowBlur = 0;
+  const r = Math.max(6, lw * 2.6);
+  ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#5b3944'; ctx.font = '800 ' + (r * 1.25) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y + r * 0.06);
   ctx.restore();
 }

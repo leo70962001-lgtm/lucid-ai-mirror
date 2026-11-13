@@ -18,7 +18,7 @@ import { pickSurprise, newCheer, cheerFor, CHEER_GAP_MS, GIFT_AR_MS, FIT_MAX, ai
 import { LIP_INSET } from './js/makeup-gl.js';
 import { pwaState, isIOS, isInApp } from './js/pwa.js';
 import { nextDuel, duelSides, duelLines, duelOpts, duelPicked, DUEL_AXES } from './js/duel.js';
-import { TEACH_STEPS, TEACH_STEP_MS, TEACH_MOTIONS, stepMs, stepStart, drawTeachStep, teachSpot, teachStepShapes, demoAt, demoAmount, teachToolIcon } from './js/coach.js';
+import { EYE_METHODS, eyeKey, eyeMeasurable, roleColor, TEACH_STEPS, TEACH_STEP_MS, TEACH_MOTIONS, stepMs, stepStart, drawTeachStep, teachSpot, teachStepShapes, demoAt, demoAmount, teachToolIcon } from './js/coach.js';
 import { lessonChapters, modeFrom, lessonRegions, averageSamples, assessPart, LESSON_LEVELS } from './js/lesson.js';
 import { GROWTH_KEY, GROWTH_PARTS, addRecord, growthTrend, growthDelta, sparkPoints, practiceAdvice, FIX_STEP } from './js/growth.js';
 import { COACH_PARTS, COACH_MODES, COACH_TOOLS, COACH_GLYPH, coachMethod, coachPlan, coachShapes, coachRegion, drawCoachShapes } from './js/coach.js';
@@ -1808,7 +1808,7 @@ console.log('\n\x1b[1m46. 反饋：AI 問答、前後對比、過程、產品退
   const plan = coachPlan({ picks: resolveLook(LOOKS.find((l) => l.id === 'natural'), 'cool'), mode: 'none' });
   ok(plan.map((p) => p.part).join() === 'base,eye,cheek,lip' && plan.every((p) => p.method === 'none' && p.toolKey.startsWith('coach.none.')) && plan[0].product === null, '指南列出每個部位的化妝品、工具、手法');
   ok(/!S\.guideDone \? \[\{ kind: 'ask', key: 'adv\.guide\.ask'/.test(app), '每個人一進鏡子就邀請化妝教學（以前只問新手）');
-  ok(/S\.amount\[cur\.id\] = T\.saved\[cur\.id\] \* \(d\.done \? 1 : demoAmount\(cur\.part, d\.i, d\.k\)\)/.test(app), '示範時妝跟著工具一點一點出現');
+  ok(/S\.amount\[cur\.id\] = T\.saved\[cur\.id\] \* \(d\.done \? 1 : demoAmount\(key, d\.i, d\.k\)\)/.test(app), '示範時妝跟著工具一點一點出現');
   const adv = dict.split(/\r?\n/).filter((l) => /^  '(coach|qa)\./.test(l));
   ok(!adv.some((l) => ['漂亮', '好看', '美麗', '顯瘦', 'pretty', 'beautiful', '美しい'].some((w) => l.includes(w))), '指導與問答只講做法，不評價長相');   // 「きれい」在這裡是乾淨的刷子，不算
 }
@@ -1855,7 +1855,7 @@ console.log('\n\x1b[1m47. 對話精簡；教學步驟畫出來\x1b[0m');
     ok(b.x >= 0 && b.y >= 0 && b.x + b.w <= 640.01 && b.y + b.h <= 480.01 && Math.abs(b.w / b.h - 4 / 3) < 0.01, '手法圖的框不超出照片：' + part);
   }
   ok(/drawCoach\(dctx, smooth, W, H\);/.test(app) && /t: calm\(\) \? null : k/.test(app), '鏡子每一幀畫；減少動態效果時是靜態圖');
-  ok(/const shots = stepShots\(s\.part\), steps = TEACH_STEPS\[s\.part\];/.test(app) && /card\.appendChild\(saveCardBtn\(s\.part, s\.method\)\)/.test(app), '最後一頁的指南也是圖解：每一步一格，可以存成圖片');
+  ok(/const sk = stepKey\(s\.part\), shots = stepShots\(s\.part\), steps = TEACH_STEPS\[sk\];/.test(app) && /card\.appendChild\(saveCardBtn\(s\.part, s\.method\)\)/.test(app), '最後一頁的指南也是圖解：每一步一格，可以存成圖片');
   const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
   ok(!/'coach\.[a-z]+\.(full|sub|none)\.(coarse|fine)': \['(先粗|再細)/.test(dict), '句首不再重複「先粗、再細」（卡片和圖已經標了）');
 }
@@ -1917,7 +1917,7 @@ console.log('\n\x1b[1m48. 化妝教學獨立成一段；量真的臉；成長紀
     ok(st.every((s) => teachStepShapes(part, s.id, P).length > 0), '　每一步都有畫在臉上的圖：' + part);
     ok(st.every((s, i) => !i || st[i - 1].stage === 'coarse' || s.stage === 'fine'), '　先粗再細：' + part);
   }
-  ok(teachStepShapes('lip', 'upper', P).length === 2 && teachStepShapes('lip', 'lower', P).length === 2 && teachStepShapes('eye', 'line', P).length === 2, '唇峰、下唇線、兩眼的睫毛根各自一步');
+  ok(teachStepShapes('lip', 'upper', P).length === 2 && teachStepShapes('lip', 'lower', P).length === 2 && teachStepShapes('eye', 'line', P).filter((x) => x.type === 'path').length === 2, '唇峰、下唇線、兩眼的睫毛根各自一步');
   const d0 = demoAt('lip', 0), dm = demoAt('lip', stepStart('lip', 2) + stepMs(TEACH_STEPS.lip[2]) / 2), dz = demoAt('lip', 1e9);
   ok(d0.i === 0 && d0.k === 0 && dm.i === 2 && Math.abs(dm.k - 0.5) < 1e-9 && dz.done && dz.i === TEACH_STEPS.lip.length - 1, '示範照時間一步一步走，走完停在最後一步');
   ok(demoAmount('lip', 0, 1) === 0 && Math.abs(demoAmount('lip', 2, 0) - 0.3) < 1e-9 && Math.abs(demoAmount('lip', 2, 1) - 0.75) < 1e-9 && demoAmount('lip', 2, 0.5) > 0.3 && demoAmount('lip', 2, 0.5) < 0.75, '示範的顏色從上一步接到這一步');
@@ -1987,6 +1987,32 @@ console.log('\n\x1b[1m48. 化妝教學獨立成一段；量真的臉；成長紀
   ok(/const ol = el\('ol', 'steps grid'\);/.test(app) && /stepShots\(cur\.part\)/.test(app), '教學面板的步驟是圖解格子（自己的照片、這一步做完的樣子）');
   ok(/detail: Object\.fromEntries\(scored\.map/.test(app) && /prevGrowth: loadGrowth\(\)/.test(app), '存紀錄時一起存判斷，分析跟上一次比');
   ok(/adviceCard\(tips, false, 'adv2\.next'\)/.test(app), '最後一頁的紀錄上方有下次練習重點');
+  // 眼影畫法（參考小紅書新手眼影公式與唐毅老師的無眼影 3 步）
+  ok(EYE_METHODS.join() === 'duo,mono,outer,liner' && eyeKey('duo') === 'eye' && eyeKey('mono') === 'eye.mono', '眼影畫法：雙色漸層、單色平鋪、眼尾加深、無眼影 3 步');
+  for (const m of EYE_METHODS) {
+    const k = eyeKey(m), st = TEACH_STEPS[k];
+    ok(st.length >= 3 && st.every((s, j) => TEACH_MOTIONS.includes(s.motion) && (!j || s.upto >= st[j - 1].upto)), '　' + m + '：每一步有手法，顏色只增不減');
+    ok(st.every((s) => teachStepShapes(k, s.id, P).length > 0), '　' + m + '：每一步都畫得出來');
+    ok(st.every((s) => teachStepShapes(k, s.id, P).every((x) => (x.pts || [x.at]).every((p) => Number.isFinite(p.x) && Number.isFinite(p.y)))), '　' + m + '：座標都算得出來');
+  }
+  const z1 = teachStepShapes('eye.outer', 'place', P).filter((x) => x.type === 'zone');
+  ok(z1.length === 4 && z1.filter((x) => x.label).length === 2 && z1.some((x) => x.n === 2 && x.role === 'deep'), '分區有編號與顏色角色；引線文字只標一隻眼');
+  ok(teachStepShapes('eye', 'lay', P).filter((x) => x.type === 'guide').length === 6, '打底那一步畫出範圍上限（眉頭→眼頭、眼尾平拉、眼眶骨，兩眼各三條）');
+  ok(teachStepShapes('eye.liner', 'lash', P).some((x) => x.type === 'tag' && x.label === 'lash') && teachStepShapes('eye.liner', 'aegyo', P).some((x) => x.role === 'shine'), '無眼影 3 步：睫毛標註、臥蠶提亮');
+  ok(!eyeMeasurable('eye.liner') && eyeMeasurable('eye') && eyeMeasurable('eye.mono'), '沒有眼影色的畫法不用鏡頭比對');
+  ok(roleColor('base', '#c0293e') !== '#c0293e' && roleColor('deep', '#c0293e') !== '#c0293e' && roleColor('main', '#c0293e') === '#c0293e' && /^#[0-9a-f]{6}$/.test(roleColor('base', 'bad')), '打底比化妝品淡、加深比它深');
+  const rec3 = [];
+  const ctx4 = new Proxy({ canvas: { width: 640 } }, { get: (o, k) => (k in o ? o[k] : (...a) => { rec3.push([k, ...a]); return { width: 20 }; }), set: (o, k, v) => { o[k] = v; return true; } });
+  drawTeachStep(ctx4, teachStepShapes('eye.outer', 'place', P), { lw: 3, t: 0.3, labels: { base: '打底', deep: '加深', limit: '範圍上限' }, tool: { width: 40, complete: true } });
+  ok(rec3.some((r) => r[0] === 'fillText' && /打底/.test(r[1])) && rec3.some((r) => r[0] === 'fillText' && /加深/.test(r[1])) && rec3.some((r) => r[0] === 'fillText' && r[1] === '2'), '鏡子上寫出「1 打底」「2 加深」與分區編號');
+  const dictE = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8').split(/\r?\n/);
+  const has3e = (k) => /', '.*', '/.test(dictE.find((l) => l.startsWith("  '" + k + "':")) || '');
+  const eKeys = ['teach.emethod.label', ...EYE_METHODS.map((m) => 'teach.emethod.' + m), ...['base', 'main', 'deep', 'shade', 'shine', 'lower', 'liner', 'lash', 'limit'].map((z) => 'teach.zone.' + z),
+    ...EYE_METHODS.filter((m) => m !== 'duo').flatMap((m) => ['teach.formula.', 'teach.wrong.', 'teach.right.'].map((p) => p + eyeKey(m))),
+    ...EYE_METHODS.flatMap((m) => TEACH_STEPS[eyeKey(m)].flatMap((s) => ['teach.step.' + eyeKey(m) + '.' + s.id, 'teach.verb.' + eyeKey(m) + '.' + s.id]))];
+  const missE = eKeys.filter((k) => !has3e(k));
+  ok(missE.length === 0, '眼影畫法的文案三種語言齊全（' + eKeys.length + ' 句）' + (missE.length ? ' 缺：' + missE.join() : ''));
+  ok(/const stepKey = \(part\) => \(part === 'eye' \? eyeKey\(S\.eyeMethod\) : part\);/.test(app) && /S\.eyeMethod = m;/.test(app), '選了畫法，鏡子、圖解、圖解卡跟著換');
   ok(GROWTH_KEY === 'lucid.growth' && GROWTH_PARTS.join() === 'eye,cheek,lip', '紀錄的部位：眼、頰、唇');
 
   // 接線

@@ -34,7 +34,8 @@ import { pickLesson, lessonLines, nextQuiz, onQuizAnswer, learnRecap } from './l
 import { newTaste, noteTaste, tasteRead, tasteSuggest, tasteSummary, describeLip, LIP_FAMILIES } from './lipcolor.js';
 import { TRENDS, TREND_PACK, trendsFor, trendPlan, trendLines, trendStale, trendStaleLines } from './trends.js';
 import { COACH_MODES, COACH_TOOLS, COARSE_RATIO, COACH_GLYPH, coachMethod, coachToolKey, coachPlan, coachShapes, coachRegion, drawCoachShapes,
-         TEACH_STEPS, teachStepShapes, demoAt, demoAmount, teachToolIcon, stepMs, stepStart, drawTeachStep, teachSpot } from './coach.js';
+         TEACH_STEPS, teachStepShapes, demoAt, demoAmount, teachToolIcon, stepMs, stepStart, drawTeachStep, teachSpot,
+         EYE_METHODS, eyeKey, eyeMeasurable } from './coach.js';
 import { lessonChapters, modeFrom, lessonRegions, lessonSample, averageSamples, assessPart } from './lesson.js';
 import { GROWTH_KEY, GROWTH_PARTS, addRecord, growthTrend, growthDelta, sparkPoints, practiceAdvice } from './growth.js';
 import { QA_TAGS, QA_KB, qaSearch, qaByTag, qaLines } from './qa.js';
@@ -129,6 +130,7 @@ const S = {
   gifts: 0,                // AI 送了還沒拆的禮物（試妝滿一分鐘），回覆列會多一個「拆開禮物」
   pose: null, posePrompted: false,   // 動一動看看：進行到哪一個動作；AI 主動邀請過了沒
   teach: null,   // 化妝教學：進行到哪一章
+  eyeMethod: 'duo',   // 眼影畫法：雙色漸層、單色平鋪、眼尾加深、無眼影 3 步
   coach: { mode: null, owned: new Set(), hasSub: true }, guideDone: false,   // 化妝指導：手邊的工具（最後一頁的指南也照這個寫）；走過一次了沒
   cheer: newCheer(),  // AI 主動送的互動（回讚、鼓掌…）送過哪些
   arMs: 0, arT0: 0,   // 實際停留在 AR 的時間
@@ -1278,7 +1280,7 @@ function teachSync() {
       const at = order.findIndex((x) => x.id === c), now = order.findIndex((x) => x.id === cur.id);
       if (cur.id === 'base') S.amount[c] = 0;
       else if (at < now) S.amount[c] = T.saved[c];
-      else if (at === now) S.amount[c] = T.saved[c] * (T.demo?.done ? 1 : demoAmount(c, T.step, 0));   // 示範中由 drawCoach 一幀一幀加上去
+      else if (at === now) S.amount[c] = T.saved[c] * (T.demo?.done ? 1 : demoAmount(stepKey(c), T.step, 0));   // 示範中由 drawCoach 一幀一幀加上去
       else S.amount[c] = 0;
     }
   }
@@ -1412,7 +1414,7 @@ function teachItems(box) {
 }
 /** 一個部位：AI 先在鏡子上畫一次（看示範），再換你跟著一步一步畫（換我畫） */
 function teachPart(box) {
-  const T = S.teach, cur = teachCh(), method = teachMethod(cur.part), steps = TEACH_STEPS[cur.part];
+  const T = S.teach, cur = teachCh(), method = teachMethod(cur.part), key = stepKey(cur.part), steps = TEACH_STEPS[key];
   const icon = teachToolIcon(cur.part, method);
   const seg = el('div', 'tseg view');
   for (const [v, key] of [['demo', 'teach.view.demo'], ['self', 'teach.view.self']]) {
@@ -1424,14 +1426,26 @@ function teachPart(box) {
   const head = el('div', 'part-head', `<div class="chips">${shade}<span class="chip tool-chip">${toolIcon(icon)}${t(coachToolKey(cur.part, method))}</span></div>`);
   head.appendChild(seg);
   box.appendChild(head);
-  box.appendChild(el('p', 'formula', `<b>${t('card.formula')}</b>${t('teach.formula.' + cur.part)}`));
+  // 眼影的畫法可以選（參考小紅書新手眼影公式與唐毅老師的無眼影 3 步）
+  if (cur.part === 'eye') {
+    const pick = el('div', 'emethods');
+    pick.appendChild(el('span', 'lb', t('teach.emethod.label')));
+    for (const m of EYE_METHODS) {
+      const b = el('button', m === S.eyeMethod ? 'on' : '', t('teach.emethod.' + m));
+      b.type = 'button'; b.setAttribute('aria-pressed', String(m === S.eyeMethod));
+      b.onclick = () => { if (m === S.eyeMethod) return; S.eyeMethod = m; T.step = 0; T.view = 'demo'; T.demo = newDemo(); T.paused = false; T.loopEl = 0; delete T.results.eye; mountTeach(); };
+      pick.appendChild(b);
+    }
+    box.appendChild(pick);
+  }
+  box.appendChild(el('p', 'formula', `<b>${t('card.formula')}</b>${t('teach.formula.' + key)}`));
   // 圖解（參考小紅書的圖解版教學）：每一步一格，用你自己的照片放大這個部位，
   // 虛線分區＋順序、大字動作、刷具；妝一格一格累積到「完成」
   const shots = stepShots(cur.part);
   const ol = el('ol', 'steps grid');
   steps.forEach((s, i) => {
-    const li = el('li', '', `<figure><img src="${shots[i].url}" alt=""><span class="num">${i + 1}</span><b class="verb">${t(`teach.verb.${cur.part}.${s.id}`)}</b><i class="tl">${toolIcon(icon)}</i></figure>
-      <span class="tx">${t(`teach.step.${cur.part}.${s.id}`)}<small>${motionTag(s)}</small></span>`);
+    const li = el('li', '', `<figure><img src="${shots[i].url}" alt=""><span class="num">${i + 1}</span><b class="verb">${t(`teach.verb.${key}.${s.id}`)}</b><i class="tl">${toolIcon(icon)}</i></figure>
+      <span class="tx">${t(`teach.step.${key}.${s.id}`)}<small>${motionTag(s)}</small></span>`);
     li.onclick = () => teachStepTo(i);
     ol.appendChild(li);
   });
@@ -1446,12 +1460,12 @@ function teachPart(box) {
     const last = T.step === steps.length - 1;
     btn('teach.stepPrev', 'ghost', () => teachStepTo(T.step - 1), T.step === 0);
     if (!last) btn('teach.stepDone', 'primary', () => teachStepTo(T.step + 1));
-    else if (cur.product) btn(T.busy ? 'teach.checking' : 'teach.check', 'primary', teachCheck, T.busy);
+    else if (cur.product && eyeMeasurable(key)) btn(T.busy ? 'teach.checking' : 'teach.check', 'primary', teachCheck, T.busy);
     else btn('teach.stepDone', 'primary', () => { T.baseDone = true; mountTeach(); });
   }
   box.append(ctl, ol);
   // 新手最常犯的錯，跟正確做法並排
-  box.appendChild(el('div', 'mistake', `<p class="x"><b>✗</b>${t('teach.wrong.' + cur.part)}</p><p class="o"><b>✓</b>${t('teach.right.' + cur.part)}</p>`));
+  box.appendChild(el('div', 'mistake', `<p class="x"><b>✗</b>${t('teach.wrong.' + key)}</p><p class="o"><b>✓</b>${t('teach.right.' + key)}</p>`));
   box.appendChild(saveCardBtn(cur.part, method));
   if (method !== 'full') box.appendChild(el('p', 'tip', t(`coach.${cur.part}.${method}.${steps[T.step].stage}`)));
   if (T.view === 'self' && T.step === steps.length - 1) {
@@ -1469,10 +1483,10 @@ function teachPart(box) {
 }
 /** 跳到第幾小步：示範中就從那一步接著播；換我畫就停在那一步 */
 function teachStepTo(i) {
-  const T = S.teach, n = TEACH_STEPS[teachCh().part].length;
+  const T = S.teach, n = TEACH_STEPS[stepKey(teachCh().part)].length;
   T.step = Math.max(0, Math.min(n - 1, i));
   T.loopEl = 0;
-  if (T.view === 'demo') T.demo = newDemo(stepStart(teachCh().part, T.step));
+  if (T.view === 'demo') T.demo = newDemo(stepStart(stepKey(teachCh().part), T.step));
   mountTeach();
 }
 /** 手法的小圖示：點拍、按壓推開、來回刷、往外刷、描線、畫小圈 */
@@ -1487,6 +1501,10 @@ const MOTION_ICONS = {
 const motionIcon = (m) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${MOTION_ICONS[m]}</svg>`;
 const motionTag = (s) => motionIcon(s.motion) + t('teach.motion.' + s.motion) + (s.reps > 1 ? ' ×' + s.reps : '');
 const newDemo = (el = 0) => ({ el, done: false });
+/** 這個部位用哪一組步驟：眼影依選的畫法 */
+const stepKey = (part) => (part === 'eye' ? eyeKey(S.eyeMethod) : part);
+/** 鏡子與圖解上的分區文字 */
+const zoneLabels = () => Object.fromEntries(['base', 'main', 'deep', 'shade', 'shine', 'lower', 'liner', 'lash', 'limit'].map((k) => [k, t('teach.zone.' + k)]));
 function voicePref() { try { return localStorage.getItem('lucid.voice') === '1'; } catch { return false; } }
 /** 語音唸步驟（裝置內建的語音，離線也能用）；預設關著，按 🔈 打開 */
 function teachSay(text) {
@@ -1514,7 +1532,7 @@ function teachCapClick(e) {
 /** 只更新亮起來的那一步與鏡子上的字幕（示範每一幀都可能換步，不重畫整個面板） */
 function teachStepUI() {
   const T = S.teach, cur = teachCh(); if (!T || !cur.part) return;
-  const steps = TEACH_STEPS[cur.part], s = steps[T.step];
+  const key = stepKey(cur.part), steps = TEACH_STEPS[key], s = steps[T.step];
   const fin = T.view === 'demo' && T.demo?.done;
   document.querySelectorAll('#teach .steps li').forEach((li, i) => {
     if (li.classList.contains('fin')) { li.classList.toggle('done', !!fin); return; }
@@ -1529,12 +1547,12 @@ function teachStepUI() {
   $('#s4').classList.toggle('demo-paused', !!T.paused);
   const cap = $('#teach-cap');
   cap.hidden = false;
-  const text = t(`teach.step.${cur.part}.${s.id}`);
+  const text = t(`teach.step.${key}.${s.id}`);
   const tb = (act, on, label, glyph) => `<button type="button" data-act="${act}" aria-pressed="${on}" aria-label="${label}" title="${label}" class="${on ? 'on' : ''}">${glyph}</button>`;
   cap.innerHTML = `<div class="l1"><b>${T.view === 'demo' ? t('teach.demoing') : t('teach.view.self')}</b><span class="n">${T.step + 1}/${steps.length}</span><span class="tx">${text}</span></div>
     <div class="l2"><span class="mo">${motionTag(s)}</span><span class="btns">${tb('slow', T.slow, t('teach.slow'), '🐢')}${tb('pause', T.paused, t(T.paused ? 'teach.play' : 'teach.pause'), T.paused ? '▶' : '⏸')}${tb('voice', T.voice, t('teach.voice'), T.voice ? '🔊' : '🔈')}</span></div>`;
-  const key = cur.id + ':' + T.view + ':' + T.step;
-  if (T.saidKey !== key) { T.saidKey = key; teachSay(text + '。' + t('teach.motion.' + s.motion)); }
+  const sayKey = cur.id + ':' + key + ':' + T.view + ':' + T.step;
+  if (T.saidKey !== sayKey) { T.saidKey = sayKey; teachSay(text + '。' + t('teach.motion.' + s.motion)); }
 }
 function teachEnd(box) {
   const T = S.teach;
@@ -1594,7 +1612,7 @@ function mountTeach() {
   tg.hidden = !cur.part;
   if (cur.part) {
     tg.innerHTML = '';
-    tg.append(howPic(cur.part, TEACH_STEPS[cur.part][T.step].stage), el('span', '', t('teach.target')));
+    tg.append(howPic(cur.part, TEACH_STEPS[stepKey(cur.part)][T.step].stage), el('span', '', t('teach.target')));
   } else $('#teach-cap').hidden = true;
   teachSync(); teachActions(); liftMirror();
 }
@@ -1633,27 +1651,27 @@ function teachUnzoom() {
 function drawCoach(ctx, lm, W, H) {
   const T = S.teach; if (!T || !lm) return;
   const cur = teachCh(); if (!cur.part) { if (zoomNow) teachUnzoom(); return; }
-  const now = performance.now(), st = TEACH_STEPS[cur.part];
+  const now = performance.now(), key = stepKey(cur.part), st = TEACH_STEPS[key];
   const dt = T.lastT == null ? 0 : Math.min(100, now - T.lastT); T.lastT = now;
   const adv = T.paused ? 0 : dt * (T.slow ? 0.5 : 1);           // 慢速：一半的速度
   let k;
   if (T.view === 'demo' && T.demo) {
     T.demo.el += adv;
-    const d = demoAt(cur.part, T.demo.el);
+    const d = demoAt(key, T.demo.el);
     k = d.done ? null : d.k;
     if (d.i !== T.step || d.done !== T.demo.done) { T.step = d.i; T.demo.done = d.done; teachStepUI(); }
-    if (cur.product) S.amount[cur.id] = T.saved[cur.id] * (d.done ? 1 : demoAmount(cur.part, d.i, d.k));
+    if (cur.product) S.amount[cur.id] = T.saved[cur.id] * (d.done ? 1 : demoAmount(key, d.i, d.k));
   } else {
     T.loopEl = (T.loopEl || 0) + adv;
     const ms = stepMs(st[T.step]);
     k = Math.min(1, (T.loopEl % (ms + 700)) / ms);              // 畫完停一下再重來
   }
   const s = st[T.step], P = toPixels(lm, W, H);
-  const shapes = teachStepShapes(cur.part, s.id, P);
+  const shapes = teachStepShapes(key, s.id, P);
   const z = teachZoom(cur.part, P, W, H);
   const lw = Math.max(2, Math.min(W, H) * 0.0055) / z;      // 放大後線條不要跟著變粗
   drawTeachStep(ctx, shapes, { lw, t: calm() ? null : k, tool: toolImg(teachToolIcon(cur.part, teachMethod(cur.part))),
-    color: cur.product?.color || '#e2b59a', motion: s.motion, reps: s.reps, spot: teachSpot(cur.part, P), W, H });
+    color: cur.product?.color || '#e2b59a', motion: s.motion, reps: s.reps, spot: teachSpot(cur.part, P), W, H, labels: zoneLabels() });
 }
 
 /* ── 圖解：每一步一格（參考小紅書圖解版教學）───────────────────
@@ -1661,8 +1679,8 @@ function drawCoach(ctx, lm, W, H) {
    教學面板、最後一頁的指南、存成圖片的圖解卡、練完的建議都用同一組圖。 */
 const SHOT_CACHE = new Map();
 function stepShots(part) {
-  const saved = S.teach ? S.teach.saved : S.amount;
-  const key = part + ':' + (saved[part] ?? 0);
+  const saved = S.teach ? S.teach.saved : S.amount, sk = stepKey(part);
+  const key = sk + ':' + (saved[part] ?? 0) + ':' + getLang();
   if (SHOT_CACHE.has(key)) return SHOT_CACHE.get(key);
   const W = S.photo.width, H = S.photo.height, P = toPixels(S.photoLm, W, H), b = coachRegion(part, P, W, H);
   const color = S.picks?.[part]?.color || '#e2b59a';
@@ -1673,10 +1691,10 @@ function stepShots(part) {
     const x = c.getContext('2d'), s = 360 / b.w;
     x.imageSmoothingQuality = 'high';
     x.drawImage(tmp, b.x, b.y, b.w, b.h, 0, 0, c.width, c.height);
-    if (shapes) { x.setTransform(s, 0, 0, s, -b.x * s, -b.y * s); drawTeachStep(x, shapes, { lw: 2.2 / s, color }); }
+    if (shapes) { x.setTransform(s, 0, 0, s, -b.x * s, -b.y * s); drawTeachStep(x, shapes, { lw: 2.2 / s, color, labels: zoneLabels() }); }
     return { c, url: c.toDataURL('image/jpeg', 0.86) };
   };
-  const list = TEACH_STEPS[part].map((st) => shot(st.upto, teachStepShapes(part, st.id, P)));
+  const list = TEACH_STEPS[sk].map((st) => shot(st.upto, teachStepShapes(sk, st.id, P)));
   list.push(shot(1, null));
   SHOT_CACHE.set(key, list);
   return list;
@@ -1691,7 +1709,7 @@ function wrapText(x, text, maxW, maxLines) {
 }
 /** 存成一張圖解卡：標題＋公式、每一步一格、完成、工具與用量、易錯（可以存到手機，化妝時對照） */
 function stepCardCanvas(part, method) {
-  const steps = TEACH_STEPS[part], shots = stepShots(part), icon = teachToolIcon(part, method);
+  const key = stepKey(part), steps = TEACH_STEPS[key], shots = stepShots(part), icon = teachToolIcon(part, method);
   const W = 720, pad = 18, cw = (W - pad * 3) / 2, ih = cw * shots[0].c.height / shots[0].c.width, ch = ih + 74;
   const cells = steps.length + 1, rows = Math.ceil((cells + (cells % 2)) / 2);
   const head = 124, foot = 92, H = head + rows * (ch + pad) + foot;
@@ -1702,7 +1720,7 @@ function stepCardCanvas(part, method) {
   x.fillStyle = '#5b3944'; x.fillRect(0, 0, W, head - 16);
   x.fillStyle = '#fff'; x.textAlign = 'center';
   x.font = '800 42px ' + FONT; x.fillText(t('coach.part.' + part) + (S.picks?.[part] ? '　' + tf(S.picks[part], 'shade') : ''), W / 2, 56);
-  x.font = '500 22px ' + FONT; x.fillText(t('teach.formula.' + part), W / 2, 92);
+  x.font = '500 22px ' + FONT; x.fillText(t('teach.formula.' + key), W / 2, 92);
   x.textAlign = 'left';
   const round = (x0, y0, w, h, r) => { x.beginPath(); x.roundRect(x0, y0, w, h, r); };
   for (let i = 0; i < rows * 2; i++) {
@@ -1716,10 +1734,10 @@ function stepCardCanvas(part, method) {
       x.beginPath(); x.arc(x0 + 26, y0 + 26, 17, 0, Math.PI * 2); x.fill();
       x.fillStyle = '#fff'; x.font = '800 20px ' + FONT; x.textAlign = 'center'; x.fillText(done ? '✓' : String(i + 1), x0 + 26, y0 + 33); x.textAlign = 'left';
       x.font = '800 26px ' + FONT; x.lineWidth = 5; x.strokeStyle = 'rgba(60,30,40,.55)';
-      const verb = done ? t('card.done') : t(`teach.verb.${part}.${steps[i].id}`);
+      const verb = done ? t('card.done') : t(`teach.verb.${key}.${steps[i].id}`);
       x.strokeText(verb, x0 + 50, y0 + 35); x.fillStyle = '#fff'; x.fillText(verb, x0 + 50, y0 + 35);
       x.fillStyle = '#3a2a30'; x.font = '600 19px ' + FONT;
-      const text = done ? t('teach.right.' + part) : t(`teach.step.${part}.${steps[i].id}`);
+      const text = done ? t('teach.right.' + key) : t(`teach.step.${key}.${steps[i].id}`);
       wrapText(x, text, cw - 24, 2).forEach((l, k) => x.fillText(l, x0 + 12, y0 + ih + 28 + k * 24));
       if (!done) { x.fillStyle = '#9a7f88'; x.font = '600 15px ' + FONT; x.fillText(t('teach.motion.' + steps[i].motion) + (steps[i].reps > 1 ? ' ×' + steps[i].reps : ''), x0 + cw - 12 - x.measureText(t('teach.motion.' + steps[i].motion) + (steps[i].reps > 1 ? ' ×' + steps[i].reps : '')).width, y0 + ih + 28); }
     } else {
@@ -1736,8 +1754,8 @@ function stepCardCanvas(part, method) {
   const fy = head + rows * (ch + pad);
   x.fillStyle = '#fff'; round(pad, fy, W - pad * 2, foot - pad, 14); x.fill();
   x.font = '700 19px ' + FONT;
-  x.fillStyle = '#c0505c'; x.fillText('✗ ' + t('card.mistake') + '：' + t('teach.wrong.' + part), pad + 16, fy + 30);
-  x.fillStyle = '#2f8a62'; x.fillText('✓ ' + t('teach.right.' + part), pad + 16, fy + 60);
+  x.fillStyle = '#c0505c'; x.fillText('✗ ' + t('card.mistake') + '：' + t('teach.wrong.' + key), pad + 16, fy + 30);
+  x.fillStyle = '#2f8a62'; x.fillText('✓ ' + t('teach.right.' + key), pad + 16, fy + 60);
   return c;
 }
 function saveCardBtn(part, method) {
@@ -1763,9 +1781,10 @@ function adviceCard(list, live, titleKey = 'adv2.title') {
       parts: (a.parts || []).map((p) => t('coach.part.' + p)).join('・'),
     };
     const row = el('div', 'adv-row ' + a.kind);
-    const i = a.step ? TEACH_STEPS[a.part].findIndex((s) => s.id === a.step) : -1;
+    const sk = a.part ? stepKey(a.part) : null;
+    const i = a.step ? TEACH_STEPS[sk].findIndex((s) => s.id === a.step) : -1;
     const pic = i >= 0 && S.photo ? `<img src="${stepShots(a.part)[i].url}" alt="">` : '';
-    const ref = i >= 0 ? `<small>${t('adv2.stepRef', { n: i + 1, verb: t(`teach.verb.${a.part}.${a.step}`) })}</small>` : '';
+    const ref = i >= 0 ? `<small>${t('adv2.stepRef', { n: i + 1, verb: t(`teach.verb.${sk}.${a.step}`) })}</small>` : '';
     row.innerHTML = `${pic}<div><p><span aria-hidden="true">${ADV_ICON[a.kind]}</span> ${t(a.key, params)}</p>${ref}</div>`;
     if (live && i >= 0 && S.teach) {
       const b = el('button', 'again', t('adv2.again'));
@@ -4630,10 +4649,10 @@ function paintHow() {
     card.innerHTML = `<h4>${t('coach.part.' + s.part)}</h4>
       <div class="chips"><span class="chip">${item}</span><span class="chip">${COACH_GLYPH[s.method]} ${t(s.toolKey)}</span></div>`;
     const pics = el('div', 'pics steps-mini');
-    const shots = stepShots(s.part), steps = TEACH_STEPS[s.part];
+    const sk = stepKey(s.part), shots = stepShots(s.part), steps = TEACH_STEPS[sk];
     steps.forEach((st, i) => {
       const fig = el('figure');
-      fig.innerHTML = `<img src="${shots[i].url}" alt=""><figcaption><b>${i + 1} ${t(`teach.verb.${s.part}.${st.id}`)}</b>${t(`teach.step.${s.part}.${st.id}`)}</figcaption>`;
+      fig.innerHTML = `<img src="${shots[i].url}" alt=""><figcaption><b>${i + 1} ${t(`teach.verb.${sk}.${st.id}`)}</b>${t(`teach.step.${sk}.${st.id}`)}</figcaption>`;
       pics.appendChild(fig);
     });
     pics.appendChild(el('figure', 'fin', `<img src="${shots[steps.length].url}" alt=""><figcaption><b>✓ ${t('card.done')}</b></figcaption>`));
@@ -4791,7 +4810,7 @@ function reset() {
   clearBrush();
   S.tried.clear(); S.arMs = 0; S.arT0 = 0;
   S.gifts = 0; S.pose = null; S.posePrompted = false;
-  S.coach = { mode: null, owned: new Set(), hasSub: true }; S.guideDone = false;
+  S.coach = { mode: null, owned: new Set(), hasSub: true }; S.guideDone = false; S.eyeMethod = 'duo';
   S.cheer = newCheer(); cheerQ.length = 0;
   S.pref = newPref(); S.said.clear(); S.prevLip = null;
   S.amount0 = null; S.asked3.clear(); S.shadeT0 = 0; S.lastAct = 0;
