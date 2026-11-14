@@ -2369,6 +2369,51 @@ body {
 .teach .steps.grid .verb { font-size:13px; left:28px; }
 .teach .steps.grid .tl { width:22px; height:22px; }
 .teach .steps.grid .tl svg { width:15px; height:15px; }
+/* ── 情境、全臉地圖、對照圖、深淺量表、最後一頁的跳轉 ── */
+.privacy-chip { position:absolute; left:50%; top:10px; transform:translateX(-50%); z-index:4; max-width:calc(100% - 24px); padding:4px 12px; border-radius:14px; font-size:12px; font-weight:700; color:#fff; background:rgba(18,10,14,.55); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.teach .scenes { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:6px; }
+.teach .scenes button { display:grid; gap:1px; padding:8px 10px; text-align:left; border:1.5px solid var(--line); border-radius:14px; background:#fff; color:#3a2a30; cursor:pointer; }
+.teach .scenes b { font-size:14px; }
+.teach .scenes small { font-size:11.5px; color:var(--ink-3); }
+.teach .scenes button.on { border-color:var(--primary-2); background:var(--tint-2, #fff5f7); }
+.teach .scene-sum { display:flex; flex-wrap:wrap; gap:4px 10px; align-items:center; font-size:12.5px; }
+.teach .scene-sum i { font-style:normal; color:var(--ink-3); margin-right:4px; }
+.teach .scene-sum em { font-style:normal; font-weight:700; color:var(--primary-2); margin-left:auto; }
+.facemap { margin:0; border-radius:14px; overflow:hidden; background:#fff; box-shadow:0 0 0 1px var(--line); }
+.facemap img { display:block; width:100%; }
+.facemap figcaption { display:flex; flex-wrap:wrap; gap:5px; padding:8px; }
+.facemap .leg { display:inline-flex; align-items:center; gap:5px; padding:3px 9px 3px 4px; border:0; border-radius:12px; font-size:12.5px; font-weight:700; color:#3a2a30; background:var(--line); }
+button.leg { cursor:pointer; }
+.facemap .leg b { display:grid; place-items:center; width:18px; height:18px; border-radius:50%; font-size:11px; color:#5b3944; background:#fff; }
+.facemap .leg i { width:12px; height:12px; border-radius:50%; }
+.teach .cmp { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:6px; }
+.teach .cmp figure { margin:0; border-radius:12px; overflow:hidden; background:#fff; }
+.teach .cmp img { display:block; width:100%; aspect-ratio:4 / 3; object-fit:cover; }
+.teach .cmp figcaption { display:flex; gap:5px; align-items:center; padding:5px 8px; font-size:12px; font-weight:700; line-height:1.3; }
+.teach .cmp b { flex:none; display:grid; place-items:center; width:18px; height:18px; border-radius:50%; font-size:11px; color:#fff; }
+.teach .cmp .x { box-shadow:0 0 0 2px #c0505c; } .teach .cmp .x b { background:#c0505c; }
+.teach .cmp .o { box-shadow:0 0 0 2px #2f8a62; } .teach .cmp .o b { background:#2f8a62; }
+.meters { display:grid; gap:8px; }
+.meter { padding:9px 11px; border-radius:14px; background:#fff; box-shadow:0 0 0 1px var(--line); }
+.meter .hd { display:flex; align-items:baseline; gap:8px; font-size:13px; }
+.meter .sc { font-size:19px; font-weight:800; font-variant-numeric:tabular-nums; }
+.meter .hd em { font-style:normal; font-size:12px; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.meter .lv { margin-left:auto; padding:1px 9px; border-radius:9px; font-size:12px; font-weight:700; color:#3a2a30; background:var(--line); }
+.meter .lv.good { color:#14402e; background:#c5ecd9; }
+.meter .track { position:relative; height:10px; margin-top:8px; border-radius:5px; background:var(--line); }
+.meter .okz { position:absolute; top:0; bottom:0; border-radius:5px; background:#c5ecd9; }
+.meter .mk { position:absolute; top:50%; width:16px; height:16px; margin:-8px 0 0 -8px; border-radius:50%; background:var(--primary-2); box-shadow:0 0 0 2px #fff, 0 1px 3px rgba(0,0,0,.3); }
+.meter .ends { display:flex; justify-content:space-between; margin-top:4px; font-size:11px; color:var(--ink-3); }
+.meter .lr { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; margin-top:6px; font-size:11px; color:var(--ink-3); }
+.meter .lr span { display:flex; align-items:center; gap:6px; }
+.meter .lr i { flex:1; height:6px; border-radius:3px; background:var(--line); overflow:hidden; }
+.meter .lr u { display:block; height:100%; border-radius:3px; background:var(--primary-2); }
+.adv-row .tip { margin-top:2px; font-size:12px; color:var(--ink-2, #5a4650); }
+.advice .adv-src { margin:0; font-size:11px; color:var(--ink-3); }
+.s5-nav { position:sticky; top:0; z-index:5; display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; margin:0 0 12px; padding:6px 0; background:rgba(249,244,242,.92); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); flex:none; }
+.s5-nav::-webkit-scrollbar { display:none; }
+.s5-nav button { flex:none; padding:5px 12px; border:1px solid var(--line); border-radius:14px; background:#fff; font-size:12.5px; font-weight:700; color:var(--primary-2); cursor:pointer; }
+#s5-how .facemap { margin-bottom:12px; }
 
 </style>
 </head>
@@ -2407,6 +2452,7 @@ body {
           <canvas id="guide"></canvas>
           <div id="count" hidden></div>
           <div id="hint" data-i18n="hint.starting">正在啟動鏡頭…</div>
+          <div class="privacy-chip" data-i18n="privacy.chip">🔒 照片只在這台裝置處理，不會上傳</div>
         </div>
         <div class="err" id="cam-err" hidden></div>
       </section>
@@ -3025,6 +3071,42 @@ const DICT = {
   'teach.view.demo': ['看示範', 'Watch', 'お手本'],
   'teach.view.self': ['換我畫', 'My turn', '自分で'],
   'teach.check': ['幫我看看', 'Check mine', '見てもらう'],
+  'privacy.chip': ['🔒 照片只在這台裝置處理，不會上傳', '🔒 Your photo stays on this device — never uploaded', '🔒 写真はこの端末内で処理し、送信しません'],
+  'teach.scene.t': ['今天要去哪？', 'Where are you going today?', '今日はどこへ？'],
+  'teach.scene.commute': ['上班通勤', 'Work day', '通勤'],
+  'teach.scene.commute.s': ['最快：單色眼影', 'Fastest: one-colour eyes', '最短：単色アイ'],
+  'teach.scene.date': ['約會聚餐', 'Date / dinner', 'デート・食事'],
+  'teach.scene.date.s': ['眼尾加深＋咬唇', 'Outer corner + gradient lips', '目尻締め＋グラデリップ'],
+  'teach.scene.bare': ['素顏感', 'No-makeup look', 'すっぴん風'],
+  'teach.scene.bare.s': ['不用眼影', 'No eyeshadow', 'シャドウなし'],
+  'teach.scene.formal': ['正式場合', 'Formal', 'フォーマル'],
+  'teach.scene.formal.s': ['雙色漸層＋霧面唇', 'Two-tone eyes + matte lips', '2色グラデ＋マットリップ'],
+  'teach.scene.steps': ['共 {n} 小步', '{n} steps in all', '全{n}ステップ'],
+  'teach.map.t': ['全臉地圖：照編號的順序畫', 'Face map: follow the numbers', '顔マップ：番号順に'],
+  'teach.cmp.eye.x': ['塗到眉骨，範圍太大', 'Up to the brow bone — too far', '眉骨まで塗ると広すぎ'],
+  'teach.cmp.eye.o': ['停在眼窩內', 'Stay inside the socket', 'アイホール内で止める'],
+  'teach.cmp.cheek.x': ['太低、太靠近鼻子', 'Too low and too close to the nose', '低すぎ、鼻に近すぎ'],
+  'teach.cmp.cheek.o': ['鼻翼以上、往外帶', 'Above the nose line, moving outward', '小鼻より上、外側へ'],
+  'teach.cmp.lip.x': ['超出自己的唇線', 'Past your own lip line', '輪郭からはみ出す'],
+  'teach.cmp.lip.o': ['沿著自己的唇線', 'Follow your own lip line', '自分の輪郭に沿う'],
+  'teach.lv.none': ['還沒上色', 'No colour yet', 'まだ色なし'],
+  'teach.lv.light': ['偏淡', 'Light', '薄め'],
+  'teach.lv.good': ['剛好', 'On target', 'ちょうど'],
+  'teach.lv.heavy': ['偏深', 'Deep', '濃いめ'],
+  'teach.lv.small': ['量不出來', 'Can’t measure', '測れません'],
+  'teach.lr.left': ['畫面左', 'Left', '左'],
+  'teach.lr.right': ['畫面右', 'Right', '右'],
+  'adv2.src': ['📖 小技巧整理自網路上的新手美妝教學', '📖 Tips compiled from beginner makeup tutorials online', '📖 ヒントはネット上の初心者向けメイク解説より'],
+  'adv2.tip.eye.heavy': ['深色只放眼尾，由眼尾往前暈；取粉後先在手背拍掉餘粉', 'Keep the deep shade at the outer corner and blend forward; tap off excess first', '締め色は目尻だけ、目尻から前へぼかす。余分は手の甲で落とす'],
+  'adv2.tip.eye.light': ['刷子跟眼皮垂直、雨刷式來回；最高不要超過眼窩', 'Hold the brush upright and sweep like a wiper; stop at the socket', 'ブラシは立ててワイパーのように。アイホールを越えない'],
+  'adv2.tip.eye.uneven': ['刷子水平拿容易變成一條線，兩眼輪流、每次疊一點', 'A flat-held brush leaves a stripe; alternate eyes, a little each time', 'ブラシを寝かせると線になる。左右交互に少しずつ'],
+  'adv2.tip.cheek.heavy': ['看起來太紅，通常是位置太低或太靠近鼻子；高一點比較提氣色', 'Looking too red usually means too low or too close to the nose; go higher', '赤すぎるのは位置が低いか鼻に近いことが多い。高めに'],
+  'adv2.tip.cheek.light': ['粉狀腮紅少量多次疊，最好控制', 'Powder blush is easiest to control in thin layers', 'パウダーチークは薄く重ねると調整しやすい'],
+  'adv2.tip.cheek.uneven': ['先微笑找到兩邊的最高點，再下刷', 'Smile to find both high points before you start', '笑って左右の高い所を確認してから'],
+  'adv2.tip.lip.heavy': ['先輕點上去，再慢慢疊', 'Tap it on first, then build', 'まず軽く置いてから重ねる'],
+  'adv2.tip.lip.light': ['唇色深會壓住顯色：先擦潤唇膏、紙巾擦掉再上色', 'Deeper natural lips mute colour: balm first, blot, then apply', '唇の色が濃いと発色しにくい。リップクリーム→押さえる→塗る'],
+  'adv2.tip.lip.uneven': ['從中央往兩邊各推一次，再比對', 'Push out once to each side from the centre, then compare', '中央から左右へ一度ずつ広げて比べる'],
+  'adv2.tip.pace': ['不用一次全練：先把一個部位練熟，再加下一個', 'No need to practise everything at once: master one area, then add the next', '一度に全部は不要。一つを覚えてから次へ'],
   'teach.emethod.label': ['眼影畫法', 'Eye method', 'アイメイク'],
   'teach.emethod.duo': ['雙色漸層', 'Two-tone', '2色グラデ'],
   'teach.emethod.mono': ['單色平鋪', 'One colour', '単色'],
@@ -5972,7 +6054,9 @@ function pill(ctx, text, x, y, lw, dot) {
   const fs = Math.max(11, lw * 5.6);
   ctx.font = '700 ' + fs + 'px "PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif';
   const w = ctx.measureText(text).width + fs * 1.4, h = fs * 1.5;
-  const cw = ctx.canvas?.width || Infinity, x0 = Math.max(2, Math.min(cw - w - 2, x - w / 2));
+  const m = ctx.getTransform ? ctx.getTransform() : null, sx = m?.a || 1, tx = m?.e || 0;
+  const lo = (0 - tx) / sx, hi = ((ctx.canvas?.width || Infinity) - tx) / sx;      // 看得到的範圍（裁切、放大後的座標）
+  const x0 = Math.max(lo + 2 / sx, Math.min(hi - w - 2 / sx, x - w / 2));
   ctx.fillStyle = 'rgba(30,16,22,.78)';
   ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x0, y - h / 2, w, h, h / 2); else ctx.rect(x0, y - h / 2, w, h); ctx.fill();
   ctx.fillStyle = dot; ctx.beginPath(); ctx.arc(x0 + fs * 0.62, y, fs * 0.28, 0, Math.PI * 2); ctx.fill();
@@ -6042,6 +6126,97 @@ function lipStepShapes(st, P) {
   for (const pid of st.paths || []) out.push(...PTH[pid]().map((pts) => ({ type: 'path', pts })));
   for (const l of st.labels || []) out.push({ type: 'tag', at: P[61], label: l, lp: lp(0) });
   return out;
+}
+
+/* ── 情境：從女性用戶每天的實際狀況出發（趕時間、約會、想要素顏感、正式場合）──
+   選一個情境就配好三個部位的畫法，不必一個一個選；之後每一章還是可以自己換。 */
+const SCENES = {
+  commute: { eye: 'mono', cheek: 'lift', lip: 'full' },        // 上班通勤：最快的單色眼影
+  date: { eye: 'outer', cheek: 'apple', lip: 'gradient' },      // 約會聚餐：眼尾加深、蘋果肌、咬唇
+  bare: { eye: 'liner', cheek: 'flat', lip: 'gradient' },       // 素顏感：不用眼影
+  formal: { eye: 'duo', cheek: 'lift', lip: 'matte' },          // 正式場合：雙色漸層、霧面唇
+};
+const SCENE_IDS = Object.keys(SCENES);
+/** 這組畫法總共幾個小步驟（含底妝） */
+function sceneStepCount(methods = {}) {
+  return ['base', 'eye', 'cheek', 'lip'].reduce((n, p) => n + TEACH_STEPS[methodKey(p, methods[p])].length, 0);
+}
+
+function cheekSides(P) {
+  const fw = Math.hypot(P[454].x - P[234].x, P[454].y - P[234].y) || 1;
+  return [[50, 127, 205], [280, 356, 425]].map(([c, tp, ap]) => {
+    const high = lerpPt(P[c], P[tp], 0.25), temple = lerpPt(P[c], P[tp], 0.72), apple = lerpPt(high, P[ap], 0.55);
+    return { fw, high, temple, apple };
+  }).sort((a, b) => a.high.x - b.high.x);
+}
+/**
+ * 新手最常畫錯的位置（wrong）與正確的位置（right），畫在自己的照片上對照。
+ * 眼影：塗到眉骨 ↔ 停在眼窩內；腮紅：太低太靠近鼻子 ↔ 這個畫法的位置；唇：超出唇線 ↔ 沿著自己的唇線。
+ */
+function mistakeShapes(key, P) {
+  const part = key.split('.')[0];
+  if (part === 'eye') {
+    if (key === 'eye.liner') return null;
+    const geo = eyeGeo(P);
+    return { wrong: geo.map((g) => ({ type: 'zone', pts: band(g, 0, 1, 0, 0.98) })), right: geo.map((g) => ({ type: 'zone', pts: band(g, 0, 1, 0, 0.6) })) };
+  }
+  if (part === 'cheek') {
+    const sides = cheekSides(P);
+    const right = sides.map((sd) => {
+      if (key === 'cheek.flat') return ring({ x: sd.high.x, y: sd.high.y + sd.fw * 0.025 }, sd.fw * 0.1, sd.fw * 0.042);
+      if (key === 'cheek.apple') return ring(sd.apple, sd.fw * 0.055, sd.fw * 0.05);
+      return ring(lerpPt(sd.high, sd.temple, 0.35), sd.fw * 0.09, sd.fw * 0.04, Math.atan2(sd.temple.y - sd.high.y, sd.temple.x - sd.high.x));
+    });
+    const wrong = sides.map((sd) => { const c = lerpPt(sd.apple, P[4], 0.35); return ring({ x: c.x, y: c.y + sd.fw * 0.07 }, sd.fw * 0.06, sd.fw * 0.05); });
+    return { wrong: wrong.map((pts) => ({ type: 'zone', pts })), right: right.map((pts) => ({ type: 'zone', pts })) };
+  }
+  if (part === 'lip') {
+    const lips = LIP_O.map((i) => P[i]), c = ptsCenter(lips);
+    return { wrong: [{ type: 'zone', pts: lips.map((p) => lerpPt(c, p, 1.28)) }], right: [{ type: 'zone', pts: lips }] };
+  }
+  return null;
+}
+/** 對照圖：顏色填滿分區，錯的紅色虛線、對的綠色虛線 */
+function drawCompare(ctx, shapes, { lw = 3, color = '#c98f86', ok = true } = {}) {
+  ctx.save(); ctx.lineJoin = 'round';
+  for (const z of shapes) {
+    ctx.beginPath(); z.pts.forEach((p, k) => (k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath();
+    ctx.globalAlpha = 0.55; ctx.fillStyle = color; ctx.fill();
+    ctx.globalAlpha = 1; ctx.setLineDash([lw * 2, lw * 1.4]); ctx.lineWidth = lw; ctx.strokeStyle = ok ? '#35c98a' : '#ff4f6d'; ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** 全臉地圖：每個部位畫在哪、第幾個畫（編號＝上妝順序） */
+function faceMapItems(P, parts, methods = {}) {
+  const fw = Math.hypot(P[454].x - P[234].x, P[454].y - P[234].y) || 1;
+  return parts.map((part, i) => {
+    const it = { part, n: i + 1, zones: [], dots: [] };
+    if (part === 'base') it.dots = [151, 50, 280, 4, 199].map((k) => ({ at: P[k], r: fw * 0.02 }));
+    else it.zones = (mistakeShapes(methodKey(part, methods[part]), P) || mistakeShapes(part, P)).right.map((z) => z.pts);
+    return it;
+  });
+}
+function drawFaceMap(ctx, items, { lw = 3, colors = {} } = {}) {
+  ctx.save(); ctx.lineJoin = 'round';
+  for (const it of items) {
+    const color = colors[it.part] || '#c98f86';
+    for (const pts of it.zones) {
+      ctx.beginPath(); pts.forEach((p, k) => (k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath();
+      ctx.save(); ctx.globalAlpha = 0.6; ctx.fillStyle = color; ctx.fill(); ctx.restore();
+      ctx.save(); ctx.setLineDash([lw * 1.8, lw * 1.4]); ctx.lineWidth = lw * 0.8; ctx.strokeStyle = '#fff'; ctx.stroke(); ctx.restore();
+    }
+    for (const d of it.dots) {
+      ctx.save(); ctx.globalAlpha = 0.85; ctx.fillStyle = color; ctx.beginPath(); ctx.arc(d.at.x, d.at.y, d.r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      ctx.lineWidth = lw * 0.7; ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.arc(d.at.x, d.at.y, d.r, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+  // 編號最後畫，才不會被別的分區蓋住
+  for (const it of items) {
+    for (const pts of it.zones) { const c = ptsCenter(pts); badge(ctx, String(it.n), c.x, c.y, lw * 1.05); }
+    if (it.dots.length) badge(ctx, String(it.n), it.dots[0].at.x + it.dots[0].r * 2.4, it.dots[0].at.y, lw * 1.05);
+  }
+  ctx.restore();
 }
 
 
@@ -6171,7 +6346,9 @@ function assessPart(base, cur, target, cov) {
   const one = (p) => (p <= 1 ? 100 * Math.max(0, p) : 100 * Math.max(0, 1 - (p - 1) / 2));
   let score = projs.reduce((s, p) => s + one(p), 0) / projs.length;
   if (uneven != null) score -= 10;
-  return { level, score: Math.max(0, Math.round(score)), uneven };
+  const r2 = (v) => Math.round(v * 100) / 100;
+  // depth：走到目標的幾成（1 = 剛好）；sides：左右各自的值（畫面左、右）
+  return { level, score: Math.max(0, Math.round(score)), uneven, depth: r2(mean), sides: projs.map(r2) };
 }
 
 
@@ -6239,9 +6416,10 @@ function practiceAdvice(results = {}, prev = [], planned = []) {
   const parts = GROWTH_PARTS.filter((p) => results[p]?.score != null);
   for (const p of parts) {
     const r = results[p];
-    if (r.uneven != null) out.push({ kind: 'fix', part: p, key: 'adv2.uneven', side: r.uneven, step: FIX_STEP[p].uneven });
-    else if (r.level === 'heavy') out.push({ kind: 'fix', part: p, key: 'adv2.heavy.' + p, step: FIX_STEP[p].heavy });
-    else if (r.level === 'light' || r.level === 'none') out.push({ kind: 'fix', part: p, key: 'adv2.light.' + p, step: FIX_STEP[p][r.level] });
+    // tip：網路上新手教學整理出來的小技巧（i18n 的 adv2.tip.*）
+    if (r.uneven != null) out.push({ kind: 'fix', part: p, key: 'adv2.uneven', side: r.uneven, step: FIX_STEP[p].uneven, tip: 'adv2.tip.' + p + '.uneven' });
+    else if (r.level === 'heavy') out.push({ kind: 'fix', part: p, key: 'adv2.heavy.' + p, step: FIX_STEP[p].heavy, tip: 'adv2.tip.' + p + '.heavy' });
+    else if (r.level === 'light' || r.level === 'none') out.push({ kind: 'fix', part: p, key: 'adv2.light.' + p, step: FIX_STEP[p][r.level], tip: 'adv2.tip.' + p + '.light' });
   }
   for (const p of parts) {
     const before = growthTrend(prev, p);
@@ -6252,7 +6430,7 @@ function practiceAdvice(results = {}, prev = [], planned = []) {
   }
   if (parts.length > 1) {
     const low = parts.reduce((a, b) => (results[b].score < results[a].score ? b : a));
-    if (results[low].score < 80) out.push({ kind: 'focus', part: low, key: 'adv2.focus' });
+    if (results[low].score < 80) out.push({ kind: 'focus', part: low, key: 'adv2.focus', tip: 'adv2.tip.pace' });
   }
   for (const p of parts) if (results[p].level === 'good' && results[p].uneven == null) out.push({ kind: 'keep', part: p, key: 'adv2.good' });
   const missed = planned.filter((p) => GROWTH_PARTS.includes(p) && results[p]?.score == null);
@@ -10396,6 +10574,7 @@ const S = {
   pose: null, posePrompted: false,   // 動一動看看：進行到哪一個動作；AI 主動邀請過了沒
   teach: null,   // 化妝教學：進行到哪一章
   methods: { eye: 'duo', cheek: 'lift', lip: 'full' },   // 各部位選的畫法（眼影、腮紅、唇）
+  scene: null,   // 今天的情境（上班通勤、約會聚餐、素顏感、正式場合）：一次配好三個部位的畫法
   coach: { mode: null, owned: new Set(), hasSub: true }, guideDone: false,   // 化妝指導：手邊的工具（最後一頁的指南也照這個寫）；走過一次了沒
   cheer: newCheer(),  // AI 主動送的互動（回讚、鼓掌…）送過哪些
   arMs: 0, arT0: 0,   // 實際停留在 AR 的時間
@@ -11652,6 +11831,19 @@ function teachQA(box) {
 }
 function teachTools(box) {
   const T = S.teach;
+  // 今天要去哪：一次配好眼影、腮紅、唇的畫法（之後每一章還是可以自己換）
+  box.appendChild(el('h3', '', t('teach.scene.t')));
+  const sc = el('div', 'scenes');
+  for (const id of SCENE_IDS) {
+    const on = S.scene === id;
+    const b = el('button', on ? 'on' : '', `<b>${t('teach.scene.' + id)}</b><small>${t('teach.scene.' + id + '.s')}</small>`);
+    b.type = 'button'; b.setAttribute('aria-pressed', String(on));
+    b.onclick = () => { S.scene = id; Object.assign(S.methods, SCENES[id]); SHOT_CACHE.clear(); mountTeach(); };
+    sc.appendChild(b);
+  }
+  box.appendChild(sc);
+  const mName = (p) => t(p === 'eye' ? 'teach.emethod.' + S.methods.eye : `teach.m.${p}.${S.methods[p]}`);
+  box.appendChild(el('p', 'scene-sum', `${['eye', 'cheek', 'lip'].map((p) => `<span><i>${t('coach.part.' + p)}</i>${mName(p)}</span>`).join('')}<em>${t('teach.scene.steps', { n: sceneStepCount(S.methods) })}</em>`));
   box.appendChild(el('h3', '', t('teach.tools.t')));
   box.appendChild(el('p', 'sub', t('teach.tools.s')));
   const grid = el('div', 'tool-grid');
@@ -11669,6 +11861,8 @@ function teachTools(box) {
 }
 function teachItems(box) {
   const T = S.teach;
+  box.appendChild(el('h3', '', t('teach.map.t')));
+  box.appendChild(faceMapEl(true));
   box.appendChild(el('h3', '', t('teach.items.t')));
   for (const c of T.chapters.filter((x) => x.part)) {
     const shade = c.product ? swatchHTML(c.product, 'sw') + '<em>' + tf(c.product, 'shade') + '</em>' : '<em>' + t('coach.base.item') + '</em>';
@@ -11700,7 +11894,7 @@ function teachPart(box) {
       const on = m === S.methods[cur.part];
       const b = el('button', on ? 'on' : '', t(nameKey(m)));
       b.type = 'button'; b.setAttribute('aria-pressed', String(on));
-      b.onclick = () => { if (on) return; S.methods[cur.part] = m; T.step = 0; T.view = 'demo'; T.demo = newDemo(); T.paused = false; T.loopEl = 0; delete T.results[cur.id]; mountTeach(); };
+      b.onclick = () => { if (on) return; S.methods[cur.part] = m; S.scene = null; T.step = 0; T.view = 'demo'; T.demo = newDemo(); T.paused = false; T.loopEl = 0; delete T.results[cur.id]; mountTeach(); };
       pick.appendChild(b);
     }
     box.appendChild(pick);
@@ -11732,9 +11926,11 @@ function teachPart(box) {
   }
   box.append(ctl, ol);
   // 新手最常犯的錯，跟正確做法並排
+  const cmp = cmpShots(cur.part);
+  if (cmp) box.appendChild(el('div', 'cmp', `<figure class="x"><img src="${cmp.x}" alt=""><figcaption><b>✗</b>${t('teach.cmp.' + cur.part + '.x')}</figcaption></figure><figure class="o"><img src="${cmp.o}" alt=""><figcaption><b>✓</b>${t('teach.cmp.' + cur.part + '.o')}</figcaption></figure>`));
   box.appendChild(el('div', 'mistake', `<p class="x"><b>✗</b>${t('teach.wrong.' + key)}</p><p class="o"><b>✓</b>${t('teach.right.' + key)}</p>`));
   box.appendChild(saveCardBtn(cur.part, method));
-  if (method !== 'full') box.appendChild(el('p', 'tip', t(`coach.${cur.part}.${method}.${steps[T.step].stage}`)));
+  if (method !== 'full' && key === cur.part) box.appendChild(el('p', 'tip', t(`coach.${cur.part}.${method}.${steps[T.step].stage}`)));
   if (T.view === 'self' && T.step === steps.length - 1) {
     box.appendChild(el('p', 'tip', t(`coach.${cur.part}.tip`)));
     if (!cur.product && T.baseDone) box.appendChild(el('p', 'tip', t('teach.self.base')));
@@ -11807,7 +12003,7 @@ function teachStepUI() {
     li.classList.toggle('done', i < T.step || !!fin);
     li.style.setProperty('--dur', stepMs(steps[i]) * (T.slow ? 2 : 1) + 'ms');
   });
-  $('#teach .steps li.on')?.scrollIntoView({ block: 'nearest' });
+  scrollInside($('#teach'), $('#teach .steps li.on'), 'nearest', 6);
   const ctl = $('#teach .step-ctl');
   if (ctl?.dataset.demo) ctl.classList.toggle('ready', !!T.demo?.done);
   $('#s4').classList.toggle('demo-run', T.view === 'demo' && !T.demo?.done);
@@ -11826,12 +12022,9 @@ function teachEnd(box) {
   box.appendChild(el('h3', '', t('teach.end.t')));
   if (T.before && T.after) box.appendChild(el('div', 'real-ba', `<figure><img src="${T.before}" alt=""><figcaption>${t('ba.before')}</figcaption></figure><figure><img src="${T.after}" alt=""><figcaption>${t('ba.after')}</figcaption></figure>`));
   const scored = T.chapters.filter((c) => T.results[c.id]?.score != null);
-  if (scored.length) box.appendChild(el('ul', 'scores', scored.map((c) => {
-    const d = growthDelta([...loadGrowth(), { scores: { [c.id]: T.results[c.id].score } }], c.id);
-    return `<li><b>${t('coach.part.' + c.id)}</b><span>${T.results[c.id].score}</span>${d == null ? '' : `<em>${d >= 0 ? '+' : ''}${d}</em>`}</li>`;
-  }).join('')));
-  else box.appendChild(el('p', 'sub', t('teach.end.none')));
   const res = Object.fromEntries(scored.map((c) => [c.id, T.results[c.id]]));
+  if (scored.length) box.appendChild(depthMeters(res, T.prevGrowth || []));
+  else box.appendChild(el('p', 'sub', t('teach.end.none')));
   box.appendChild(adviceCard(practiceAdvice(res, T.prevGrowth || [], T.chapters.filter((c) => c.product).map((c) => c.id)).slice(0, 4), true));
   if (T.stored) { box.appendChild(el('p', 'mode', t('teach.end.saved'))); return; }
   const chk = el('label', 'photo-opt', `<input type="checkbox" id="teach-photo" ${T.photo ? 'checked' : ''}> ${t('teach.end.photo')}`);
@@ -11842,7 +12035,7 @@ function teachEnd(box) {
     saveGrowth(addRecord(loadGrowth(), {
       at: Date.now(), look: S.look?.id || null, mode: modeFrom(T.owned, T.hasSub),
       scores: Object.fromEntries(scored.map((c) => [c.id, T.results[c.id].score])),
-      detail: Object.fromEntries(scored.map((c) => [c.id, { level: T.results[c.id].level, uneven: T.results[c.id].uneven }])),   // 分析用
+      detail: Object.fromEntries(scored.map((c) => [c.id, { level: T.results[c.id].level, uneven: T.results[c.id].uneven, depth: T.results[c.id].depth, sides: T.results[c.id].sides }])),   // 分析用
       planned: T.chapters.filter((c) => c.product).map((c) => c.id),
       before: T.photo ? T.before : null, after: T.photo ? T.after : null,
     }));
@@ -11868,7 +12061,8 @@ function mountTeach() {
   const head = el('div', 'teach-head');
   head.append(nav, ask);
   box.appendChild(head);
-  nav.querySelector('.on')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  const onChip = nav.querySelector('.on');
+  if (onChip) nav.scrollLeft = onChip.offsetLeft - nav.offsetLeft - (nav.clientWidth - onChip.offsetWidth) / 2;   // 只橫向捲章節列
   if (T.qa) { teachQA(box); if (keepQ) $('#teach-q').value = keepQ; }
   if (cur.id === 'tools') teachTools(box);
   else if (cur.id === 'items') teachItems(box);
@@ -12052,7 +12246,8 @@ function adviceCard(list, live, titleKey = 'adv2.title') {
     const i = a.step ? TEACH_STEPS[sk].findIndex((s) => s.id === a.step) : -1;
     const pic = i >= 0 && S.photo ? `<img src="${stepShots(a.part)[i].url}" alt="">` : '';
     const ref = i >= 0 ? `<small>${t('adv2.stepRef', { n: i + 1, verb: t(`teach.verb.${sk}.${a.step}`) })}</small>` : '';
-    row.innerHTML = `${pic}<div><p><span aria-hidden="true">${ADV_ICON[a.kind]}</span> ${t(a.key, params)}</p>${ref}</div>`;
+    const tip = a.tip ? `<small class="tip">📖 ${t(a.tip)}</small>` : '';
+    row.innerHTML = `${pic}<div><p><span aria-hidden="true">${ADV_ICON[a.kind]}</span> ${t(a.key, params)}</p>${tip}${ref}</div>`;
     if (live && i >= 0 && S.teach) {
       const b = el('button', 'again', t('adv2.again'));
       b.type = 'button';
@@ -12061,7 +12256,93 @@ function adviceCard(list, live, titleKey = 'adv2.title') {
     }
     box.appendChild(row);
   }
+  if (list.some((x) => x.tip)) box.appendChild(el('p', 'adv-src', t('adv2.src')));
   return box;
+}
+
+/* ── 全臉地圖、✗／✓ 對照、深淺量表 ───────────────────────────
+   都畫在使用者自己的照片上（還沒上妝的那張），一眼看懂「畫在哪、先後順序、哪裡容易錯」。 */
+function facePic(part, w, draw) {
+  const W = S.photo.width, H = S.photo.height, P = toPixels(S.photoLm, W, H), b = coachRegion(part, P, W, H);
+  const c = el('canvas'); c.width = w; c.height = Math.round(w * b.h / b.w);
+  const x = c.getContext('2d'), s = w / b.w;
+  x.imageSmoothingQuality = 'high';
+  x.drawImage(S.photo, b.x, b.y, b.w, b.h, 0, 0, c.width, c.height);
+  x.setTransform(s, 0, 0, s, -b.x * s, -b.y * s);
+  draw(x, P, 1 / s);
+  return c.toDataURL('image/jpeg', 0.86);
+}
+const partColor = (p) => (p === 'base' ? '#e2b59a' : S.picks?.[p]?.color || '#c98f86');
+/** 全臉地圖：編號＝上妝順序。教學裡點圖例可以直接跳到那個部位 */
+function faceMapEl(live) {
+  const chapters = (S.teach ? S.teach.chapters : lessonChapters({ picks: S.picks, amount: S.amount })).filter((c) => c.part);
+  const parts = chapters.map((c) => c.part);
+  const colors = Object.fromEntries(parts.map((p) => [p, partColor(p)]));
+  const url = facePic('base', 480, (x, P, k) => drawFaceMap(x, faceMapItems(P, parts, S.methods), { lw: 2.4 * k, colors }));
+  const fig = el('figure', 'facemap', `<img src="${url}" alt=""><figcaption></figcaption>`);
+  const cap = fig.querySelector('figcaption');
+  parts.forEach((p, i) => {
+    const b = el(live ? 'button' : 'span', 'leg', `<b>${i + 1}</b><i style="background:${colors[p]}"></i>${t('coach.part.' + p)}`);
+    if (live) { b.type = 'button'; b.onclick = () => teachGo(S.teach.chapters.findIndex((c) => c.part === p)); }
+    cap.appendChild(b);
+  });
+  return fig;
+}
+/** 這個部位最常畫錯的位置與正確的位置，各一張 */
+const CMP_CACHE = new Map();
+function cmpShots(part) {
+  const key = stepKey(part) + ':' + partColor(part);
+  if (CMP_CACHE.has(key)) return CMP_CACHE.get(key);
+  const probe = mistakeShapes(stepKey(part), toPixels(S.photoLm, S.photo.width, S.photo.height));
+  const out = probe ? Object.fromEntries([['x', 'wrong', false], ['o', 'right', true]].map(([k, which, ok]) =>
+    [k, facePic(part, 300, (x, P, s) => drawCompare(x, mistakeShapes(stepKey(part), P)[which], { lw: 2.6 * s, color: partColor(part), ok }))])) : null;
+  CMP_CACHE.set(key, out);
+  return out;
+}
+/** 量到的結果畫成量表：淡 ← 剛好 → 深，圓點是這次的位置；兩邊各一條看左右平不平均 */
+function depthMeters(res, prev) {
+  const box = el('div', 'meters');
+  const pct = (v) => Math.max(0, Math.min(100, v / 2 * 100));
+  for (const p of GROWTH_PARTS) {
+    const r = res[p]; if (!r || r.score == null) continue;
+    const before = growthTrend(prev, p), d = before.length ? r.score - before[before.length - 1].score : null;
+    const row = el('div', 'meter');
+    let html = `<div class="hd"><b>${t('coach.part.' + p)}</b><span class="sc">${r.score}</span>${d == null ? '' : `<em>${d >= 0 ? '+' : ''}${d}</em>`}${r.level ? `<span class="lv ${r.level}">${t('teach.lv.' + r.level)}</span>` : ''}</div>`;
+    if (r.depth != null) {
+      html += `<div class="track" role="img" aria-label="${t('teach.lv.' + r.level)}"><i class="okz" style="left:${pct(LESSON_LEVELS.light)}%;width:${pct(LESSON_LEVELS.heavy) - pct(LESSON_LEVELS.light)}%"></i><i class="mk" style="left:${pct(r.depth)}%"></i></div>
+        <div class="ends"><span>${t('teach.lv.light')}</span><span>${t('teach.lv.good')}</span><span>${t('teach.lv.heavy')}</span></div>`;
+      if (r.sides?.length === 2) { const top = Math.max(2, ...r.sides); html += `<div class="lr">${r.sides.map((v, i) => `<span>${t(i ? 'teach.lr.right' : 'teach.lr.left')}<i><u style="width:${Math.max(0, Math.min(100, v / top * 100))}%"></u></i></span>`).join('')}</div>`; }   // 兩邊用同一把尺，差多少看得出來
+    }
+    row.innerHTML = html;
+    box.appendChild(row);
+  }
+  return box;
+}
+/** 只捲動這個容器（scrollIntoView 會連整個頁面一起捲，畫面會跑掉） */
+function scrollInside(box, elm, mode = 'start', pad = 0) {
+  if (!box || !elm) return;
+  const b = box.getBoundingClientRect(), e = elm.getBoundingClientRect();
+  let top = null;
+  if (mode === 'start') top = box.scrollTop + e.top - b.top - pad;
+  else if (e.top < b.top + pad) top = box.scrollTop + e.top - b.top - pad;
+  else if (e.bottom > b.bottom - pad) top = box.scrollTop + e.bottom - b.bottom + pad;
+  if (top != null) box.scrollTo({ top, behavior: calm() ? 'auto' : 'smooth' });
+}
+/** 最後一頁很長：頁首一排按鈕直接跳到各區 */
+function mountS5Nav() {
+  const sc = $('#s5-scroll'); if (!sc) return;
+  let nav = $('#s5-nav');
+  if (!nav) { nav = el('nav', 's5-nav'); nav.id = 's5-nav'; sc.prepend(nav); }
+  nav.innerHTML = '';
+  for (const sec of sc.querySelectorAll(':scope > .s5-sec')) {
+    if (sec.hidden) continue;
+    const title = sec.querySelector(':scope > h3, :scope > summary');
+    if (!title) continue;
+    const b = el('button', '', title.textContent.trim());
+    b.type = 'button';
+    b.onclick = () => scrollInside(sc, sec, 'start', nav.offsetHeight + 4);
+    nav.appendChild(b);
+  }
 }
 
 /* ── 我的成長紀錄 ───────────────────────────────────────────
@@ -12085,8 +12366,9 @@ function paintGrowth() {
   if (!list.length) { box.append(el('p', 'grow-empty', t('grow.empty')), ...[start()].filter(Boolean)); return; }
   box.appendChild(el('p', 'grow-count', t('grow.count', { n: list.length })));
   const last = list[list.length - 1];
-  const res = Object.fromEntries(Object.entries(last.scores || {}).map(([p, score]) => [p, { score, level: last.detail?.[p]?.level, uneven: last.detail?.[p]?.uneven ?? null }]));
+  const res = Object.fromEntries(Object.entries(last.scores || {}).map(([p, score]) => [p, { score, level: last.detail?.[p]?.level, uneven: last.detail?.[p]?.uneven ?? null, depth: last.detail?.[p]?.depth, sides: last.detail?.[p]?.sides }]));
   const tips = practiceAdvice(res, list.slice(0, -1), last.planned || Object.keys(last.scores || {})).slice(0, 3);
+  if (Object.values(res).some((r) => r.depth != null)) box.appendChild(depthMeters(res, list.slice(0, -1)));
   if (tips.length) box.appendChild(adviceCard(tips, false, 'adv2.next'));
   const fmt = (at) => { const d = new Date(at); return (d.getMonth() + 1) + '/' + d.getDate(); };
   const spark = el('div', 'sparks');
@@ -14910,6 +15192,7 @@ function paintHow() {
     modes.appendChild(b);
   }
   const box = $('#s5-how'); box.innerHTML = '';
+  box.appendChild(faceMapEl(false));
   for (const s of coachPlan({ picks: S.picks, amount: S.amount, mode, owned: S.coach.owned, hasSub: S.coach.hasSub ?? true })) {
     const card = el('article', 'how');
     const item = s.product ? swatchHTML(s.product, 'sw') + tf(s.product, 'shade') : t('coach.base.item');
@@ -15000,6 +15283,7 @@ function paintTwo(images = true) {
   const ai = planFor(top.look);
   S.aiPlan = ai;
   if (images) { paintBeforeAfter(); paintHow(); paintGrowth(); }
+  mountS5Nav();
   $('#blk-ai-name').textContent = tf(ai.look, 'name');
   $('#blk-ai-why').textContent = cardWhy(top.look, top.why);
   $('#blk-me-name').textContent = S.look ? tf(S.look, 'name') : '';
@@ -15077,7 +15361,7 @@ function reset() {
   clearBrush();
   S.tried.clear(); S.arMs = 0; S.arT0 = 0;
   S.gifts = 0; S.pose = null; S.posePrompted = false;
-  S.coach = { mode: null, owned: new Set(), hasSub: true }; S.guideDone = false; S.methods = { eye: 'duo', cheek: 'lift', lip: 'full' };
+  S.coach = { mode: null, owned: new Set(), hasSub: true }; S.guideDone = false; S.methods = { eye: 'duo', cheek: 'lift', lip: 'full' }; S.scene = null;
   S.cheer = newCheer(); cheerQ.length = 0;
   S.pref = newPref(); S.said.clear(); S.prevLip = null;
   S.amount0 = null; S.asked3.clear(); S.shadeT0 = 0; S.lastAct = 0;

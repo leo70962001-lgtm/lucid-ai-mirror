@@ -579,7 +579,9 @@ function pill(ctx, text, x, y, lw, dot) {
   const fs = Math.max(11, lw * 5.6);
   ctx.font = '700 ' + fs + 'px "PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif';
   const w = ctx.measureText(text).width + fs * 1.4, h = fs * 1.5;
-  const cw = ctx.canvas?.width || Infinity, x0 = Math.max(2, Math.min(cw - w - 2, x - w / 2));
+  const m = ctx.getTransform ? ctx.getTransform() : null, sx = m?.a || 1, tx = m?.e || 0;
+  const lo = (0 - tx) / sx, hi = ((ctx.canvas?.width || Infinity) - tx) / sx;      // 看得到的範圍（裁切、放大後的座標）
+  const x0 = Math.max(lo + 2 / sx, Math.min(hi - w - 2 / sx, x - w / 2));
   ctx.fillStyle = 'rgba(30,16,22,.78)';
   ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x0, y - h / 2, w, h, h / 2); else ctx.rect(x0, y - h / 2, w, h); ctx.fill();
   ctx.fillStyle = dot; ctx.beginPath(); ctx.arc(x0 + fs * 0.62, y, fs * 0.28, 0, Math.PI * 2); ctx.fill();
@@ -649,4 +651,95 @@ export function lipStepShapes(st, P) {
   for (const pid of st.paths || []) out.push(...PTH[pid]().map((pts) => ({ type: 'path', pts })));
   for (const l of st.labels || []) out.push({ type: 'tag', at: P[61], label: l, lp: lp(0) });
   return out;
+}
+
+/* ── 情境：從女性用戶每天的實際狀況出發（趕時間、約會、想要素顏感、正式場合）──
+   選一個情境就配好三個部位的畫法，不必一個一個選；之後每一章還是可以自己換。 */
+export const SCENES = {
+  commute: { eye: 'mono', cheek: 'lift', lip: 'full' },        // 上班通勤：最快的單色眼影
+  date: { eye: 'outer', cheek: 'apple', lip: 'gradient' },      // 約會聚餐：眼尾加深、蘋果肌、咬唇
+  bare: { eye: 'liner', cheek: 'flat', lip: 'gradient' },       // 素顏感：不用眼影
+  formal: { eye: 'duo', cheek: 'lift', lip: 'matte' },          // 正式場合：雙色漸層、霧面唇
+};
+export const SCENE_IDS = Object.keys(SCENES);
+/** 這組畫法總共幾個小步驟（含底妝） */
+export function sceneStepCount(methods = {}) {
+  return ['base', 'eye', 'cheek', 'lip'].reduce((n, p) => n + TEACH_STEPS[methodKey(p, methods[p])].length, 0);
+}
+
+function cheekSides(P) {
+  const fw = Math.hypot(P[454].x - P[234].x, P[454].y - P[234].y) || 1;
+  return [[50, 127, 205], [280, 356, 425]].map(([c, tp, ap]) => {
+    const high = lerpPt(P[c], P[tp], 0.25), temple = lerpPt(P[c], P[tp], 0.72), apple = lerpPt(high, P[ap], 0.55);
+    return { fw, high, temple, apple };
+  }).sort((a, b) => a.high.x - b.high.x);
+}
+/**
+ * 新手最常畫錯的位置（wrong）與正確的位置（right），畫在自己的照片上對照。
+ * 眼影：塗到眉骨 ↔ 停在眼窩內；腮紅：太低太靠近鼻子 ↔ 這個畫法的位置；唇：超出唇線 ↔ 沿著自己的唇線。
+ */
+export function mistakeShapes(key, P) {
+  const part = key.split('.')[0];
+  if (part === 'eye') {
+    if (key === 'eye.liner') return null;
+    const geo = eyeGeo(P);
+    return { wrong: geo.map((g) => ({ type: 'zone', pts: band(g, 0, 1, 0, 0.98) })), right: geo.map((g) => ({ type: 'zone', pts: band(g, 0, 1, 0, 0.6) })) };
+  }
+  if (part === 'cheek') {
+    const sides = cheekSides(P);
+    const right = sides.map((sd) => {
+      if (key === 'cheek.flat') return ring({ x: sd.high.x, y: sd.high.y + sd.fw * 0.025 }, sd.fw * 0.1, sd.fw * 0.042);
+      if (key === 'cheek.apple') return ring(sd.apple, sd.fw * 0.055, sd.fw * 0.05);
+      return ring(lerpPt(sd.high, sd.temple, 0.35), sd.fw * 0.09, sd.fw * 0.04, Math.atan2(sd.temple.y - sd.high.y, sd.temple.x - sd.high.x));
+    });
+    const wrong = sides.map((sd) => { const c = lerpPt(sd.apple, P[4], 0.35); return ring({ x: c.x, y: c.y + sd.fw * 0.07 }, sd.fw * 0.06, sd.fw * 0.05); });
+    return { wrong: wrong.map((pts) => ({ type: 'zone', pts })), right: right.map((pts) => ({ type: 'zone', pts })) };
+  }
+  if (part === 'lip') {
+    const lips = LIP_O.map((i) => P[i]), c = ptsCenter(lips);
+    return { wrong: [{ type: 'zone', pts: lips.map((p) => lerpPt(c, p, 1.28)) }], right: [{ type: 'zone', pts: lips }] };
+  }
+  return null;
+}
+/** 對照圖：顏色填滿分區，錯的紅色虛線、對的綠色虛線 */
+export function drawCompare(ctx, shapes, { lw = 3, color = '#c98f86', ok = true } = {}) {
+  ctx.save(); ctx.lineJoin = 'round';
+  for (const z of shapes) {
+    ctx.beginPath(); z.pts.forEach((p, k) => (k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath();
+    ctx.globalAlpha = 0.55; ctx.fillStyle = color; ctx.fill();
+    ctx.globalAlpha = 1; ctx.setLineDash([lw * 2, lw * 1.4]); ctx.lineWidth = lw; ctx.strokeStyle = ok ? '#35c98a' : '#ff4f6d'; ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** 全臉地圖：每個部位畫在哪、第幾個畫（編號＝上妝順序） */
+export function faceMapItems(P, parts, methods = {}) {
+  const fw = Math.hypot(P[454].x - P[234].x, P[454].y - P[234].y) || 1;
+  return parts.map((part, i) => {
+    const it = { part, n: i + 1, zones: [], dots: [] };
+    if (part === 'base') it.dots = [151, 50, 280, 4, 199].map((k) => ({ at: P[k], r: fw * 0.02 }));
+    else it.zones = (mistakeShapes(methodKey(part, methods[part]), P) || mistakeShapes(part, P)).right.map((z) => z.pts);
+    return it;
+  });
+}
+export function drawFaceMap(ctx, items, { lw = 3, colors = {} } = {}) {
+  ctx.save(); ctx.lineJoin = 'round';
+  for (const it of items) {
+    const color = colors[it.part] || '#c98f86';
+    for (const pts of it.zones) {
+      ctx.beginPath(); pts.forEach((p, k) => (k ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath();
+      ctx.save(); ctx.globalAlpha = 0.6; ctx.fillStyle = color; ctx.fill(); ctx.restore();
+      ctx.save(); ctx.setLineDash([lw * 1.8, lw * 1.4]); ctx.lineWidth = lw * 0.8; ctx.strokeStyle = '#fff'; ctx.stroke(); ctx.restore();
+    }
+    for (const d of it.dots) {
+      ctx.save(); ctx.globalAlpha = 0.85; ctx.fillStyle = color; ctx.beginPath(); ctx.arc(d.at.x, d.at.y, d.r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      ctx.lineWidth = lw * 0.7; ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.arc(d.at.x, d.at.y, d.r, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+  // 編號最後畫，才不會被別的分區蓋住
+  for (const it of items) {
+    for (const pts of it.zones) { const c = ptsCenter(pts); badge(ctx, String(it.n), c.x, c.y, lw * 1.05); }
+    if (it.dots.length) badge(ctx, String(it.n), it.dots[0].at.x + it.dots[0].r * 2.4, it.dots[0].at.y, lw * 1.05);
+  }
+  ctx.restore();
 }

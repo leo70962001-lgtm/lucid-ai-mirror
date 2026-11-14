@@ -123,5 +123,7 @@ export function assessPart(base, cur, target, cov) {
   const one = (p) => (p <= 1 ? 100 * Math.max(0, p) : 100 * Math.max(0, 1 - (p - 1) / 2));
   let score = projs.reduce((s, p) => s + one(p), 0) / projs.length;
   if (uneven != null) score -= 10;
-  return { level, score: Math.max(0, Math.round(score)), uneven };
+  const r2 = (v) => Math.round(v * 100) / 100;
+  // depth：走到目標的幾成（1 = 剛好）；sides：左右各自的值（畫面左、右）
+  return { level, score: Math.max(0, Math.round(score)), uneven, depth: r2(mean), sides: projs.map(r2) };
 }
