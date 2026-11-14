@@ -18,7 +18,7 @@ import { pickSurprise, newCheer, cheerFor, CHEER_GAP_MS, GIFT_AR_MS, FIT_MAX, ai
 import { LIP_INSET } from './js/makeup-gl.js';
 import { pwaState, isIOS, isInApp } from './js/pwa.js';
 import { nextDuel, duelSides, duelLines, duelOpts, duelPicked, DUEL_AXES } from './js/duel.js';
-import { EYE_METHODS, eyeKey, eyeMeasurable, roleColor, PART_METHODS, methodKey, TEACH_STEPS, TEACH_STEP_MS, TEACH_MOTIONS, stepMs, stepStart, drawTeachStep, teachSpot, teachStepShapes, demoAt, demoAmount, teachToolIcon } from './js/coach.js';
+import { SCENES, SCENE_IDS, sceneStepCount, mistakeShapes, drawCompare, faceMapItems, drawFaceMap, EYE_METHODS, eyeKey, eyeMeasurable, roleColor, PART_METHODS, methodKey, TEACH_STEPS, TEACH_STEP_MS, TEACH_MOTIONS, stepMs, stepStart, drawTeachStep, teachSpot, teachStepShapes, demoAt, demoAmount, teachToolIcon } from './js/coach.js';
 import { lessonChapters, modeFrom, lessonRegions, averageSamples, assessPart, LESSON_LEVELS } from './js/lesson.js';
 import { GROWTH_KEY, GROWTH_PARTS, addRecord, growthTrend, growthDelta, sparkPoints, practiceAdvice, FIX_STEP } from './js/growth.js';
 import { COACH_PARTS, COACH_MODES, COACH_TOOLS, COACH_GLYPH, coachMethod, coachPlan, coachShapes, coachRegion, drawCoachShapes } from './js/coach.js';
@@ -2029,6 +2029,40 @@ console.log('\n\x1b[1m48. 化妝教學獨立成一段；量真的臉；成長紀
   ok(missM.length === 0, '腮紅與唇畫法的文案三種語言齊全（' + mKeys.length + ' 句）' + (missM.length ? ' 缺：' + missM.join() : ''));
   const cssM = readFileSync(new URL('./main.css', import.meta.url), 'utf8');
   ok(/\.teach \.steps\.grid li:not\(\.on\) \.tx \{ display:none; \}/.test(cssM), '精簡：圖解格子只有目前這一步顯示說明');
+  // 情境、全臉地圖、✗／✓ 對照、深淺量表、教學小技巧
+  ok(SCENE_IDS.join() === 'commute,date,bare,formal' && SCENE_IDS.every((id) => ['eye', 'cheek', 'lip'].every((p) => PART_METHODS[p].includes(SCENES[id][p]))), '情境（上班通勤、約會聚餐、素顏感、正式場合）配的畫法都存在');
+  ok(sceneStepCount(SCENES.commute) === 4 + TEACH_STEPS['eye.mono'].length + TEACH_STEPS.cheek.length + TEACH_STEPS.lip.length && sceneStepCount({}) > 0, '情境顯示總共幾個小步驟');
+  for (const k of ['eye', 'eye.mono', 'eye.outer', 'cheek', 'cheek.flat', 'cheek.apple', 'lip', 'lip.gradient', 'lip.matte']) {
+    const m = mistakeShapes(k, P);
+    ok(m && m.wrong.length === m.right.length && [...m.wrong, ...m.right].every((z) => z.pts.length >= 8 && z.pts.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y))), '對照圖畫得出來：' + k);
+  }
+  ok(mistakeShapes('eye.liner', P) === null && mistakeShapes('base', P) === null, '沒有分區可比的（無眼影、底妝）不畫對照圖');
+  const fm = faceMapItems(P, ['base', 'eye', 'cheek', 'lip'], SCENES.bare);
+  ok(fm.map((x) => x.n).join() === '1,2,3,4' && fm[0].dots.length === 5 && fm[1].zones.length === 2 && fm[2].zones.length === 2 && fm[3].zones.length === 1, '全臉地圖：編號＝上妝順序，底妝五點、眼與頰左右各一、唇一區');
+  const rec5 = [];
+  const ctx5 = new Proxy({}, { get: (o, k) => (k in o ? o[k] : (...a) => { rec5.push([k, ...a]); }), set: (o, k, v) => { o[k] = v; return true; } });
+  drawFaceMap(ctx5, fm, { lw: 3, colors: { lip: '#c0293e' } });
+  ok(['1', '2', '3', '4'].every((n) => rec5.some((r) => r[0] === 'fillText' && r[1] === n)), '地圖上每個部位都有編號');
+  rec5.length = 0;
+  drawCompare(ctx5, mistakeShapes('cheek', P).wrong, { lw: 3, ok: false });
+  ok(rec5.filter((r) => r[0] === 'stroke').length === 2 && rec5.filter((r) => r[0] === 'fill').length === 2, '對照圖：左右兩區都填色、描邊');
+  const gd = assessPart(base, cur(0.5, 1.1), target, cov);
+  ok(Math.abs(gd.depth - 0.8) < 0.011 && gd.sides.length === 2 && Math.abs(gd.sides[0] - 0.5) < 0.011 && Math.abs(gd.sides[1] - 1.1) < 0.011, '量測回傳深淺位置與左右各自的值（量表用）');
+  ok(assessPart(base, cur(1), lab(71, 11, 15), cov).depth === undefined, '量不出來時沒有量表');
+  const advT = practiceAdvice({ lip: R(30, 'heavy'), cheek: R(40, 'good', 1), eye: R(50, 'light') }, [], ['lip', 'eye', 'cheek']);
+  ok(advT.filter((x) => x.kind === 'fix').every((x) => /^adv2\.tip\.(eye|cheek|lip)\.(heavy|light|uneven)$/.test(x.tip)) && advT.some((x) => x.kind === 'focus' && x.tip === 'adv2.tip.pace'), '要修的建議都附一條教學小技巧');
+  const dictV = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8').split(/\r?\n/);
+  const has3v = (k) => /', '.*', '/.test(dictV.find((l) => l.startsWith("  '" + k + "':")) || '');
+  const vKeys = ['privacy.chip', 'teach.scene.t', 'teach.scene.steps', 'teach.map.t', 'adv2.src', 'adv2.tip.pace', 'teach.lr.left', 'teach.lr.right',
+    ...SCENE_IDS.flatMap((id) => ['teach.scene.' + id, 'teach.scene.' + id + '.s']), ...['eye', 'cheek', 'lip'].flatMap((p) => ['teach.cmp.' + p + '.x', 'teach.cmp.' + p + '.o', ...['heavy', 'light', 'uneven'].map((x) => 'adv2.tip.' + p + '.' + x)]),
+    ...['none', 'light', 'good', 'heavy', 'small'].map((x) => 'teach.lv.' + x)];
+  const missV = vKeys.filter((k) => !has3v(k));
+  ok(missV.length === 0, '情境、地圖、對照、量表、小技巧的文案三種語言齊全（' + vKeys.length + ' 句）' + (missV.length ? ' 缺：' + missV.join() : ''));
+  ok(!dictV.filter((l) => /^  '(adv2\.tip|teach\.cmp|teach\.scene)\./.test(l)).some((l) => /漂亮|好看|難看|醜|臉型|顯小|beautiful|ugly|pretty/.test(l)), '新文案只談位置與動作，不評論長相、不依臉型推薦');
+  ok(/box\.appendChild\(faceMapEl\(true\)\)/.test(app) && /box\.appendChild\(faceMapEl\(false\)\)/.test(app) && /const cmp = cmpShots\(cur\.part\);/.test(app), '全臉地圖在化妝品章與最後一頁；每個部位有對照圖');
+  ok(/box\.appendChild\(depthMeters\(res, T\.prevGrowth \|\| \[\]\)\)/.test(app) && /depth: T\.results\[c\.id\]\.depth, sides: T\.results\[c\.id\]\.sides/.test(app), '完成章有深淺量表，紀錄一起存');
+  ok(/S\.scene = id; Object\.assign\(S\.methods, SCENES\[id\]\)/.test(app) && /mountS5Nav\(\);/.test(app), '選情境一次配好畫法；最後一頁頁首可以跳到各區');
+  ok(/class="privacy-chip" data-i18n="privacy\.chip"/.test(readFileSync(new URL('./index.html', import.meta.url), 'utf8')), '拍照頁寫明照片不會上傳');
   ok(GROWTH_KEY === 'lucid.growth' && GROWTH_PARTS.join() === 'eye,cheek,lip', '紀錄的部位：眼、頰、唇');
 
   // 接線

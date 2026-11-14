@@ -61,9 +61,10 @@ export function practiceAdvice(results = {}, prev = [], planned = []) {
   const parts = GROWTH_PARTS.filter((p) => results[p]?.score != null);
   for (const p of parts) {
     const r = results[p];
-    if (r.uneven != null) out.push({ kind: 'fix', part: p, key: 'adv2.uneven', side: r.uneven, step: FIX_STEP[p].uneven });
-    else if (r.level === 'heavy') out.push({ kind: 'fix', part: p, key: 'adv2.heavy.' + p, step: FIX_STEP[p].heavy });
-    else if (r.level === 'light' || r.level === 'none') out.push({ kind: 'fix', part: p, key: 'adv2.light.' + p, step: FIX_STEP[p][r.level] });
+    // tip：網路上新手教學整理出來的小技巧（i18n 的 adv2.tip.*）
+    if (r.uneven != null) out.push({ kind: 'fix', part: p, key: 'adv2.uneven', side: r.uneven, step: FIX_STEP[p].uneven, tip: 'adv2.tip.' + p + '.uneven' });
+    else if (r.level === 'heavy') out.push({ kind: 'fix', part: p, key: 'adv2.heavy.' + p, step: FIX_STEP[p].heavy, tip: 'adv2.tip.' + p + '.heavy' });
+    else if (r.level === 'light' || r.level === 'none') out.push({ kind: 'fix', part: p, key: 'adv2.light.' + p, step: FIX_STEP[p][r.level], tip: 'adv2.tip.' + p + '.light' });
   }
   for (const p of parts) {
     const before = growthTrend(prev, p);
@@ -74,7 +75,7 @@ export function practiceAdvice(results = {}, prev = [], planned = []) {
   }
   if (parts.length > 1) {
     const low = parts.reduce((a, b) => (results[b].score < results[a].score ? b : a));
-    if (results[low].score < 80) out.push({ kind: 'focus', part: low, key: 'adv2.focus' });
+    if (results[low].score < 80) out.push({ kind: 'focus', part: low, key: 'adv2.focus', tip: 'adv2.tip.pace' });
   }
   for (const p of parts) if (results[p].level === 'good' && results[p].uneven == null) out.push({ kind: 'keep', part: p, key: 'adv2.good' });
   const missed = planned.filter((p) => GROWTH_PARTS.includes(p) && results[p]?.score == null);

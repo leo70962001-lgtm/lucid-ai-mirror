@@ -35,8 +35,9 @@ import { newTaste, noteTaste, tasteRead, tasteSuggest, tasteSummary, describeLip
 import { TRENDS, TREND_PACK, trendsFor, trendPlan, trendLines, trendStale, trendStaleLines } from './trends.js';
 import { COACH_MODES, COACH_TOOLS, COARSE_RATIO, COACH_GLYPH, coachMethod, coachToolKey, coachPlan, coachShapes, coachRegion, drawCoachShapes,
          TEACH_STEPS, teachStepShapes, demoAt, demoAmount, teachToolIcon, stepMs, stepStart, drawTeachStep, teachSpot,
-         EYE_METHODS, eyeKey, eyeMeasurable, PART_METHODS, methodKey } from './coach.js';
-import { lessonChapters, modeFrom, lessonRegions, lessonSample, averageSamples, assessPart } from './lesson.js';
+         EYE_METHODS, eyeKey, eyeMeasurable, PART_METHODS, methodKey,
+         SCENES, SCENE_IDS, sceneStepCount, mistakeShapes, drawCompare, faceMapItems, drawFaceMap } from './coach.js';
+import { lessonChapters, modeFrom, lessonRegions, lessonSample, averageSamples, assessPart, LESSON_LEVELS } from './lesson.js';
 import { GROWTH_KEY, GROWTH_PARTS, addRecord, growthTrend, growthDelta, sparkPoints, practiceAdvice } from './growth.js';
 import { QA_TAGS, QA_KB, qaSearch, qaByTag, qaLines } from './qa.js';
 import { skinCondition, skinCondTop, skinCondLines } from './skincond.js';
@@ -131,6 +132,7 @@ const S = {
   pose: null, posePrompted: false,   // 動一動看看：進行到哪一個動作；AI 主動邀請過了沒
   teach: null,   // 化妝教學：進行到哪一章
   methods: { eye: 'duo', cheek: 'lift', lip: 'full' },   // 各部位選的畫法（眼影、腮紅、唇）
+  scene: null,   // 今天的情境（上班通勤、約會聚餐、素顏感、正式場合）：一次配好三個部位的畫法
   coach: { mode: null, owned: new Set(), hasSub: true }, guideDone: false,   // 化妝指導：手邊的工具（最後一頁的指南也照這個寫）；走過一次了沒
   cheer: newCheer(),  // AI 主動送的互動（回讚、鼓掌…）送過哪些
   arMs: 0, arT0: 0,   // 實際停留在 AR 的時間
@@ -1387,6 +1389,19 @@ function teachQA(box) {
 }
 function teachTools(box) {
   const T = S.teach;
+  // 今天要去哪：一次配好眼影、腮紅、唇的畫法（之後每一章還是可以自己換）
+  box.appendChild(el('h3', '', t('teach.scene.t')));
+  const sc = el('div', 'scenes');
+  for (const id of SCENE_IDS) {
+    const on = S.scene === id;
+    const b = el('button', on ? 'on' : '', `<b>${t('teach.scene.' + id)}</b><small>${t('teach.scene.' + id + '.s')}</small>`);
+    b.type = 'button'; b.setAttribute('aria-pressed', String(on));
+    b.onclick = () => { S.scene = id; Object.assign(S.methods, SCENES[id]); SHOT_CACHE.clear(); mountTeach(); };
+    sc.appendChild(b);
+  }
+  box.appendChild(sc);
+  const mName = (p) => t(p === 'eye' ? 'teach.emethod.' + S.methods.eye : `teach.m.${p}.${S.methods[p]}`);
+  box.appendChild(el('p', 'scene-sum', `${['eye', 'cheek', 'lip'].map((p) => `<span><i>${t('coach.part.' + p)}</i>${mName(p)}</span>`).join('')}<em>${t('teach.scene.steps', { n: sceneStepCount(S.methods) })}</em>`));
   box.appendChild(el('h3', '', t('teach.tools.t')));
   box.appendChild(el('p', 'sub', t('teach.tools.s')));
   const grid = el('div', 'tool-grid');
@@ -1404,6 +1419,8 @@ function teachTools(box) {
 }
 function teachItems(box) {
   const T = S.teach;
+  box.appendChild(el('h3', '', t('teach.map.t')));
+  box.appendChild(faceMapEl(true));
   box.appendChild(el('h3', '', t('teach.items.t')));
   for (const c of T.chapters.filter((x) => x.part)) {
     const shade = c.product ? swatchHTML(c.product, 'sw') + '<em>' + tf(c.product, 'shade') + '</em>' : '<em>' + t('coach.base.item') + '</em>';
@@ -1435,7 +1452,7 @@ function teachPart(box) {
       const on = m === S.methods[cur.part];
       const b = el('button', on ? 'on' : '', t(nameKey(m)));
       b.type = 'button'; b.setAttribute('aria-pressed', String(on));
-      b.onclick = () => { if (on) return; S.methods[cur.part] = m; T.step = 0; T.view = 'demo'; T.demo = newDemo(); T.paused = false; T.loopEl = 0; delete T.results[cur.id]; mountTeach(); };
+      b.onclick = () => { if (on) return; S.methods[cur.part] = m; S.scene = null; T.step = 0; T.view = 'demo'; T.demo = newDemo(); T.paused = false; T.loopEl = 0; delete T.results[cur.id]; mountTeach(); };
       pick.appendChild(b);
     }
     box.appendChild(pick);
@@ -1467,9 +1484,11 @@ function teachPart(box) {
   }
   box.append(ctl, ol);
   // 新手最常犯的錯，跟正確做法並排
+  const cmp = cmpShots(cur.part);
+  if (cmp) box.appendChild(el('div', 'cmp', `<figure class="x"><img src="${cmp.x}" alt=""><figcaption><b>✗</b>${t('teach.cmp.' + cur.part + '.x')}</figcaption></figure><figure class="o"><img src="${cmp.o}" alt=""><figcaption><b>✓</b>${t('teach.cmp.' + cur.part + '.o')}</figcaption></figure>`));
   box.appendChild(el('div', 'mistake', `<p class="x"><b>✗</b>${t('teach.wrong.' + key)}</p><p class="o"><b>✓</b>${t('teach.right.' + key)}</p>`));
   box.appendChild(saveCardBtn(cur.part, method));
-  if (method !== 'full') box.appendChild(el('p', 'tip', t(`coach.${cur.part}.${method}.${steps[T.step].stage}`)));
+  if (method !== 'full' && key === cur.part) box.appendChild(el('p', 'tip', t(`coach.${cur.part}.${method}.${steps[T.step].stage}`)));
   if (T.view === 'self' && T.step === steps.length - 1) {
     box.appendChild(el('p', 'tip', t(`coach.${cur.part}.tip`)));
     if (!cur.product && T.baseDone) box.appendChild(el('p', 'tip', t('teach.self.base')));
@@ -1542,7 +1561,7 @@ function teachStepUI() {
     li.classList.toggle('done', i < T.step || !!fin);
     li.style.setProperty('--dur', stepMs(steps[i]) * (T.slow ? 2 : 1) + 'ms');
   });
-  $('#teach .steps li.on')?.scrollIntoView({ block: 'nearest' });
+  scrollInside($('#teach'), $('#teach .steps li.on'), 'nearest', 6);
   const ctl = $('#teach .step-ctl');
   if (ctl?.dataset.demo) ctl.classList.toggle('ready', !!T.demo?.done);
   $('#s4').classList.toggle('demo-run', T.view === 'demo' && !T.demo?.done);
@@ -1561,12 +1580,9 @@ function teachEnd(box) {
   box.appendChild(el('h3', '', t('teach.end.t')));
   if (T.before && T.after) box.appendChild(el('div', 'real-ba', `<figure><img src="${T.before}" alt=""><figcaption>${t('ba.before')}</figcaption></figure><figure><img src="${T.after}" alt=""><figcaption>${t('ba.after')}</figcaption></figure>`));
   const scored = T.chapters.filter((c) => T.results[c.id]?.score != null);
-  if (scored.length) box.appendChild(el('ul', 'scores', scored.map((c) => {
-    const d = growthDelta([...loadGrowth(), { scores: { [c.id]: T.results[c.id].score } }], c.id);
-    return `<li><b>${t('coach.part.' + c.id)}</b><span>${T.results[c.id].score}</span>${d == null ? '' : `<em>${d >= 0 ? '+' : ''}${d}</em>`}</li>`;
-  }).join('')));
-  else box.appendChild(el('p', 'sub', t('teach.end.none')));
   const res = Object.fromEntries(scored.map((c) => [c.id, T.results[c.id]]));
+  if (scored.length) box.appendChild(depthMeters(res, T.prevGrowth || []));
+  else box.appendChild(el('p', 'sub', t('teach.end.none')));
   box.appendChild(adviceCard(practiceAdvice(res, T.prevGrowth || [], T.chapters.filter((c) => c.product).map((c) => c.id)).slice(0, 4), true));
   if (T.stored) { box.appendChild(el('p', 'mode', t('teach.end.saved'))); return; }
   const chk = el('label', 'photo-opt', `<input type="checkbox" id="teach-photo" ${T.photo ? 'checked' : ''}> ${t('teach.end.photo')}`);
@@ -1577,7 +1593,7 @@ function teachEnd(box) {
     saveGrowth(addRecord(loadGrowth(), {
       at: Date.now(), look: S.look?.id || null, mode: modeFrom(T.owned, T.hasSub),
       scores: Object.fromEntries(scored.map((c) => [c.id, T.results[c.id].score])),
-      detail: Object.fromEntries(scored.map((c) => [c.id, { level: T.results[c.id].level, uneven: T.results[c.id].uneven }])),   // 分析用
+      detail: Object.fromEntries(scored.map((c) => [c.id, { level: T.results[c.id].level, uneven: T.results[c.id].uneven, depth: T.results[c.id].depth, sides: T.results[c.id].sides }])),   // 分析用
       planned: T.chapters.filter((c) => c.product).map((c) => c.id),
       before: T.photo ? T.before : null, after: T.photo ? T.after : null,
     }));
@@ -1603,7 +1619,8 @@ function mountTeach() {
   const head = el('div', 'teach-head');
   head.append(nav, ask);
   box.appendChild(head);
-  nav.querySelector('.on')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  const onChip = nav.querySelector('.on');
+  if (onChip) nav.scrollLeft = onChip.offsetLeft - nav.offsetLeft - (nav.clientWidth - onChip.offsetWidth) / 2;   // 只橫向捲章節列
   if (T.qa) { teachQA(box); if (keepQ) $('#teach-q').value = keepQ; }
   if (cur.id === 'tools') teachTools(box);
   else if (cur.id === 'items') teachItems(box);
@@ -1787,7 +1804,8 @@ function adviceCard(list, live, titleKey = 'adv2.title') {
     const i = a.step ? TEACH_STEPS[sk].findIndex((s) => s.id === a.step) : -1;
     const pic = i >= 0 && S.photo ? `<img src="${stepShots(a.part)[i].url}" alt="">` : '';
     const ref = i >= 0 ? `<small>${t('adv2.stepRef', { n: i + 1, verb: t(`teach.verb.${sk}.${a.step}`) })}</small>` : '';
-    row.innerHTML = `${pic}<div><p><span aria-hidden="true">${ADV_ICON[a.kind]}</span> ${t(a.key, params)}</p>${ref}</div>`;
+    const tip = a.tip ? `<small class="tip">📖 ${t(a.tip)}</small>` : '';
+    row.innerHTML = `${pic}<div><p><span aria-hidden="true">${ADV_ICON[a.kind]}</span> ${t(a.key, params)}</p>${tip}${ref}</div>`;
     if (live && i >= 0 && S.teach) {
       const b = el('button', 'again', t('adv2.again'));
       b.type = 'button';
@@ -1796,7 +1814,93 @@ function adviceCard(list, live, titleKey = 'adv2.title') {
     }
     box.appendChild(row);
   }
+  if (list.some((x) => x.tip)) box.appendChild(el('p', 'adv-src', t('adv2.src')));
   return box;
+}
+
+/* ── 全臉地圖、✗／✓ 對照、深淺量表 ───────────────────────────
+   都畫在使用者自己的照片上（還沒上妝的那張），一眼看懂「畫在哪、先後順序、哪裡容易錯」。 */
+function facePic(part, w, draw) {
+  const W = S.photo.width, H = S.photo.height, P = toPixels(S.photoLm, W, H), b = coachRegion(part, P, W, H);
+  const c = el('canvas'); c.width = w; c.height = Math.round(w * b.h / b.w);
+  const x = c.getContext('2d'), s = w / b.w;
+  x.imageSmoothingQuality = 'high';
+  x.drawImage(S.photo, b.x, b.y, b.w, b.h, 0, 0, c.width, c.height);
+  x.setTransform(s, 0, 0, s, -b.x * s, -b.y * s);
+  draw(x, P, 1 / s);
+  return c.toDataURL('image/jpeg', 0.86);
+}
+const partColor = (p) => (p === 'base' ? '#e2b59a' : S.picks?.[p]?.color || '#c98f86');
+/** 全臉地圖：編號＝上妝順序。教學裡點圖例可以直接跳到那個部位 */
+function faceMapEl(live) {
+  const chapters = (S.teach ? S.teach.chapters : lessonChapters({ picks: S.picks, amount: S.amount })).filter((c) => c.part);
+  const parts = chapters.map((c) => c.part);
+  const colors = Object.fromEntries(parts.map((p) => [p, partColor(p)]));
+  const url = facePic('base', 480, (x, P, k) => drawFaceMap(x, faceMapItems(P, parts, S.methods), { lw: 2.4 * k, colors }));
+  const fig = el('figure', 'facemap', `<img src="${url}" alt=""><figcaption></figcaption>`);
+  const cap = fig.querySelector('figcaption');
+  parts.forEach((p, i) => {
+    const b = el(live ? 'button' : 'span', 'leg', `<b>${i + 1}</b><i style="background:${colors[p]}"></i>${t('coach.part.' + p)}`);
+    if (live) { b.type = 'button'; b.onclick = () => teachGo(S.teach.chapters.findIndex((c) => c.part === p)); }
+    cap.appendChild(b);
+  });
+  return fig;
+}
+/** 這個部位最常畫錯的位置與正確的位置，各一張 */
+const CMP_CACHE = new Map();
+function cmpShots(part) {
+  const key = stepKey(part) + ':' + partColor(part);
+  if (CMP_CACHE.has(key)) return CMP_CACHE.get(key);
+  const probe = mistakeShapes(stepKey(part), toPixels(S.photoLm, S.photo.width, S.photo.height));
+  const out = probe ? Object.fromEntries([['x', 'wrong', false], ['o', 'right', true]].map(([k, which, ok]) =>
+    [k, facePic(part, 300, (x, P, s) => drawCompare(x, mistakeShapes(stepKey(part), P)[which], { lw: 2.6 * s, color: partColor(part), ok }))])) : null;
+  CMP_CACHE.set(key, out);
+  return out;
+}
+/** 量到的結果畫成量表：淡 ← 剛好 → 深，圓點是這次的位置；兩邊各一條看左右平不平均 */
+function depthMeters(res, prev) {
+  const box = el('div', 'meters');
+  const pct = (v) => Math.max(0, Math.min(100, v / 2 * 100));
+  for (const p of GROWTH_PARTS) {
+    const r = res[p]; if (!r || r.score == null) continue;
+    const before = growthTrend(prev, p), d = before.length ? r.score - before[before.length - 1].score : null;
+    const row = el('div', 'meter');
+    let html = `<div class="hd"><b>${t('coach.part.' + p)}</b><span class="sc">${r.score}</span>${d == null ? '' : `<em>${d >= 0 ? '+' : ''}${d}</em>`}${r.level ? `<span class="lv ${r.level}">${t('teach.lv.' + r.level)}</span>` : ''}</div>`;
+    if (r.depth != null) {
+      html += `<div class="track" role="img" aria-label="${t('teach.lv.' + r.level)}"><i class="okz" style="left:${pct(LESSON_LEVELS.light)}%;width:${pct(LESSON_LEVELS.heavy) - pct(LESSON_LEVELS.light)}%"></i><i class="mk" style="left:${pct(r.depth)}%"></i></div>
+        <div class="ends"><span>${t('teach.lv.light')}</span><span>${t('teach.lv.good')}</span><span>${t('teach.lv.heavy')}</span></div>`;
+      if (r.sides?.length === 2) { const top = Math.max(2, ...r.sides); html += `<div class="lr">${r.sides.map((v, i) => `<span>${t(i ? 'teach.lr.right' : 'teach.lr.left')}<i><u style="width:${Math.max(0, Math.min(100, v / top * 100))}%"></u></i></span>`).join('')}</div>`; }   // 兩邊用同一把尺，差多少看得出來
+    }
+    row.innerHTML = html;
+    box.appendChild(row);
+  }
+  return box;
+}
+/** 只捲動這個容器（scrollIntoView 會連整個頁面一起捲，畫面會跑掉） */
+function scrollInside(box, elm, mode = 'start', pad = 0) {
+  if (!box || !elm) return;
+  const b = box.getBoundingClientRect(), e = elm.getBoundingClientRect();
+  let top = null;
+  if (mode === 'start') top = box.scrollTop + e.top - b.top - pad;
+  else if (e.top < b.top + pad) top = box.scrollTop + e.top - b.top - pad;
+  else if (e.bottom > b.bottom - pad) top = box.scrollTop + e.bottom - b.bottom + pad;
+  if (top != null) box.scrollTo({ top, behavior: calm() ? 'auto' : 'smooth' });
+}
+/** 最後一頁很長：頁首一排按鈕直接跳到各區 */
+function mountS5Nav() {
+  const sc = $('#s5-scroll'); if (!sc) return;
+  let nav = $('#s5-nav');
+  if (!nav) { nav = el('nav', 's5-nav'); nav.id = 's5-nav'; sc.prepend(nav); }
+  nav.innerHTML = '';
+  for (const sec of sc.querySelectorAll(':scope > .s5-sec')) {
+    if (sec.hidden) continue;
+    const title = sec.querySelector(':scope > h3, :scope > summary');
+    if (!title) continue;
+    const b = el('button', '', title.textContent.trim());
+    b.type = 'button';
+    b.onclick = () => scrollInside(sc, sec, 'start', nav.offsetHeight + 4);
+    nav.appendChild(b);
+  }
 }
 
 /* ── 我的成長紀錄 ───────────────────────────────────────────
@@ -1820,8 +1924,9 @@ function paintGrowth() {
   if (!list.length) { box.append(el('p', 'grow-empty', t('grow.empty')), ...[start()].filter(Boolean)); return; }
   box.appendChild(el('p', 'grow-count', t('grow.count', { n: list.length })));
   const last = list[list.length - 1];
-  const res = Object.fromEntries(Object.entries(last.scores || {}).map(([p, score]) => [p, { score, level: last.detail?.[p]?.level, uneven: last.detail?.[p]?.uneven ?? null }]));
+  const res = Object.fromEntries(Object.entries(last.scores || {}).map(([p, score]) => [p, { score, level: last.detail?.[p]?.level, uneven: last.detail?.[p]?.uneven ?? null, depth: last.detail?.[p]?.depth, sides: last.detail?.[p]?.sides }]));
   const tips = practiceAdvice(res, list.slice(0, -1), last.planned || Object.keys(last.scores || {})).slice(0, 3);
+  if (Object.values(res).some((r) => r.depth != null)) box.appendChild(depthMeters(res, list.slice(0, -1)));
   if (tips.length) box.appendChild(adviceCard(tips, false, 'adv2.next'));
   const fmt = (at) => { const d = new Date(at); return (d.getMonth() + 1) + '/' + d.getDate(); };
   const spark = el('div', 'sparks');
@@ -4645,6 +4750,7 @@ function paintHow() {
     modes.appendChild(b);
   }
   const box = $('#s5-how'); box.innerHTML = '';
+  box.appendChild(faceMapEl(false));
   for (const s of coachPlan({ picks: S.picks, amount: S.amount, mode, owned: S.coach.owned, hasSub: S.coach.hasSub ?? true })) {
     const card = el('article', 'how');
     const item = s.product ? swatchHTML(s.product, 'sw') + tf(s.product, 'shade') : t('coach.base.item');
@@ -4735,6 +4841,7 @@ function paintTwo(images = true) {
   const ai = planFor(top.look);
   S.aiPlan = ai;
   if (images) { paintBeforeAfter(); paintHow(); paintGrowth(); }
+  mountS5Nav();
   $('#blk-ai-name').textContent = tf(ai.look, 'name');
   $('#blk-ai-why').textContent = cardWhy(top.look, top.why);
   $('#blk-me-name').textContent = S.look ? tf(S.look, 'name') : '';
@@ -4812,7 +4919,7 @@ function reset() {
   clearBrush();
   S.tried.clear(); S.arMs = 0; S.arT0 = 0;
   S.gifts = 0; S.pose = null; S.posePrompted = false;
-  S.coach = { mode: null, owned: new Set(), hasSub: true }; S.guideDone = false; S.methods = { eye: 'duo', cheek: 'lift', lip: 'full' };
+  S.coach = { mode: null, owned: new Set(), hasSub: true }; S.guideDone = false; S.methods = { eye: 'duo', cheek: 'lift', lip: 'full' }; S.scene = null;
   S.cheer = newCheer(); cheerQ.length = 0;
   S.pref = newPref(); S.said.clear(); S.prevLip = null;
   S.amount0 = null; S.asked3.clear(); S.shadeT0 = 0; S.lastAct = 0;

@@ -2351,3 +2351,48 @@ body {
 .teach .steps.grid .verb { font-size:13px; left:28px; }
 .teach .steps.grid .tl { width:22px; height:22px; }
 .teach .steps.grid .tl svg { width:15px; height:15px; }
+/* ── 情境、全臉地圖、對照圖、深淺量表、最後一頁的跳轉 ── */
+.privacy-chip { position:absolute; left:50%; top:10px; transform:translateX(-50%); z-index:4; max-width:calc(100% - 24px); padding:4px 12px; border-radius:14px; font-size:12px; font-weight:700; color:#fff; background:rgba(18,10,14,.55); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.teach .scenes { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:6px; }
+.teach .scenes button { display:grid; gap:1px; padding:8px 10px; text-align:left; border:1.5px solid var(--line); border-radius:14px; background:#fff; color:#3a2a30; cursor:pointer; }
+.teach .scenes b { font-size:14px; }
+.teach .scenes small { font-size:11.5px; color:var(--ink-3); }
+.teach .scenes button.on { border-color:var(--primary-2); background:var(--tint-2, #fff5f7); }
+.teach .scene-sum { display:flex; flex-wrap:wrap; gap:4px 10px; align-items:center; font-size:12.5px; }
+.teach .scene-sum i { font-style:normal; color:var(--ink-3); margin-right:4px; }
+.teach .scene-sum em { font-style:normal; font-weight:700; color:var(--primary-2); margin-left:auto; }
+.facemap { margin:0; border-radius:14px; overflow:hidden; background:#fff; box-shadow:0 0 0 1px var(--line); }
+.facemap img { display:block; width:100%; }
+.facemap figcaption { display:flex; flex-wrap:wrap; gap:5px; padding:8px; }
+.facemap .leg { display:inline-flex; align-items:center; gap:5px; padding:3px 9px 3px 4px; border:0; border-radius:12px; font-size:12.5px; font-weight:700; color:#3a2a30; background:var(--line); }
+button.leg { cursor:pointer; }
+.facemap .leg b { display:grid; place-items:center; width:18px; height:18px; border-radius:50%; font-size:11px; color:#5b3944; background:#fff; }
+.facemap .leg i { width:12px; height:12px; border-radius:50%; }
+.teach .cmp { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:6px; }
+.teach .cmp figure { margin:0; border-radius:12px; overflow:hidden; background:#fff; }
+.teach .cmp img { display:block; width:100%; aspect-ratio:4 / 3; object-fit:cover; }
+.teach .cmp figcaption { display:flex; gap:5px; align-items:center; padding:5px 8px; font-size:12px; font-weight:700; line-height:1.3; }
+.teach .cmp b { flex:none; display:grid; place-items:center; width:18px; height:18px; border-radius:50%; font-size:11px; color:#fff; }
+.teach .cmp .x { box-shadow:0 0 0 2px #c0505c; } .teach .cmp .x b { background:#c0505c; }
+.teach .cmp .o { box-shadow:0 0 0 2px #2f8a62; } .teach .cmp .o b { background:#2f8a62; }
+.meters { display:grid; gap:8px; }
+.meter { padding:9px 11px; border-radius:14px; background:#fff; box-shadow:0 0 0 1px var(--line); }
+.meter .hd { display:flex; align-items:baseline; gap:8px; font-size:13px; }
+.meter .sc { font-size:19px; font-weight:800; font-variant-numeric:tabular-nums; }
+.meter .hd em { font-style:normal; font-size:12px; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.meter .lv { margin-left:auto; padding:1px 9px; border-radius:9px; font-size:12px; font-weight:700; color:#3a2a30; background:var(--line); }
+.meter .lv.good { color:#14402e; background:#c5ecd9; }
+.meter .track { position:relative; height:10px; margin-top:8px; border-radius:5px; background:var(--line); }
+.meter .okz { position:absolute; top:0; bottom:0; border-radius:5px; background:#c5ecd9; }
+.meter .mk { position:absolute; top:50%; width:16px; height:16px; margin:-8px 0 0 -8px; border-radius:50%; background:var(--primary-2); box-shadow:0 0 0 2px #fff, 0 1px 3px rgba(0,0,0,.3); }
+.meter .ends { display:flex; justify-content:space-between; margin-top:4px; font-size:11px; color:var(--ink-3); }
+.meter .lr { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; margin-top:6px; font-size:11px; color:var(--ink-3); }
+.meter .lr span { display:flex; align-items:center; gap:6px; }
+.meter .lr i { flex:1; height:6px; border-radius:3px; background:var(--line); overflow:hidden; }
+.meter .lr u { display:block; height:100%; border-radius:3px; background:var(--primary-2); }
+.adv-row .tip { margin-top:2px; font-size:12px; color:var(--ink-2, #5a4650); }
+.advice .adv-src { margin:0; font-size:11px; color:var(--ink-3); }
+.s5-nav { position:sticky; top:0; z-index:5; display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; margin:0 0 12px; padding:6px 0; background:rgba(249,244,242,.92); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); flex:none; }
+.s5-nav::-webkit-scrollbar { display:none; }
+.s5-nav button { flex:none; padding:5px 12px; border:1px solid var(--line); border-radius:14px; background:#fff; font-size:12.5px; font-weight:700; color:var(--primary-2); cursor:pointer; }
+#s5-how .facemap { margin-bottom:12px; }
