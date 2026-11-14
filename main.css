@@ -2342,3 +2342,12 @@ body {
 .teach .emethods button { padding:4px 10px; border:1px solid var(--line); border-radius:12px; background:#fff; font-size:12.5px; font-weight:700; color:var(--ink-2, #5a4650); cursor:pointer; }
 .teach .emethods button.on { color:#fff; border-color:transparent; background:#5b3944; }
 .teach-cap .btns button.on { color:#5b3944; }
+/* ── 精簡的圖解：三欄一樣大，只有圖與大字；這一步的說明在鏡子的字幕上 ── */
+.teach .steps.grid { grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; }
+.teach .steps.grid li:not(.on) .tx { display:none; }
+.teach .steps.grid li .tx { display:none; }
+.teach .steps.grid li { padding:0; }
+.teach .steps.grid img { border-radius:12px; }
+.teach .steps.grid .verb { font-size:13px; left:28px; }
+.teach .steps.grid .tl { width:22px; height:22px; }
+.teach .steps.grid .tl svg { width:15px; height:15px; }

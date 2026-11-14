@@ -35,7 +35,7 @@ import { newTaste, noteTaste, tasteRead, tasteSuggest, tasteSummary, describeLip
 import { TRENDS, TREND_PACK, trendsFor, trendPlan, trendLines, trendStale, trendStaleLines } from './trends.js';
 import { COACH_MODES, COACH_TOOLS, COARSE_RATIO, COACH_GLYPH, coachMethod, coachToolKey, coachPlan, coachShapes, coachRegion, drawCoachShapes,
          TEACH_STEPS, teachStepShapes, demoAt, demoAmount, teachToolIcon, stepMs, stepStart, drawTeachStep, teachSpot,
-         EYE_METHODS, eyeKey, eyeMeasurable } from './coach.js';
+         EYE_METHODS, eyeKey, eyeMeasurable, PART_METHODS, methodKey } from './coach.js';
 import { lessonChapters, modeFrom, lessonRegions, lessonSample, averageSamples, assessPart } from './lesson.js';
 import { GROWTH_KEY, GROWTH_PARTS, addRecord, growthTrend, growthDelta, sparkPoints, practiceAdvice } from './growth.js';
 import { QA_TAGS, QA_KB, qaSearch, qaByTag, qaLines } from './qa.js';
@@ -130,7 +130,7 @@ const S = {
   gifts: 0,                // AI 送了還沒拆的禮物（試妝滿一分鐘），回覆列會多一個「拆開禮物」
   pose: null, posePrompted: false,   // 動一動看看：進行到哪一個動作；AI 主動邀請過了沒
   teach: null,   // 化妝教學：進行到哪一章
-  eyeMethod: 'duo',   // 眼影畫法：雙色漸層、單色平鋪、眼尾加深、無眼影 3 步
+  methods: { eye: 'duo', cheek: 'lift', lip: 'full' },   // 各部位選的畫法（眼影、腮紅、唇）
   coach: { mode: null, owned: new Set(), hasSub: true }, guideDone: false,   // 化妝指導：手邊的工具（最後一頁的指南也照這個寫）；走過一次了沒
   cheer: newCheer(),  // AI 主動送的互動（回讚、鼓掌…）送過哪些
   arMs: 0, arT0: 0,   // 實際停留在 AR 的時間
@@ -1426,14 +1426,16 @@ function teachPart(box) {
   const head = el('div', 'part-head', `<div class="chips">${shade}<span class="chip tool-chip">${toolIcon(icon)}${t(coachToolKey(cur.part, method))}</span></div>`);
   head.appendChild(seg);
   box.appendChild(head);
-  // 眼影的畫法可以選（參考小紅書新手眼影公式與唐毅老師的無眼影 3 步）
-  if (cur.part === 'eye') {
+  // 畫法可以選：眼影（小紅書新手眼影公式、無眼影 3 步）、腮紅（斜向上、橫向、畫圈）、唇（完整、咬唇漸層、霧面描唇線）
+  if (PART_METHODS[cur.part]) {
+    const nameKey = (m) => (cur.part === 'eye' ? 'teach.emethod.' + m : `teach.m.${cur.part}.${m}`);
     const pick = el('div', 'emethods');
-    pick.appendChild(el('span', 'lb', t('teach.emethod.label')));
-    for (const m of EYE_METHODS) {
-      const b = el('button', m === S.eyeMethod ? 'on' : '', t('teach.emethod.' + m));
-      b.type = 'button'; b.setAttribute('aria-pressed', String(m === S.eyeMethod));
-      b.onclick = () => { if (m === S.eyeMethod) return; S.eyeMethod = m; T.step = 0; T.view = 'demo'; T.demo = newDemo(); T.paused = false; T.loopEl = 0; delete T.results.eye; mountTeach(); };
+    pick.appendChild(el('span', 'lb', t(cur.part === 'eye' ? 'teach.emethod.label' : `teach.m.${cur.part}.label`)));
+    for (const m of PART_METHODS[cur.part]) {
+      const on = m === S.methods[cur.part];
+      const b = el('button', on ? 'on' : '', t(nameKey(m)));
+      b.type = 'button'; b.setAttribute('aria-pressed', String(on));
+      b.onclick = () => { if (on) return; S.methods[cur.part] = m; T.step = 0; T.view = 'demo'; T.demo = newDemo(); T.paused = false; T.loopEl = 0; delete T.results[cur.id]; mountTeach(); };
       pick.appendChild(b);
     }
     box.appendChild(pick);
@@ -1502,9 +1504,9 @@ const motionIcon = (m) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentC
 const motionTag = (s) => motionIcon(s.motion) + t('teach.motion.' + s.motion) + (s.reps > 1 ? ' ×' + s.reps : '');
 const newDemo = (el = 0) => ({ el, done: false });
 /** 這個部位用哪一組步驟：眼影依選的畫法 */
-const stepKey = (part) => (part === 'eye' ? eyeKey(S.eyeMethod) : part);
+const stepKey = (part) => methodKey(part, S.methods[part]);
 /** 鏡子與圖解上的分區文字 */
-const zoneLabels = () => Object.fromEntries(['base', 'main', 'deep', 'shade', 'shine', 'lower', 'liner', 'lash', 'limit'].map((k) => [k, t('teach.zone.' + k)]));
+const zoneLabels = () => Object.fromEntries(['base', 'main', 'deep', 'shade', 'shine', 'lower', 'liner', 'lash', 'limit', 'lipline', 'core'].map((k) => [k, t('teach.zone.' + k)]));
 function voicePref() { try { return localStorage.getItem('lucid.voice') === '1'; } catch { return false; } }
 /** 語音唸步驟（裝置內建的語音，離線也能用）；預設關著，按 🔈 打開 */
 function teachSay(text) {
@@ -4810,7 +4812,7 @@ function reset() {
   clearBrush();
   S.tried.clear(); S.arMs = 0; S.arT0 = 0;
   S.gifts = 0; S.pose = null; S.posePrompted = false;
-  S.coach = { mode: null, owned: new Set(), hasSub: true }; S.guideDone = false; S.eyeMethod = 'duo';
+  S.coach = { mode: null, owned: new Set(), hasSub: true }; S.guideDone = false; S.methods = { eye: 'duo', cheek: 'lift', lip: 'full' };
   S.cheer = newCheer(); cheerQ.length = 0;
   S.pref = newPref(); S.said.clear(); S.prevLip = null;
   S.amount0 = null; S.asked3.clear(); S.shadeT0 = 0; S.lastAct = 0;

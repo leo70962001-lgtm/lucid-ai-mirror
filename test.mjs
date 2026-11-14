@@ -18,7 +18,7 @@ import { pickSurprise, newCheer, cheerFor, CHEER_GAP_MS, GIFT_AR_MS, FIT_MAX, ai
 import { LIP_INSET } from './js/makeup-gl.js';
 import { pwaState, isIOS, isInApp } from './js/pwa.js';
 import { nextDuel, duelSides, duelLines, duelOpts, duelPicked, DUEL_AXES } from './js/duel.js';
-import { EYE_METHODS, eyeKey, eyeMeasurable, roleColor, TEACH_STEPS, TEACH_STEP_MS, TEACH_MOTIONS, stepMs, stepStart, drawTeachStep, teachSpot, teachStepShapes, demoAt, demoAmount, teachToolIcon } from './js/coach.js';
+import { EYE_METHODS, eyeKey, eyeMeasurable, roleColor, PART_METHODS, methodKey, TEACH_STEPS, TEACH_STEP_MS, TEACH_MOTIONS, stepMs, stepStart, drawTeachStep, teachSpot, teachStepShapes, demoAt, demoAmount, teachToolIcon } from './js/coach.js';
 import { lessonChapters, modeFrom, lessonRegions, averageSamples, assessPart, LESSON_LEVELS } from './js/lesson.js';
 import { GROWTH_KEY, GROWTH_PARTS, addRecord, growthTrend, growthDelta, sparkPoints, practiceAdvice, FIX_STEP } from './js/growth.js';
 import { COACH_PARTS, COACH_MODES, COACH_TOOLS, COACH_GLYPH, coachMethod, coachPlan, coachShapes, coachRegion, drawCoachShapes } from './js/coach.js';
@@ -2012,7 +2012,23 @@ console.log('\n\x1b[1m48. 化妝教學獨立成一段；量真的臉；成長紀
     ...EYE_METHODS.flatMap((m) => TEACH_STEPS[eyeKey(m)].flatMap((s) => ['teach.step.' + eyeKey(m) + '.' + s.id, 'teach.verb.' + eyeKey(m) + '.' + s.id]))];
   const missE = eKeys.filter((k) => !has3e(k));
   ok(missE.length === 0, '眼影畫法的文案三種語言齊全（' + eKeys.length + ' 句）' + (missE.length ? ' 缺：' + missE.join() : ''));
-  ok(/const stepKey = \(part\) => \(part === 'eye' \? eyeKey\(S\.eyeMethod\) : part\);/.test(app) && /S\.eyeMethod = m;/.test(app), '選了畫法，鏡子、圖解、圖解卡跟著換');
+  ok(/const stepKey = \(part\) => methodKey\(part, S\.methods\[part\]\);/.test(app) && /S\.methods\[cur\.part\] = m;/.test(app), '選了畫法，鏡子、圖解、圖解卡跟著換');
+  // 腮紅與唇的畫法（參考 YouCam Makeup 的「圖樣」與搜尋到的新手畫法）
+  ok(PART_METHODS.cheek.join() === 'lift,flat,apple' && PART_METHODS.lip.join() === 'full,gradient,matte' && methodKey('cheek', 'lift') === 'cheek' && methodKey('lip', 'matte') === 'lip.matte', '腮紅：斜向上、橫向、畫圈；唇：完整、咬唇漸層、霧面描唇線');
+  for (const part of ['cheek', 'lip']) for (const m of PART_METHODS[part]) {
+    const k = methodKey(part, m), st = TEACH_STEPS[k];
+    ok(st.length >= 4 && st[st.length - 1].upto === 1 && st.every((s, j) => TEACH_MOTIONS.includes(s.motion) && (!j || s.upto >= st[j - 1].upto)), '　' + k + '：步驟、手法、顏色到目標');
+    ok(st.every((s) => { const sh = teachStepShapes(k, s.id, P); return sh.length > 0 && sh.every((x) => (x.pts || [x.at]).every((p) => Number.isFinite(p.x) && Number.isFinite(p.y))); }), '　' + k + '：每一步都畫得出來');
+  }
+  ok(teachStepShapes('lip.gradient', 'core', P).some((x) => x.type === 'zone' && x.role === 'core') && teachStepShapes('lip.matte', 'line', P).filter((x) => x.type === 'path').length === 4, '咬唇：唇心深色；霧面：上下唇線四段');
+  const dictM = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8').split(/\r?\n/);
+  const has3m2 = (k) => /', '.*', '/.test(dictM.find((l) => l.startsWith("  '" + k + "':")) || '');
+  const mKeys = [...['cheek', 'lip'].flatMap((p) => ['teach.m.' + p + '.label', ...PART_METHODS[p].map((m) => 'teach.m.' + p + '.' + m)]),
+    ...['cheek', 'lip'].flatMap((p) => PART_METHODS[p].slice(1).flatMap((m) => { const k = methodKey(p, m); return ['teach.formula.' + k, 'teach.wrong.' + k, 'teach.right.' + k, ...TEACH_STEPS[k].flatMap((s) => ['teach.step.' + k + '.' + s.id, 'teach.verb.' + k + '.' + s.id])]; })), 'teach.zone.lipline'];
+  const missM = mKeys.filter((k) => !has3m2(k));
+  ok(missM.length === 0, '腮紅與唇畫法的文案三種語言齊全（' + mKeys.length + ' 句）' + (missM.length ? ' 缺：' + missM.join() : ''));
+  const cssM = readFileSync(new URL('./main.css', import.meta.url), 'utf8');
+  ok(/\.teach \.steps\.grid li:not\(\.on\) \.tx \{ display:none; \}/.test(cssM), '精簡：圖解格子只有目前這一步顯示說明');
   ok(GROWTH_KEY === 'lucid.growth' && GROWTH_PARTS.join() === 'eye,cheek,lip', '紀錄的部位：眼、頰、唇');
 
   // 接線
