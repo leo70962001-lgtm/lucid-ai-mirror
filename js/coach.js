@@ -227,6 +227,24 @@ export const TEACH_STEPS = {
                 { id: 'place', stage: 'coarse', upto: 0.7, motion: 'tap', reps: 2, zones: [['lid', 'base', 1], ['outer', 'deep', 2]] },
                 { id: 'blend', stage: 'fine', upto: 0.9, motion: 'sweep', reps: 2, zones: [['outer', 'deep', 2]], paths: ['outerIn'] },
                 { id: 'lower', stage: 'fine', upto: 1, motion: 'line', reps: 1, zones: [['outer', 'deep', 2], ['lowOut', 'lower', 2]], paths: ['lowerOut'] }],
+  // 腮紅畫法：斜向上（預設 cheek）、橫向、畫圈
+  'cheek.flat': [{ id: 'load', stage: 'coarse', upto: 0, motion: 'tap', reps: 2, zones: [['flat', 'main', 1]] },
+                 { id: 'place', stage: 'coarse', upto: 0.35, motion: 'tap', reps: 2, zones: [['flat', 'main', 1]], dots: ['high'] },
+                 { id: 'sweep', stage: 'coarse', upto: 0.8, motion: 'sweep', reps: 2, zones: [['flat', 'main', 1]], paths: ['flatLine'] },
+                 { id: 'blend', stage: 'fine', upto: 1, motion: 'circle', reps: 1, zones: [['flat', 'main', 1]], paths: ['flatEdge'] }],
+  'cheek.apple': [{ id: 'load', stage: 'coarse', upto: 0, motion: 'tap', reps: 2, zones: [['apple', 'main', 1]] },
+                  { id: 'smile', stage: 'coarse', upto: 0.3, motion: 'tap', reps: 2, zones: [['apple', 'main', 1]], dots: ['apple'] },
+                  { id: 'circle', stage: 'coarse', upto: 0.85, motion: 'circle', reps: 2, zones: [['apple', 'main', 1]], paths: ['appleRing'] },
+                  { id: 'blend', stage: 'fine', upto: 1, motion: 'tap', reps: 3, zones: [['apple', 'base', 1]], paths: ['appleEdge'] }],
+  // 唇妝畫法：完整上色（預設 lip）、咬唇漸層、霧面描唇線
+  'lip.gradient': [{ id: 'prep', stage: 'coarse', upto: 0, motion: 'tap', reps: 1, zones: [['lips', 'base', 1]] },
+                   { id: 'core', stage: 'coarse', upto: 0.5, motion: 'tap', reps: 2, zones: [['core', 'core', 1]] },
+                   { id: 'push', stage: 'fine', upto: 0.85, motion: 'sweep', reps: 2, zones: [['core', 'core', 1], ['lips', 'base', 2]], paths: ['outward'] },
+                   { id: 'gloss', stage: 'fine', upto: 1, motion: 'tap', reps: 1, zones: [['core', 'shine', 1]] }],
+  'lip.matte': [{ id: 'prep', stage: 'coarse', upto: 0, motion: 'tap', reps: 1, zones: [['lips', 'base', 1]] },
+                { id: 'line', stage: 'coarse', upto: 0.2, motion: 'line', reps: 1, zones: [], paths: ['lipLine'], labels: ['lipline'] },
+                { id: 'fill', stage: 'fine', upto: 0.9, motion: 'wiper', reps: 3, zones: [['lips', 'main', 1]], paths: ['fillIn'] },
+                { id: 'blot', stage: 'fine', upto: 1, motion: 'tap', reps: 2, zones: [['lips', 'main', 1]] }],
   'eye.liner': [{ id: 'liner', stage: 'coarse', upto: 0, motion: 'line', reps: 1, zones: [], paths: ['linerExt'], labels: ['liner'] },
                 { id: 'aegyo', stage: 'fine', upto: 0, motion: 'tap', reps: 2, zones: [['aegyoShade', 'shade', 1], ['aegyo', 'shine', 2]] },
                 { id: 'lash', stage: 'fine', upto: 0, motion: 'sweep', reps: 1, zones: [], paths: ['lashTicks'], labels: ['lash'] }],
@@ -239,6 +257,9 @@ export const TEACH_STEPS = {
 /** 眼影畫法：雙色漸層（預設）、單色平鋪、眼尾加深、無眼影 3 步（眼線＋臥蠶＋睫毛） */
 export const EYE_METHODS = ['duo', 'mono', 'outer', 'liner'];
 export const eyeKey = (m) => (!m || m === 'duo' ? 'eye' : 'eye.' + m);
+/** 各部位可以選的畫法（第一個是預設，用原本的步驟） */
+export const PART_METHODS = { eye: EYE_METHODS, cheek: ['lift', 'flat', 'apple'], lip: ['full', 'gradient', 'matte'] };
+export const methodKey = (part, m) => (!PART_METHODS[part] || !m || m === PART_METHODS[part][0] ? part : part + '.' + m);
 /** 這個畫法量不量得到：無眼影 3 步沒有眼影色，鏡頭比對沒有意義 */
 export const eyeMeasurable = (key) => TEACH_STEPS[key].some((st) => st.upto > 0);
 /** 手法：點拍、按壓推開、來回刷（雨刷）、往外刷、描線、畫小圈 */
@@ -252,6 +273,10 @@ export function teachStepShapes(part, id, P) {
   if (part === 'eye' || part.startsWith('eye.')) {
     const st = TEACH_STEPS[part]?.find((x) => x.id === id);
     if (st) return eyeStepShapes(st, P);
+  }
+  if (part.startsWith('cheek.') || part.startsWith('lip.')) {
+    const st = TEACH_STEPS[part]?.find((x) => x.id === id);
+    if (st) return part.startsWith('cheek.') ? cheekStepShapes(st, P) : lipStepShapes(st, P);
   }
   const coarse = coachShapes(part, 'coarse', P), fine = coachShapes(part, 'fine', P);
   const of = (list, type) => list.filter((s) => s.type === type);
@@ -543,7 +568,7 @@ function mixHex(a, b, k) {
 export function roleColor(role, color) {
   const c = /^#[0-9a-f]{6}$/i.test(color || '') ? color : '#c98f86';
   if (role === 'base') return mixHex(c, '#ffffff', 0.5);
-  if (role === 'deep' || role === 'lower' || role === 'shade') return mixHex(c, '#2a1414', 0.35);
+  if (role === 'deep' || role === 'lower' || role === 'shade' || role === 'core') return mixHex(c, '#2a1414', 0.35);
   if (role === 'shine') return '#f2d9ac';
   return c;
 }
@@ -569,4 +594,59 @@ function badge(ctx, text, x, y, lw) {
   ctx.fillStyle = '#5b3944'; ctx.font = '800 ' + (r * 1.25) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(text, x, y + r * 0.06);
   ctx.restore();
+}
+
+/* ── 腮紅與唇的分區（畫法選擇用）───────────────────────────── */
+const ring = (c, rx, ry, rot = 0, n = 24) => Array.from({ length: n }, (_, i) => {
+  const a = i / n * Math.PI * 2, x = Math.cos(a) * rx, y = Math.sin(a) * ry;
+  return { x: c.x + x * Math.cos(rot) - y * Math.sin(rot), y: c.y + x * Math.sin(rot) + y * Math.cos(rot) };
+});
+const ptsCenter = (pts) => ({ x: pts.reduce((a, p) => a + p.x, 0) / pts.length, y: pts.reduce((a, p) => a + p.y, 0) / pts.length });
+function zoneShape(pts, role, n, label, lp) { return { type: 'zone', pts, role, n, c: ptsCenter(pts), label, lp }; }
+
+/** 腮紅：微笑時的高點、往太陽穴、蘋果肌；左右各一 */
+export function cheekStepShapes(st, P) {
+  const fw = Math.hypot(P[454].x - P[234].x, P[454].y - P[234].y) || 1, out = [];
+  const sides = [[50, 127, 205], [280, 356, 425]].map(([c, tp, ap]) => {
+    const high = lerpPt(P[c], P[tp], 0.25), temple = lerpPt(P[c], P[tp], 0.72), apple = lerpPt(high, P[ap], 0.55);
+    return { high, temple, apple, out: Math.sign(P[tp].x - P[c].x) || 1 };
+  }).sort((a, b) => a.high.x - b.high.x);
+  sides.forEach((sd, k) => {
+    const lab = k === 0;
+    const Z = {
+      flat: ring({ x: sd.high.x, y: sd.high.y + fw * 0.025 }, fw * 0.1, fw * 0.042),
+      apple: ring(sd.apple, fw * 0.055, fw * 0.05),
+    };
+    (st.zones || []).forEach(([z, role, n], i) => {
+      const pts = Z[z], c = ptsCenter(pts);
+      out.push(zoneShape(pts, role, n, lab ? role : null, { x: c.x + sd.out * fw * 0.16, y: c.y - fw * 0.06 * (i + 1) }));
+    });
+    const PTH = {
+      flatLine: () => [[{ x: sd.high.x - sd.out * fw * 0.06, y: sd.high.y + fw * 0.025 }, { x: sd.high.x + sd.out * fw * 0.08, y: sd.high.y + fw * 0.022 }]],
+      flatEdge: () => [ring({ x: sd.high.x + sd.out * fw * 0.07, y: sd.high.y + fw * 0.025 }, fw * 0.03, fw * 0.022, 0, 18).concat([])],
+      appleRing: () => [ring(sd.apple, fw * 0.035, fw * 0.032, 0, 20)],
+      appleEdge: () => [ring(sd.apple, fw * 0.06, fw * 0.055, 0, 28)],
+    };
+    for (const pid of st.paths || []) out.push(...PTH[pid]().map((pts) => ({ type: 'path', pts })));
+    for (const d of st.dots || []) out.push({ type: 'dot', at: d === 'apple' ? sd.apple : sd.high, r: fw * 0.022 });
+  });
+  return out;
+}
+
+const LIP_O = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 409, 270, 269, 267, 0, 37, 39, 40, 185];
+/** 唇：整個唇、唇心（內側，咬唇的深色）、唇線 */
+export function lipStepShapes(st, P) {
+  const fw = Math.hypot(P[454].x - P[234].x, P[454].y - P[234].y) || 1, out = [];
+  const lips = LIP_O.map((i) => P[i]), c = ptsCenter(lips);
+  const core = lips.map((p) => lerpPt(c, p, 0.5));
+  const lp = (i) => ({ x: Math.min(P[61].x, P[291].x) - fw * 0.12, y: c.y + (i - 0.5) * fw * 0.08 });
+  (st.zones || []).forEach(([z, role, n], i) => out.push(zoneShape(z === 'core' ? core : lips, role, n, role, lp(i))));
+  const PTH = {
+    outward: () => [[61, 291, 0, 17].map((k) => [lerpPt(c, P[k], 0.35), lerpPt(c, P[k], 0.9)])].flat(),
+    lipLine: () => [[61, 185, 40, 39, 37, 0], [291, 409, 270, 269, 267, 0], [61, 146, 91, 181, 84, 17], [291, 375, 321, 405, 314, 17]].map((ids) => ids.map((i) => P[i])),
+    fillIn: () => [[lerpPt(c, P[61], 0.75), lerpPt(c, P[291], 0.75)]],
+  };
+  for (const pid of st.paths || []) out.push(...PTH[pid]().map((pts) => ({ type: 'path', pts })));
+  for (const l of st.labels || []) out.push({ type: 'tag', at: P[61], label: l, lp: lp(0) });
+  return out;
 }
