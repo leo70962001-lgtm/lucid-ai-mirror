@@ -549,22 +549,55 @@ export function applyPressure(o, k) {
   return { ...o, alpha: o.alpha * k, radius: o.radius * (0.62 + 0.38 * k) };
 }
 
-function stamp(u, v, { color, alpha, radius, bias = 0, finish, lip = false }) {
+function stamp(u, v, { color, alpha, radius, bias = 0, finish, lip = false, hard = 0.55, erase = false, smudge = false }) {
   ensureUser();
   const cx = u * TEX, cy = v * TEX, r = Math.max(2, radius);
+  if (smudge) { smudgeAt(cx, cy, r); texDirty = true; return; }
   const info = infoHex(finish || finOf({ bias }), lip);
   for (const [canvas, col] of [[userBlend, color], [userBias, info]]) {
     if (alpha <= 0) continue;
     const x = canvas.getContext('2d');
+    x.save();
+    // 卸妝：把自己畫的擦掉（一次淡一點），不是蓋一層膚色
+    if (erase) x.globalCompositeOperation = 'destination-out';
+    const c = erase ? '#000000' : col;
     const gr = x.createRadialGradient(cx, cy, 0, cx, cy, r);
-    gr.addColorStop(0, rgba(col, alpha));
-    gr.addColorStop(0.55, rgba(col, alpha * 0.75));
-    gr.addColorStop(1, rgba(col, 0));
+    gr.addColorStop(0, rgba(c, alpha));
+    gr.addColorStop(Math.max(0.05, Math.min(0.95, hard)), rgba(c, alpha * 0.75));   // 邊緣軟硬：唇刷清楚、海綿很暈
+    gr.addColorStop(1, rgba(c, 0));
     x.fillStyle = gr;
     x.fillRect(cx - r, cy - r, r * 2, r * 2);
+    x.restore();
   }
   userInked = true;
   texDirty = true;
+}
+
+/**
+ * 暈染：不加顏色，把筆觸範圍裡已經畫的平均開來（3×3 的位移平均）。
+ * 不用 ctx.filter —— iPhone 的 Safari 不一定支援；用「先清掉、再把九份各 1/9 加回去」做平均，
+ * 畫布內部是預乘 alpha，'lighter' 相加剛好就是平均值。
+ */
+let smudgeTmp = null;
+const SMUDGE_MIX = 0.45;
+function smudgeAt(cx, cy, r) {
+  const d = Math.max(1, r * 0.22), m = Math.ceil(d), s = Math.ceil(r), w = s * 2 + m * 2;
+  const x0 = Math.round(cx - s) - m, y0 = Math.round(cy - s) - m;
+  if (!smudgeTmp) smudgeTmp = document.createElement('canvas');
+  for (const canvas of [userBlend, userBias]) {
+    if (smudgeTmp.width !== w) { smudgeTmp.width = w; smudgeTmp.height = w; }
+    const tx = smudgeTmp.getContext('2d');
+    tx.clearRect(0, 0, w, w);
+    tx.drawImage(canvas, x0, y0, w, w, 0, 0, w, w);
+    const x = canvas.getContext('2d');
+    x.save();
+    x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.clip();
+    // 一次只換掉一部分（原本的 55% ＋ 平均的 45%）：來回幾次才慢慢暈開，不會一抹就不見
+    x.globalCompositeOperation = 'destination-out'; x.globalAlpha = SMUDGE_MIX; x.fillStyle = '#000'; x.fillRect(x0, y0, w, w);
+    x.globalCompositeOperation = 'lighter'; x.globalAlpha = SMUDGE_MIX / 9;
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) x.drawImage(smudgeTmp, x0 + i * d, y0 + j * d);
+    x.restore();
+  }
 }
 
 export function clearBrush() {

@@ -19,6 +19,7 @@ import { LIP_INSET } from './js/makeup-gl.js';
 import { pwaState, isIOS, isInApp } from './js/pwa.js';
 import { nextDuel, duelSides, duelLines, duelOpts, duelPicked, DUEL_AXES } from './js/duel.js';
 import { SCENES, SCENE_IDS, sceneStepCount, mistakeShapes, drawCompare, faceMapItems, drawFaceMap, EYE_METHODS, eyeKey, eyeMeasurable, roleColor, PART_METHODS, methodKey, TEACH_STEPS, TEACH_STEP_MS, TEACH_MOTIONS, stepMs, stepStart, drawTeachStep, teachSpot, teachStepShapes, demoAt, demoAmount, teachToolIcon } from './js/coach.js';
+import { PAINT_SIZES, PAINT_MODES, PAINT_KIT, defaultKit, kitOf, paintOpts, mirrorUV } from './js/paintkit.js';
 import { lessonChapters, modeFrom, lessonRegions, averageSamples, assessPart, LESSON_LEVELS } from './js/lesson.js';
 import { GROWTH_KEY, GROWTH_PARTS, addRecord, growthTrend, growthDelta, sparkPoints, practiceAdvice, FIX_STEP } from './js/growth.js';
 import { COACH_PARTS, COACH_MODES, COACH_TOOLS, COACH_GLYPH, coachMethod, coachPlan, coachShapes, coachRegion, drawCoachShapes } from './js/coach.js';
@@ -2085,6 +2086,40 @@ console.log('\n\x1b[1m48. 化妝教學獨立成一段；量真的臉；成長紀
   for (const part of ['eye', 'cheek', 'lip']) for (const lv of ['none', 'light', 'good', 'heavy']) ok(dict.includes("'teach.fb." + part + '.' + lv + "':"), '回饋：' + part + ' ' + lv);
   for (const id of ['sponge', 'eyeBrush', 'blushBrush', 'lipBrush', 'cotton', 'hand', 'tissue']) ok(dict.includes("'teach.tool." + id + "':") && dict.includes("'teach.tool." + id + ".use':"), '工具卡：' + id);
   for (const fin of ['matte', 'gloss', 'shimmer']) ok(dict.includes("'teach.finish." + fin + "':"), '質地說明：' + fin);
+}
+
+console.log('\n\x1b[1m49. 自己畫的工具組：用什麼塗、暈染、卸妝、粗細、鏡像\x1b[0m');
+{
+  const app = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const gl = readFileSync(new URL('./js/makeup-gl.js', import.meta.url), 'utf8');
+  ok(Object.keys(PAINT_KIT).join() === 'lip,eye,cheek' && Object.values(PAINT_KIT).every((k) => k.length === 3), '唇、眼影、腮紅各三種塗抹工具');
+  ok(Object.values(PAINT_KIT).every((k) => k[0].r < k[1].r && k[1].r < k[2].r), '三支由細到粗');
+  ok(Object.values(PAINT_KIT).every((k) => k.every((x) => x.hard > 0 && x.hard < 1 && x.a > 0 && x.icon)), '每支都有濃度、邊緣軟硬與圖示');
+  ok(PAINT_KIT.lip[0].hard > PAINT_KIT.lip[2].hard && PAINT_KIT.cheek[2].a < PAINT_KIT.cheek[1].a, '唇刷邊緣比指腹清楚；海綿比腮紅刷淡');
+  ok(defaultKit('eye') === 'brush' && kitOf('eye', 'nope').id === 'brush' && kitOf('lip', 'finger').id === 'finger', '預設用中間那支；不認得的也回中間');
+  const base = { color: '#c0293e', alpha: 0.1, radius: 20, finish: 'matte', lip: true };
+  const p1 = paintOpts(base, kitOf('lip', 'brush'));
+  ok(Math.abs(p1.radius - 12) < 1e-9 && Math.abs(p1.alpha - 0.115) < 1e-9 && p1.hard === 0.8 && !p1.erase && !p1.smudge && p1.color === base.color, '上色：大小、濃度、邊緣照工具換算');
+  const pe = paintOpts(base, kitOf('lip', 'stick'), 'erase'), ps = paintOpts(base, kitOf('lip', 'stick'), 'smudge');
+  ok(pe.erase === true && pe.alpha === 0.3 && !pe.smudge, '卸妝：固定力道，一次擦三成');
+  ok(ps.smudge === true && ps.radius > base.radius && !ps.erase, '暈染：不加顏色，範圍略大');
+  ok(PAINT_MODES.join() === 'paint,smudge,erase' && PAINT_SIZES.length === 4 && PAINT_SIZES.every((v, k) => !k || v > PAINT_SIZES[k - 1]), '三種模式；粗細四段由小到大');
+  ok(mirrorUV(0.28, 0.376).join() === '0.72,0.376', '鏡像：以臉的中線左右對稱');
+  const { FACE_MESH } = await import('./js/face-mesh.js');
+  const uv = (k) => [FACE_MESH.uv[k * 2], FACE_MESH.uv[k * 2 + 1]];
+  ok([[33, 263], [50, 280], [61, 291]].every(([l, r]) => Math.abs(uv(l)[0] + uv(r)[0] - 1) < 0.01 && Math.abs(uv(l)[1] - uv(r)[1]) < 0.01), '臉部貼圖真的左右對稱（眼尾、臉頰、嘴角）');
+  ok(/if \(erase\) x\.globalCompositeOperation = 'destination-out';/.test(gl) && /function smudgeAt\(cx, cy, r\)/.test(gl) && !/\.filter\s*=/.test(gl.slice(gl.indexOf('function smudgeAt'), gl.indexOf('export function clearBrush'))), '卸妝是擦掉不是蓋色；暈染不靠 ctx.filter（iPhone 也能用）');
+  ok(/return paintOpts\(base, kitOf\(S\.brush\.tool, S\.brush\.kit\[S\.brush\.tool\]\), S\.brush\.mode\);/.test(app), '一筆的參數經過工具與模式換算');
+  ok(/if \(S\.brush\.mirror\) brushDab\(\.\.\.mirrorUV\(uv\[0\], uv\[1\]\), oo\);/.test(app), '鏡像時另一邊同一筆一起畫（撤銷也一起）');
+  ok(/const oo = o\.smudge \|\| o\.erase \? o : applyPressure\(o, qk\);/.test(app), '暈染與卸妝不吃筆壓');
+  const dictK = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8').split(/\r?\n/);
+  const has3k = (k) => /', '.*', '/.test(dictK.find((l) => l.startsWith("  '" + k + "':")) || '');
+  const kKeys = [...Object.entries(PAINT_KIT).flatMap(([p, ks]) => ks.flatMap((k) => ['paint.kit.' + p + '.' + k.id, 'paint.kit.' + p + '.' + k.id + '.h'])),
+    'paint.mode.smudge', 'paint.mode.smudge.h', 'paint.mode.erase', 'paint.mode.erase.h', 'paint.mirror', 'paint.mirror.h', 'paint.compare'];
+  const missK = kKeys.filter((k) => !has3k(k));
+  ok(missK.length === 0, '工具名稱與用法三種語言齊全（' + kKeys.length + ' 句）' + (missK.length ? ' 缺：' + missK.join() : ''));
+  const icons = /const TOOL_ICONS = \{[\s\S]*?\n\};/.exec(app)[0];
+  ok([...new Set(Object.values(PAINT_KIT).flat().map((k) => k.icon)), 'smudge', 'erase'].every((n) => new RegExp('\n  ' + n + ': ').test(icons)), '用到的工具圖示都有畫');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

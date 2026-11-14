@@ -38,6 +38,7 @@ import { COACH_MODES, COACH_TOOLS, COARSE_RATIO, COACH_GLYPH, coachMethod, coach
          EYE_METHODS, eyeKey, eyeMeasurable, PART_METHODS, methodKey,
          SCENES, SCENE_IDS, sceneStepCount, mistakeShapes, drawCompare, faceMapItems, drawFaceMap } from './coach.js';
 import { lessonChapters, modeFrom, lessonRegions, lessonSample, averageSamples, assessPart, LESSON_LEVELS } from './lesson.js';
+import { PAINT_SIZES, PAINT_KIT, defaultKit, kitOf, paintOpts, mirrorUV } from './paintkit.js';
 import { GROWTH_KEY, GROWTH_PARTS, addRecord, growthTrend, growthDelta, sparkPoints, practiceAdvice } from './growth.js';
 import { QA_TAGS, QA_KB, qaSearch, qaByTag, qaLines } from './qa.js';
 import { skinCondition, skinCondTop, skinCondLines } from './skincond.js';
@@ -125,7 +126,7 @@ const S = {
   finish: 'all',    // 色號列的質地篩選：all / matte / gloss / shimmer
   hist: [], redo: [],   // Step 4 的撤銷／重做
   shot: null, edited: null,               // 修圖的來源與成品
-  brush: { tool: 'lip', size: 34, flow: 55, press: 65 },   // 手動上妝的虛擬刷具（press = 筆壓靈敏度）
+  brush: { tool: 'lip', size: 34, flow: 55, press: 65, kit: {}, mode: 'paint', mirror: false },   // kit：各部位選的塗抹工具；mode：上色／暈染／卸妝   // 手動上妝的虛擬刷具（press = 筆壓靈敏度）
   bag: [],
   tried: new Set(),   // 試過的唇色色號 —— 報告要講「你試了幾個」
   gifts: 0,                // AI 送了還沒拆的禮物（試妝滿一分鐘），回覆列會多一個「拆開禮物」
@@ -1227,6 +1228,9 @@ const TOOL_ICONS = {
   cotton: '<path d="M9 32 31 10"/><ellipse cx="8" cy="33" rx="4" ry="3" transform="rotate(-45 8 33)"/><ellipse cx="32" cy="9" rx="4" ry="3" transform="rotate(-45 32 9)"/>',
   hand: '<path d="M15 36V14a3 3 0 0 1 6 0v10l8 2a3 3 0 0 1 2 3l-1 7"/><path d="M15 25l-3-2a2.500 2.500 0 0 0-3 4l6 9"/>',
   tissue: '<path d="M8 12h24v22H8z"/><path d="M8 12c6 5 18 5 24 0"/><path d="M14 22h12"/>',
+  lipstick: '<path d="M14 36V23h12v13z"/><path d="M16 23v-9l8-6v15"/>',
+  smudge: '<circle cx="15" cy="20" r="8"/><path d="M25 14c5 2 8 5 9 9M25 26c4-1 7-1 9 1"/>',
+  erase: '<path d="M10 28 24 10l10 8-12 16H14z"/><path d="M18 20l10 8"/>',
 };
 const toolIcon = (id) => `<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${TOOL_ICONS[id]}</svg>`;
 const teachCh = () => S.teach.chapters[S.teach.ch];
@@ -3586,7 +3590,6 @@ function step(fn) {
 
 function pushStroke() {
   S.hist.push({ type: 'stroke' }); S.redo.length = 0; mountHistory();
-  if (S.paintTip) { S.paintTip = false; mountPaintbar(); }
 }
 
 function undo() {
@@ -3718,7 +3721,7 @@ function enterPaint() {
   if (S.step !== 4) return;
   S.tab = 'paint';
   $('#s4').classList.add('painting-mode');
-  S.paintTip = true;                       // 進來時工具列上帶一句怎麼畫，畫了第一筆就收起來
+  S.brush.mode = 'paint';
   mountTabs(); mountModes(); mountPanel(); mountPaintbar(); liftMirror();
 }
 function exitPaint(quiet = false) {
@@ -3760,10 +3763,34 @@ function mountPaintbar() {
   const rec = el('button', 'pb-rec' + (S.rec ? ' on' : ''), S.rec ? t('rec.stop') : t('rec.start'));
   rec.hidden = !recMime();                  // 這個瀏覽器錄不了就不放這顆鈕
   rec.onclick = () => { S.rec ? recStop() : recStart(); rec.classList.toggle('on', !S.rec); };
-  row.append(rec, wipe, done);
-  bar.appendChild(row);
+  // 部位、錄影、清除可以橫向捲；「完成」固定在最右邊，不會被擠出畫面
+  row.append(rec, wipe);
+  row.classList.add('pb-scroll');
+  const top = el('div', 'pb-row');
+  top.append(row, done);
+  bar.appendChild(top);
 
-  const row2 = el('div', 'pb-row');
+  // 第二排：用什麼塗（三支，由細到粗）＋ 暈染、卸妝
+  const part = S.brush.tool, kitNow = kitOf(part, S.brush.kit[part]);
+  const row2 = el('div', 'pb-row pb-kits');
+  for (const k of PAINT_KIT[part]) {
+    const on = S.brush.mode === 'paint' && k.id === kitNow.id;
+    const b = el('button', 'pb-kit' + (on ? ' on' : ''), toolIcon(k.icon) + `<span>${t(`paint.kit.${part}.${k.id}`)}</span>`);
+    b.type = 'button'; b.setAttribute('aria-pressed', String(on));
+    b.onclick = () => { S.brush.kit[part] = k.id; S.brush.mode = 'paint'; mountPaintbar(); };
+    row2.appendChild(b);
+  }
+  for (const m of ['smudge', 'erase']) {
+    const on = S.brush.mode === m;
+    const b = el('button', 'pb-kit pb-mode' + (on ? ' on' : ''), toolIcon(m) + `<span>${t('paint.mode.' + m)}</span>`);
+    b.type = 'button'; b.setAttribute('aria-pressed', String(on));
+    b.onclick = () => { S.brush.mode = on ? 'paint' : m; mountPaintbar(); };
+    row2.appendChild(b);
+  }
+  bar.appendChild(row2);
+
+  // 第三排：顏色 ＋ 粗細四段 ＋ 鏡像 ＋ 按住對比
+  const row3 = el('div', 'pb-row');
   const chips = el('div', 'pb-chips');
   for (const q of PRODUCTS.filter((x) => x.cat === S.brush.tool)) {
     const b = el('button', 'chip' + (q.id === S.picks[S.brush.tool].id ? ' on' : '') + (q.stock <= 0 ? ' oos' : ''));
@@ -3779,14 +3806,30 @@ function mountPaintbar() {
     };
     chips.appendChild(b);
   }
-  row2.appendChild(chips);
-  // 粗細：一般手指塗唇用細一點、腮紅用粗一點 —— 工具列上只留這一條，其他參數在「妝容調整」裡
-  const size = el('label', 'pb-size');
-  size.innerHTML = `<span>${t('brush.size')}</span><input type="range" min="10" max="80" value="${S.brush.size}">`;
-  size.querySelector('input').oninput = (e) => { S.brush.size = +e.target.value; };
-  row2.appendChild(size);
-  bar.appendChild(row2);
-  if (S.paintTip) bar.appendChild(el('div', 'pb-tip', t('paint.tip.' + S.brush.tool)));
+  row3.appendChild(chips);
+  const sizes = el('div', 'pb-sizes');
+  sizes.setAttribute('role', 'group'); sizes.setAttribute('aria-label', t('brush.size'));
+  const nearest = PAINT_SIZES.reduce((best, v, i) => (Math.abs(v - S.brush.size) < Math.abs(PAINT_SIZES[best] - S.brush.size) ? i : best), 0);
+  PAINT_SIZES.forEach((v, i) => {
+    const b = el('button', 'pb-dot' + (i === nearest ? ' on' : ''), `<i style="--d:${6 + i * 4}px"></i>`);
+    b.type = 'button'; b.setAttribute('aria-label', t('brush.size') + ' ' + (i + 1)); b.setAttribute('aria-pressed', String(i === nearest));
+    b.onclick = () => { S.brush.size = v; mountPaintbar(); };
+    sizes.appendChild(b);
+  });
+  row3.appendChild(sizes);
+  const mir = el('button', 'pb-tog' + (S.brush.mirror ? ' on' : ''), '⇆ ' + t('paint.mirror'));
+  mir.type = 'button'; mir.setAttribute('aria-pressed', String(S.brush.mirror));
+  mir.onclick = () => { S.brush.mirror = !S.brush.mirror; mountPaintbar(); };
+  const cmp = el('button', 'pb-tog pb-cmp', '◐ ' + t('paint.compare'));
+  cmp.type = 'button';
+  const bare = (v) => { holdBare = v; $('#s4 > .frame')?.classList.toggle('bare', v); };
+  cmp.onpointerdown = (e) => { e.preventDefault(); bare(true); };
+  cmp.onpointerup = cmp.onpointerleave = cmp.onpointercancel = () => bare(false);
+  row3.append(mir, cmp);
+  bar.appendChild(row3);
+  // 提示：現在拿的是什麼、怎麼用（一直都在，換工具就換）
+  const hk = S.brush.mode === 'paint' ? `paint.kit.${part}.${kitNow.id}` : 'paint.mode.' + S.brush.mode;
+  bar.appendChild(el('div', 'pb-hint', `<b>${t(hk)}</b>${t(hk + '.h')}${S.brush.mirror ? ' · ' + t('paint.mirror.h') : ''}`));
 }
 
 /** 一條滑桿。數值跟著滑桿走，不必去對照最右邊的數字。 */
@@ -3966,13 +4009,15 @@ function strokePressure(e) {
 function brushOpts() {
   const p = S.picks[S.brush.tool];
   const R = { lip: 26, eye: 30, cheek: 46 }[S.brush.tool];      // 各部位的基準半徑
-  return {
+  const base = {
     color: disp(p.color),
     alpha: (S.brush.flow / 100) * 0.16,      // 壓低，靠反覆塗抹堆疊
     radius: (S.brush.size / 100) * R + R * 0.35,
     bias: BIAS[p.finish] ?? 10,
     finish: p.finish, lip: S.brush.tool === 'lip',   // 筆觸也要知道質地與是不是塗在唇上
   };
+  // 用什麼塗（唇刷、指腹、海綿…）決定筆觸的大小、濃淡、邊緣；暈染與卸妝是另外兩種模式
+  return paintOpts(base, kitOf(S.brush.tool, S.brush.kit[S.brush.tool]), S.brush.mode);
 }
 
 /**
@@ -4019,7 +4064,11 @@ function bindMirror(frame) {
       // 快速加壓時中間會出現一條肉眼看得到的硬邊。
       const qk = lastPt ? lastK + (k - lastK) * t2 : k;
       const uv = screenToUV(P, qx, qy);
-      if (uv) brushDab(uv[0], uv[1], applyPressure(o, qk));
+      if (uv) {
+        const oo = o.smudge || o.erase ? o : applyPressure(o, qk);
+        brushDab(uv[0], uv[1], oo);
+        if (S.brush.mirror) brushDab(...mirrorUV(uv[0], uv[1]), oo);   // 鏡像：另一邊同時畫，左右才會一樣
+      }
     }
     lastPt = [px, py]; lastK = k;
     lastSig = '';           // 手繪層動過，讓貼圖下一幀一定重建

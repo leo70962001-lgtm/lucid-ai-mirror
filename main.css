@@ -2396,3 +2396,24 @@ button.leg { cursor:pointer; }
 .s5-nav::-webkit-scrollbar { display:none; }
 .s5-nav button { flex:none; padding:5px 12px; border:1px solid var(--line); border-radius:14px; background:#fff; font-size:12.5px; font-weight:700; color:var(--primary-2); cursor:pointer; }
 #s5-how .facemap { margin-bottom:12px; }
+/* ── 自己畫的工具組：用什麼塗、暈染、卸妝、粗細四段、鏡像、對比 ── */
+.pb-kits { gap:5px; overflow-x:auto; scrollbar-width:none; }
+.pb-kits::-webkit-scrollbar { display:none; }
+.pb-kit { flex:1 0 auto; display:flex; align-items:center; justify-content:center; gap:4px; min-width:0; padding:5px 8px; border:1px solid var(--line); border-radius:12px; background:#fff; font-size:12px; font-weight:700; color:var(--ink-2, #5a4650); cursor:pointer; }
+.pb-kit svg { flex:none; width:20px; height:20px; color:var(--primary-2); }
+.pb-kit.on { color:#fff; border-color:transparent; background:linear-gradient(180deg, var(--primary-1), var(--primary-2)); }
+.pb-kit.on svg { color:#fff; }
+.pb-mode { flex:0 0 auto; background:var(--tint-2, #fff5f7); }
+.pb-sizes { flex:none; display:flex; gap:3px; }
+.pb-dot { display:grid; place-items:center; width:28px; height:28px; padding:0; border:1px solid var(--line); border-radius:50%; background:#fff; cursor:pointer; }
+.pb-dot i { width:var(--d); height:var(--d); border-radius:50%; background:var(--ink-2, #5a4650); }
+.pb-dot.on { border-color:var(--primary-2); box-shadow:0 0 0 2px rgba(201,79,124,.25); }
+.pb-dot.on i { background:var(--primary-2); }
+.pb-tog { flex:none; padding:5px 9px; border:1px solid var(--line); border-radius:12px; background:#fff; font-size:12px; font-weight:700; color:var(--ink-2, #5a4650); cursor:pointer; touch-action:none; user-select:none; -webkit-user-select:none; }
+.pb-tog.on { color:#fff; border-color:transparent; background:#5b3944; }
+.pb-hint { font-size:11.5px; line-height:1.4; color:var(--ink-2, #5a4650); }
+.pb-hint b { margin-right:6px; padding:1px 7px; border-radius:8px; font-size:11px; color:#fff; background:#5b3944; }
+.pb-scroll { flex:1; min-width:0; overflow-x:auto; scrollbar-width:none; }
+.pb-scroll::-webkit-scrollbar { display:none; }
+.pb-scroll > *, .pb-done { flex:none; white-space:nowrap; }
+.pb-scroll .pb-wipe { margin-left:0; }
