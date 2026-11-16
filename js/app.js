@@ -36,7 +36,7 @@ import { TRENDS, TREND_PACK, trendsFor, trendPlan, trendLines, trendStale, trend
 import { COACH_MODES, COACH_TOOLS, COARSE_RATIO, COACH_GLYPH, coachMethod, coachToolKey, coachPlan, coachShapes, coachRegion, drawCoachShapes,
          TEACH_STEPS, teachStepShapes, demoAt, demoAmount, teachToolIcon, stepMs, stepStart, drawTeachStep, teachSpot,
          EYE_METHODS, eyeKey, eyeMeasurable, PART_METHODS, methodKey,
-         GESTURE_HOLDS, gestureFor, handKind,
+         GESTURE_HOLDS, gestureFor, handKind, HAND_PICS, handPicId,
          SCENES, SCENE_IDS, sceneStepCount, mistakeShapes, drawCompare, faceMapItems, drawFaceMap } from './coach.js';
 import { lessonChapters, modeFrom, lessonRegions, lessonSample, averageSamples, assessPart, LESSON_LEVELS } from './lesson.js';
 import { lightQuality, lightTrend, patchRGB, scleraLoose } from './lightcheck.js';
@@ -1781,11 +1781,42 @@ function teachUnzoom() {
   const c = $('#ar'); if (c) { c.style.transform = ''; c.style.transformOrigin = ''; }
 }
 /** 鏡子上的手：像教學影片一樣，一隻手在臉上做這個動作（指腹，或握著刷具、棉花棒、海綿） */
-function teachHand(part, step, P) {
+function teachHand(part, step, P, color) {
   const method = teachMethod(part), g = gestureFor(step, method);
   const fw = Math.hypot(P[454].x - P[234].x, P[454].y - P[234].y) || 1;
-  return { kind: handKind(part, g), hold: g.hold, tool: method === 'sub' ? 'swab' : 'brush',
+  const kind = handKind(part, g), tool = method === 'sub' ? 'swab' : 'brush';
+  return { kind, hold: g.hold, tool, img: handSprite(handPicId(kind, tool), color),
            u: fw * (part === 'eye' || part === 'lip' ? 0.058 : 0.075), cx: (P[234].x + P[454].x) / 2 };
+}
+/** 手的照片（Gemini 產的圖，已去背）：第一次用到才載入，載好之前與載不到時回 null（drawHand 會改畫線條手） */
+const HAND_IMG = {}, HAND_TINT = new Map();
+function handImg(id) {
+  if (!(id in HAND_IMG)) {
+    HAND_IMG[id] = null;
+    const im = new Image();
+    im.onload = () => { HAND_IMG[id] = im; };
+    im.src = globalThis.__LUCID_HANDS__?.[id] || `images/hands/${id}.webp`;
+  }
+  return HAND_IMG[id];
+}
+/** 刷毛、棉頭沾上這一步化妝品的顏色（只染工具尖端那一小塊，同一個顏色只算一次） */
+function handSprite(id, color) {
+  const im = handImg(id), pic = HAND_PICS[id];
+  if (!im || !pic?.tint || !/^#[0-9a-f]{6}$/i.test(color || '')) return im;
+  const key = id + color;
+  let c = HAND_TINT.get(key);
+  if (!c) {
+    if (HAND_TINT.size > 12) HAND_TINT.clear();
+    c = el('canvas'); c.width = pic.w; c.height = pic.h;
+    const x = c.getContext('2d'), [tx, ty, tr] = pic.tint;
+    x.drawImage(im, 0, 0, pic.w, pic.h);
+    x.globalCompositeOperation = 'source-atop';
+    const g = x.createRadialGradient(tx, ty, 0, tx, ty, tr);
+    g.addColorStop(0, color + 'e0'); g.addColorStop(0.5, color + 'b0'); g.addColorStop(1, color + '00');
+    x.fillStyle = g; x.fillRect(0, 0, pic.w, pic.h);
+    HAND_TINT.set(key, c);
+  }
+  return c;
 }
 /** 完成圖：整個妝畫好的樣子（畫在自己的照片上，沒有輔助線）。平常對準現在這個部位，點一下放大看全臉 */
 function finishPic(part) {
@@ -1831,7 +1862,7 @@ function drawCoach(ctx, lm, W, H) {
   const z = teachZoom(cur.part, P, W, H);
   const lw = Math.max(2, Math.min(W, H) * 0.0055) / z;      // 放大後線條不要跟著變粗
   drawTeachStep(ctx, shapes, { lw, t: calm() ? null : k, tool: toolImg(teachToolIcon(cur.part, teachMethod(cur.part))),
-    color: cur.product?.color || '#e2b59a', motion: s.motion, reps: s.reps, spot: teachSpot(cur.part, P), W, H, labels: zoneLabels(), hand: teachHand(cur.part, s, P) });
+    color: cur.product?.color || '#e2b59a', motion: s.motion, reps: s.reps, spot: teachSpot(cur.part, P), W, H, labels: zoneLabels(), hand: teachHand(cur.part, s, P, cur.product?.color || '#e2b59a') });
 }
 
 /* ── 圖解：每一步一格（參考小紅書圖解版教學）───────────────────
