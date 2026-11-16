@@ -36,8 +36,10 @@ import { TRENDS, TREND_PACK, trendsFor, trendPlan, trendLines, trendStale, trend
 import { COACH_MODES, COACH_TOOLS, COARSE_RATIO, COACH_GLYPH, coachMethod, coachToolKey, coachPlan, coachShapes, coachRegion, drawCoachShapes,
          TEACH_STEPS, teachStepShapes, demoAt, demoAmount, teachToolIcon, stepMs, stepStart, drawTeachStep, teachSpot,
          EYE_METHODS, eyeKey, eyeMeasurable, PART_METHODS, methodKey,
+         GESTURE_HOLDS, gestureFor,
          SCENES, SCENE_IDS, sceneStepCount, mistakeShapes, drawCompare, faceMapItems, drawFaceMap } from './coach.js';
 import { lessonChapters, modeFrom, lessonRegions, lessonSample, averageSamples, assessPart, LESSON_LEVELS } from './lesson.js';
+import { lightQuality, lightTrend, patchRGB, scleraLoose } from './lightcheck.js';
 import { PAINT_SIZES, PAINT_KIT, defaultKit, kitOf, paintOpts, mirrorUV } from './paintkit.js';
 import { GROWTH_KEY, GROWTH_PARTS, addRecord, growthTrend, growthDelta, sparkPoints, practiceAdvice } from './growth.js';
 import { QA_TAGS, QA_KB, qaSearch, qaByTag, qaLines } from './qa.js';
@@ -485,6 +487,40 @@ function holdHint(text, ms = 3500) {
   const f = $('#s1 .frame');
   f.classList.remove('miss'); void f.offsetWidth; f.classList.add('miss');   // 重播一次提醒動畫
 }
+/* ── 取景時的環境光檢查：把人帶到色偏小的地方 ──────────────────
+   每 0.7 秒量一次（眼白的色偏、臉頰亮度、左右均勻），畫成一條量表；
+   邊移動邊講「越來越好」或「剛才那邊比較好」。不擋拍照 —— 拍完還會用眼白校正，只是光線好會更準。 */
+let lastLight = 0, lightEMA = null, lightShown = null, lightProbe = null;
+function probeLight(v, lm) {
+  if (!v.videoWidth) return;
+  if (!lightProbe) lightProbe = el('canvas');
+  const W = Math.min(960, v.videoWidth), H = Math.round(W * v.videoHeight / v.videoWidth);   // 眼白很小，解析度太低會量不到
+  if (lightProbe.width !== W || lightProbe.height !== H) { lightProbe.width = W; lightProbe.height = H; }
+  const x = lightProbe.getContext('2d', { willReadFrequently: true });
+  x.drawImage(v, 0, 0, W, H);
+  const fw = Math.hypot((lm[454].x - lm[234].x) * W, (lm[454].y - lm[234].y) * H) || 1;
+  const il = estimateIlluminant(lightProbe, lm);
+  const q = lightQuality({
+    sclera: il?.rgb || scleraLoose(x, lm, W, H),      // 燈光很黃時嚴格的眼白取樣會失敗，退到寬鬆的取樣
+    left: patchRGB(x, lm[50].x * W, lm[50].y * H, fw * 0.05),
+    right: patchRGB(x, lm[280].x * W, lm[280].y * H, fw * 0.05),
+  });
+  const prev = lightEMA;
+  lightEMA = prev == null ? q.score : prev * 0.6 + q.score * 0.4;      // 平滑一下，數字才不會亂跳
+  showLight({ ...q, score: Math.round(lightEMA), trend: lightTrend(lightShown, Math.round(lightEMA)) });
+}
+function showLight(q) {
+  const box = $('#light'); if (!box) return;
+  if (!q) { box.hidden = true; lightEMA = null; lightShown = null; return; }
+  const level = q.score >= 75 ? 'good' : q.score >= 50 ? 'fair' : 'poor';
+  if (q.trend !== 'same' || lightShown == null) lightShown = q.score;
+  box.hidden = false;
+  box.dataset.level = level;
+  // 分數夠好就不挑小毛病；不夠好才講最該先改的一件事
+  const tip = level !== 'good' && q.issue ? t('light.fix.' + q.issue) : t(q.known ? 'light.good' : 'light.goodNoEye');
+  const trend = q.trend === 'up' ? `<em class="up">${t('light.up')}</em>` : q.trend === 'down' ? `<em class="down">${t('light.down')}</em>` : '';
+  box.innerHTML = `<div class="lm-top"><b>☀ ${t('light.t.' + level)}</b><span class="lm-bar" role="img" aria-label="${q.score}"><i style="width:${q.score}%"></i></span></div><p>${tip}${trend}</p>`;
+}
 function guideLoop() {
   const v = $('#cam'), c = $('#guide'), ctx = c.getContext('2d');
   const draw = async (ts) => {
@@ -500,6 +536,8 @@ function guideLoop() {
       try {
         const lm = await detectImage(v);
         faceOk = !!lm && Math.abs(lm[1].x - 0.5) < 0.13 && lm[1].y > 0.28 && lm[1].y < 0.72;
+        if (lm && ts - lastLight > 700) { lastLight = ts; probeLight(v, lm); }
+        if (!lm) showLight(null);
       } catch { faceOk = false; }
       if (performance.now() > hintHoldUntil) {
         $('#hint').textContent = t(faceOk ? 'hint.ok' : 'hint.align');
@@ -1246,7 +1284,7 @@ function enterTeach() {
   if (S.step !== 4 || !S.picks) return;
   if (S.tab === 'paint') exitPaint(true);
   S.mode = 'full'; S.zoom = false;
-  S.teach = { ch: 0, chapters: lessonChapters({ picks: S.picks, amount: S.amount }), stage: 'coarse', view: 'demo', owned: new Set(), hasSub: true,
+  S.teach = { ch: 0, chapters: lessonChapters({ picks: S.picks, amount: S.amount }), stage: 'coarse', view: 'demo', ...loadTools(),
               saved: { ...S.amount }, base: {}, results: {}, qa: false, qaAns: null, before: null, after: null, photo: false, stored: false, busy: false,
               slow: false, paused: false, voice: voicePref(), prevGrowth: loadGrowth() };
   SHOT_CACHE.clear();
@@ -1267,7 +1305,7 @@ function leaveTeach() {
   S.teach = null; S.guideDone = true;
   $('#s4').classList.remove('teach-mode');
   $('#teach').hidden = true;
-  $('#teach-target').hidden = true; $('#teach-cap').hidden = true; $('#s4').classList.remove('demo-run', 'demo-paused'); teachUnzoom();
+  $('#teach-target').hidden = true; $('#teach-cap').hidden = true; $('#s4').classList.remove('demo-run', 'demo-paused', 'teach-mini'); $('#teach-target').classList.remove('big'); teachUnzoom();
   try { speechSynthesis.cancel(); } catch { /* 沒有語音功能 */ }
 }
 function teachToAR() {
@@ -1408,18 +1446,51 @@ function teachTools(box) {
   box.appendChild(el('p', 'scene-sum', `${['eye', 'cheek', 'lip'].map((p) => `<span><i>${t('coach.part.' + p)}</i>${mName(p)}</span>`).join('')}<em>${t('teach.scene.steps', { n: sceneStepCount(S.methods) })}</em>`));
   box.appendChild(el('h3', '', t('teach.tools.t')));
   box.appendChild(el('p', 'sub', t('teach.tools.s')));
-  const grid = el('div', 'tool-grid');
-  const card = (id, on, onclick) => {
-    const b = el('button', 'tool' + (on ? ' on' : ''), `${toolIcon(id)}<b>${t('teach.tool.' + id)}</b><span>${t('teach.tool.' + id + '.use')}</span><i>${t(on ? 'teach.have' : 'teach.haveNot')}</i>`);
+  // 一鍵設定：只有手指／簡單工具／刷具齊全
+  const now = modeFrom(T.owned, T.hasSub);
+  const presets = el('div', 'tool-presets');
+  for (const [id, owned, hasSub] of [['none', [], false], ['simple', [], true], ['full', COACH_TOOLS, true]]) {
+    const on = id === 'none' ? now === 'none' : id === 'full' ? now === 'full' : now === 'some' && T.hasSub && !T.owned.size;
+    const b = el('button', on ? 'on' : '', t('teach.preset.' + id));
     b.type = 'button'; b.setAttribute('aria-pressed', String(on));
-    b.onclick = onclick;
+    b.onclick = () => { T.owned = new Set(owned); T.hasSub = hasSub; saveTools(T); mountTeach(); };
+    presets.appendChild(b);
+  }
+  box.appendChild(presets);
+  const card = (id, on, onclick) => {
+    const b = el('button', 'tool' + (on ? ' on' : '') + (onclick ? '' : ' fixed'), `${toolIcon(id)}<b>${t('teach.tool.' + id)}</b><span>${t('teach.tool.' + id + '.use')}</span><i>${t(onclick ? (on ? 'teach.have' : 'teach.haveNot') : 'teach.always')}</i>`);
+    b.type = 'button';
+    if (onclick) { b.setAttribute('aria-pressed', String(on)); b.onclick = onclick; } else b.disabled = true;
     return b;
   };
-  for (const tool of COACH_TOOLS) grid.appendChild(card(tool, T.owned.has(tool), () => { if (T.owned.has(tool)) T.owned.delete(tool); else T.owned.add(tool); mountTeach(); }));
-  grid.appendChild(card('cotton', T.hasSub, () => { T.hasSub = !T.hasSub; mountTeach(); }));
-  box.appendChild(grid);
-  box.appendChild(el('div', 'free', `<span>${toolIcon('hand')}<b>${t('teach.tool.hand')}</b> ${t('teach.tool.hand.use')}</span><span>${toolIcon('tissue')}<b>${t('teach.tool.tissue')}</b> ${t('teach.tool.tissue.use')}</span>`));
-  box.appendChild(el('p', 'mode', t('teach.mode.' + modeFrom(T.owned, T.hasSub))));
+  const toggle = (tool) => () => { if (T.owned.has(tool)) T.owned.delete(tool); else T.owned.add(tool); saveTools(T); mountTeach(); };
+  // 簡單工具放前面：大多數人手邊都有，先用這些就能畫
+  box.appendChild(el('p', 'tool-group', t('teach.tools.simple')));
+  const simple = el('div', 'tool-grid');
+  simple.append(card('hand', true, null), card('tissue', true, null),
+                card('cotton', T.hasSub, () => { T.hasSub = !T.hasSub; saveTools(T); mountTeach(); }),
+                card('sponge', T.owned.has('sponge'), toggle('sponge')));
+  box.appendChild(simple);
+  // 刷具：有的話再勾，沒有也沒關係
+  box.appendChild(el('p', 'tool-group', t('teach.tools.brushes')));
+  const brushes = el('div', 'tool-grid');
+  for (const tool of COACH_TOOLS.filter((x) => x !== 'sponge')) brushes.appendChild(card(tool, T.owned.has(tool), toggle(tool)));
+  box.appendChild(brushes);
+  box.appendChild(el('p', 'mode', t('teach.mode.' + now)));
+  box.appendChild(el('p', 'sub', t('teach.tools.saved')));
+}
+/** 手邊的工具記在這台裝置，下次不用重設 */
+function loadTools() {
+  try {
+    const v = JSON.parse(localStorage.getItem('lucid.tools'));
+    if (v && Array.isArray(v.owned)) return { owned: new Set(v.owned.filter((x) => COACH_TOOLS.includes(x))), hasSub: v.hasSub !== false };
+  } catch { /* 讀不到就用預設 */ }
+  return { owned: new Set(), hasSub: true };      // 預設：簡單工具（手指、紙巾、棉花棒）
+}
+function saveTools(T) {
+  try { localStorage.setItem('lucid.tools', JSON.stringify({ owned: [...T.owned], hasSub: T.hasSub })); } catch { /* 無痕模式存不了，不影響這次 */ }
+  S.coach = { mode: modeFrom(T.owned, T.hasSub), owned: new Set(T.owned), hasSub: T.hasSub };
+  SHOT_CACHE.clear();
 }
 function teachItems(box) {
   const T = S.teach;
@@ -1437,6 +1508,7 @@ function teachItems(box) {
 function teachPart(box) {
   const T = S.teach, cur = teachCh(), method = teachMethod(cur.part), key = stepKey(cur.part), steps = TEACH_STEPS[key];
   const icon = teachToolIcon(cur.part, method);
+  const ctlSlot = el('div'); box.appendChild(ctlSlot);      // 主要按鈕放最上面
   const seg = el('div', 'tseg view');
   for (const [v, key] of [['demo', 'teach.view.demo'], ['self', 'teach.view.self']]) {
     const b = el('button', v === T.view ? 'on' : '', t(key));
@@ -1486,7 +1558,10 @@ function teachPart(box) {
     else if (cur.product && eyeMeasurable(key)) btn(T.busy ? 'teach.checking' : 'teach.check', 'primary', teachCheck, T.busy);
     else btn('teach.stepDone', 'primary', () => { T.baseDone = true; mountTeach(); });
   }
-  box.append(ctl, ol);
+  ctlSlot.replaceWith(ctl);
+  const gest = el('div', 'gest-card'); gest.id = 'teach-gest';      // 手勢：跟著目前這一步換（teachStepUI）
+  ctl.after(gest);
+  box.appendChild(ol);
   // 新手最常犯的錯，跟正確做法並排
   const cmp = cmpShots(cur.part);
   if (cmp) box.appendChild(el('div', 'cmp', `<figure class="x"><img src="${cmp.x}" alt=""><figcaption><b>✗</b>${t('teach.cmp.' + cur.part + '.x')}</figcaption></figure><figure class="o"><img src="${cmp.o}" alt=""><figcaption><b>✓</b>${t('teach.cmp.' + cur.part + '.o')}</figcaption></figure>`));
@@ -1526,6 +1601,33 @@ const MOTION_ICONS = {
 const motionIcon = (m) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${MOTION_ICONS[m]}</svg>`;
 const motionTag = (s) => motionIcon(s.motion) + t('teach.motion.' + s.motion) + (s.reps > 1 ? ' ×' + s.reps : '');
 const newDemo = (el = 0) => ({ el, done: false });
+/**
+ * 手勢的小動畫：手拿著工具在皮膚上做這個動作（握的位置、動的方式看得出來）。
+ * 手是一個簡化的圖形（手掌＋拇指）；描線時多一根靠在臉上的小指。
+ */
+function gestureSVG(g) {
+  const tip = [44, 57], end = [70, 12], at = (k) => [tip[0] + (end[0] - tip[0]) * k, tip[1] + (end[1] - tip[1]) * k];
+  const hand = (x, y, r = 10) => `<ellipse class="hd" cx="${x}" cy="${y}" rx="${r}" ry="${r * 0.75}" transform="rotate(-58 ${x} ${y})"/><ellipse class="hd" cx="${x - 6}" cy="${y + 4}" rx="4.6" ry="3.2" transform="rotate(-20 ${x - 6} ${y + 4})"/>`;
+  let body;
+  if (g.hold === 'finger') {
+    body = `<path class="fg" d="M44 53 58 22"/><ellipse class="nail" cx="45.6" cy="50" rx="2.6" ry="3.6" transform="rotate(24 45.6 50)"/>${hand(61, 16, 12)}`;
+  } else if (g.hold === 'pinch') {
+    body = `<ellipse class="sp" cx="44" cy="48" rx="8" ry="10.5"/>${hand(51, 33, 12)}`;
+  } else {
+    const [hx, hy] = at(g.hold === 'far' ? 0.82 : g.hold === 'mid' ? 0.55 : 0.3);
+    const pinky = g.hold === 'pen' ? `<path class="pk" d="M${hx + 7} ${hy + 4} Q${hx + 15} ${hy + 12} ${hx + 14} 58"/>` : '';
+    body = `<path class="hl" d="M${tip[0]} ${tip[1]} ${end[0]} ${end[1]}"/><ellipse class="br" cx="45.6" cy="53.6" rx="3.6" ry="6" transform="rotate(30 45.6 53.6)"/>${pinky}${hand(hx, hy)}`;
+  }
+  const mark = { wiper: '<path class="ar" d="M26 68h36M26 68l4-3M26 68l4 3M62 68l-4-3M62 68l-4 3"/>', sweep: '<path class="ar" d="M28 68h30M58 68l-4-3M58 68l-4 3"/>',
+                 line: '<path class="ar" d="M28 68h8M40 68h8M52 68h8"/>', circle: '<path class="ar" d="M50 68a6 3 0 1 1-3-2.600M47 63.500v2.500h2.500"/>' }[g.anim] || '';
+  return `<svg class="gest g-${g.anim}" viewBox="0 0 88 72" aria-hidden="true"><path class="sk" d="M4 62 Q44 52 84 62"/><circle class="rip" cx="44" cy="58" r="5"/><g class="mv">${body}</g>${mark}</svg>`;
+}
+/** 手勢卡：動畫＋握法、動作、力道 */
+function gestureHTML(step, method) {
+  const g = gestureFor(step, method);
+  return `${gestureSVG(g)}<div><b>${t('teach.gest.t')}</b><p>${t('teach.hold.' + g.hold)}</p><p>${t('teach.move.' + g.anim)}</p>
+    <span class="press">${t('teach.press.l')} <i class="on"></i><i class="${g.press > 1 ? 'on' : ''}"></i><i></i> ${t('teach.press.' + g.press)}</span></div>`;
+}
 /** 這個部位用哪一組步驟：眼影依選的畫法 */
 const stepKey = (part) => methodKey(part, S.methods[part]);
 /** 鏡子與圖解上的分區文字 */
@@ -1565,7 +1667,7 @@ function teachStepUI() {
     li.classList.toggle('done', i < T.step || !!fin);
     li.style.setProperty('--dur', stepMs(steps[i]) * (T.slow ? 2 : 1) + 'ms');
   });
-  scrollInside($('#teach'), $('#teach .steps li.on'), 'nearest', 6);
+  if (!T.mini) scrollInside($('#teach'), $('#teach .steps li.on'), 'nearest', 6);   // 收合時停在最上面（章節列與主要按鈕）
   const ctl = $('#teach .step-ctl');
   if (ctl?.dataset.demo) ctl.classList.toggle('ready', !!T.demo?.done);
   $('#s4').classList.toggle('demo-run', T.view === 'demo' && !T.demo?.done);
@@ -1574,8 +1676,10 @@ function teachStepUI() {
   cap.hidden = false;
   const text = t(`teach.step.${key}.${s.id}`);
   const tb = (act, on, label, glyph) => `<button type="button" data-act="${act}" aria-pressed="${on}" aria-label="${label}" title="${label}" class="${on ? 'on' : ''}">${glyph}</button>`;
-  cap.innerHTML = `<div class="l1"><b>${T.view === 'demo' ? t('teach.demoing') : t('teach.view.self')}</b><span class="n">${T.step + 1}/${steps.length}</span><span class="tx">${text}</span></div>
-    <div class="l2"><span class="mo">${motionTag(s)}</span><span class="btns">${tb('slow', T.slow, t('teach.slow'), '🐢')}${tb('pause', T.paused, t(T.paused ? 'teach.play' : 'teach.pause'), T.paused ? '▶' : '⏸')}${tb('voice', T.voice, t('teach.voice'), T.voice ? '🔊' : '🔈')}</span></div>`;
+  const gNow = gestureFor(s, teachMethod(cur.part));
+  const gc = $('#teach-gest'); if (gc) gc.innerHTML = gestureHTML(s, teachMethod(cur.part));
+  cap.innerHTML = `<div class="gs">${gestureSVG(gNow)}</div><div class="tx2"><div class="l1"><b>${T.view === 'demo' ? t('teach.demoing') : t('teach.view.self')}</b><span class="n">${T.step + 1}/${steps.length}</span><span class="tx">${text}</span></div>
+    <div class="l2"><span class="mo">${motionTag(s)}</span><span class="btns">${tb('slow', T.slow, t('teach.slow'), '🐢')}${tb('pause', T.paused, t(T.paused ? 'teach.play' : 'teach.pause'), T.paused ? '▶' : '⏸')}${tb('voice', T.voice, t('teach.voice'), T.voice ? '🔊' : '🔈')}</span></div></div>`;
   const sayKey = cur.id + ':' + key + ':' + T.view + ':' + T.step;
   if (T.saidKey !== sayKey) { T.saidKey = sayKey; teachSay(text + '。' + t('teach.motion.' + s.motion)); }
 }
@@ -1620,6 +1724,11 @@ function mountTeach() {
   });
   const ask = el('button', 'ask-toggle' + (T.qa ? ' on' : ''), '💬 ' + t('opt.ask'));
   ask.type = 'button'; ask.setAttribute('aria-pressed', String(T.qa)); ask.onclick = () => { T.qa = !T.qa; mountTeach(); };
+  const grip = el('button', 'teach-grip');
+  grip.type = 'button'; grip.setAttribute('aria-label', t('teach.panel')); grip.setAttribute('aria-expanded', String(!T.mini));
+  grip.onclick = () => { T.mini = !T.mini; if (T.mini) box.scrollTop = 0; $('#s4').classList.toggle('teach-mini', T.mini); grip.setAttribute('aria-expanded', String(!T.mini)); };
+  box.appendChild(grip);
+  $('#s4').classList.toggle('teach-mini', !!T.mini);
   const head = el('div', 'teach-head');
   head.append(nav, ask);
   box.appendChild(head);
@@ -1631,12 +1740,8 @@ function mountTeach() {
   else if (cur.id === 'end') teachEnd(box);
   else teachPart(box);
   // 目標：這個部位畫好應該長什麼樣（畫在自己照片上），跟鏡子裡真的臉對照
-  const tg = $('#teach-target');
-  tg.hidden = !cur.part;
-  if (cur.part) {
-    tg.innerHTML = '';
-    tg.append(howPic(cur.part, TEACH_STEPS[stepKey(cur.part)][T.step].stage), el('span', '', t('teach.target')));
-  } else $('#teach-cap').hidden = true;
+  mountTarget();
+  if (!cur.part) $('#teach-cap').hidden = true;
   teachSync(); teachActions(); liftMirror();
 }
 /** 工具圖示畫在鏡子上：白底圓章＋主題色線條（從教學面板同一組圖產生） */
@@ -1656,10 +1761,14 @@ function teachZoom(part, P, W, H) {
   if (!w || !h) return 1;
   const s = Math.max(w / W, h / H), ox = (w - W * s) / 2, oy = (h - H * s) / 2;   // object-fit: cover
   const b = coachRegion(part, P, W, H);
-  const z = Math.max(1, Math.min(3, (w * 0.92) / (b.w * s), (h * 0.8) / (b.h * s)));
+  // 教學是滿版：鏡子鋪滿整個畫面，面板浮在下方。部位要落在面板與字幕上方看得到的範圍裡
+  const panel = $('#teach'), cap = $('#teach-cap');
+  const ph = panel && !panel.hidden ? panel.offsetHeight : 0;
+  const vis = Math.max(140, h - ph - (cap && !cap.hidden ? cap.offsetHeight + 12 : 0));
+  const z = Math.max(1, Math.min(3, (w * 0.92) / (b.w * s), (vis * 0.86) / (b.h * s)));
   const px = (b.x + b.w / 2) * s + ox, py = (b.y + b.h / 2) * s + oy;
-  // 部位放在畫面中間偏下：右上角有目標圖
-  const goal = { z, x: Math.min(0, Math.max(w - z * w, w * 0.5 - z * px)), y: Math.min(0, Math.max(h - z * h, h * 0.56 - z * py)) };
+  // 往上最多可以多推一個面板的高度（下面那一段反正被面板蓋住）
+  const goal = { z, x: Math.min(0, Math.max(w - z * w, w * 0.5 - z * px)), y: Math.min(0, Math.max(h - z * h - ph, vis * 0.54 - z * py)) };
   const k = zoomNow ? 0.12 : 1;                                   // 慢慢跟上，臉晃也不會抖
   zoomNow = zoomNow ? { z: zoomNow.z + (goal.z - zoomNow.z) * k, x: zoomNow.x + (goal.x - zoomNow.x) * k, y: zoomNow.y + (goal.y - zoomNow.y) * k } : goal;
   c.style.transformOrigin = '0 0';
@@ -1670,10 +1779,30 @@ function teachUnzoom() {
   zoomNow = null;
   const c = $('#ar'); if (c) { c.style.transform = ''; c.style.transformOrigin = ''; }
 }
+/** 完成圖：整個妝畫好的樣子（畫在自己的照片上，沒有輔助線）。平常對準現在這個部位，點一下放大看全臉 */
+function finishPic(part) {
+  const W = S.photo.width, H = S.photo.height, P = toPixels(S.photoLm, W, H), b = coachRegion(part, P, W, H);
+  const c = el('canvas'); c.width = 480; c.height = Math.round(480 * b.h / b.w);
+  const x = c.getContext('2d');
+  x.imageSmoothingQuality = 'high';
+  x.drawImage(howSrc || S.photo, b.x, b.y, b.w, b.h, 0, 0, c.width, c.height);
+  return c;
+}
+function mountTarget() {
+  const tg = $('#teach-target'), T = S.teach; if (!T || !tg) return;
+  const big = tg.classList.contains('big');
+  tg.hidden = false; tg.innerHTML = '';
+  tg.append(finishPic(big ? 'base' : teachCh().part || 'base'), el('span', '', t('teach.final')));
+  tg.setAttribute('role', 'button'); tg.tabIndex = 0; tg.setAttribute('aria-label', t('teach.final')); tg.setAttribute('aria-expanded', String(big));
+  tg.onpointerdown = (e) => e.stopPropagation();        // 不要被當成「按住看素顏」
+  tg.onclick = () => { tg.classList.toggle('big'); mountTarget(); };
+  tg.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tg.click(); } };
+}
 /** 鏡子上：AI 先畫一次（聚光燈照著要畫的地方、工具照手法走、妝一點一點出現），換你畫時同一段動作一直重播 */
 function drawCoach(ctx, lm, W, H) {
   const T = S.teach; if (!T || !lm) return;
-  const cur = teachCh(); if (!cur.part) { if (zoomNow) teachUnzoom(); return; }
+  const cur = teachCh();
+  if (!cur.part) { teachZoom('base', toPixels(lm, W, H), W, H); return; }   // 工具、化妝品、完成：整張臉推到面板上方
   const now = performance.now(), key = stepKey(cur.part), st = TEACH_STEPS[key];
   const dt = T.lastT == null ? 0 : Math.min(100, now - T.lastT); T.lastT = now;
   const adv = T.paused ? 0 : dt * (T.slow ? 0.5 : 1);           // 慢速：一半的速度
