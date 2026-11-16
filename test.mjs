@@ -19,6 +19,8 @@ import { LIP_INSET } from './js/makeup-gl.js';
 import { pwaState, isIOS, isInApp } from './js/pwa.js';
 import { nextDuel, duelSides, duelLines, duelOpts, duelPicked, DUEL_AXES } from './js/duel.js';
 import { SCENES, SCENE_IDS, sceneStepCount, mistakeShapes, drawCompare, faceMapItems, drawFaceMap, EYE_METHODS, eyeKey, eyeMeasurable, roleColor, PART_METHODS, methodKey, TEACH_STEPS, TEACH_STEP_MS, TEACH_MOTIONS, stepMs, stepStart, drawTeachStep, teachSpot, teachStepShapes, demoAt, demoAmount, teachToolIcon } from './js/coach.js';
+import { LIGHT, castOf, lightQuality, lightTrend, patchRGB, scleraLoose } from './js/lightcheck.js';
+import { GESTURE_HOLDS, gestureFor } from './js/coach.js';
 import { PAINT_SIZES, PAINT_MODES, PAINT_KIT, defaultKit, kitOf, paintOpts, mirrorUV } from './js/paintkit.js';
 import { lessonChapters, modeFrom, lessonRegions, averageSamples, assessPart, LESSON_LEVELS } from './js/lesson.js';
 import { GROWTH_KEY, GROWTH_PARTS, addRecord, growthTrend, growthDelta, sparkPoints, practiceAdvice, FIX_STEP } from './js/growth.js';
@@ -2120,6 +2122,64 @@ console.log('\n\x1b[1m49. 自己畫的工具組：用什麼塗、暈染、卸妝
   ok(missK.length === 0, '工具名稱與用法三種語言齊全（' + kKeys.length + ' 句）' + (missK.length ? ' 缺：' + missK.join() : ''));
   const icons = /const TOOL_ICONS = \{[\s\S]*?\n\};/.exec(app)[0];
   ok([...new Set(Object.values(PAINT_KIT).flat().map((k) => k.icon)), 'smudge', 'erase'].every((n) => new RegExp('\n  ' + n + ': ').test(icons)), '用到的工具圖示都有畫');
+}
+
+console.log('\n\x1b[1m50. 拍照前的環境光檢查；教學滿版與完成圖；手勢\x1b[0m');
+{
+  const app = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('./main.css', import.meta.url), 'utf8');
+  const skin = [200, 160, 140];
+  const q = (o) => lightQuality({ left: skin, right: skin, ...o });
+  const neutral = q({ sclera: [225, 225, 225] });
+  ok(neutral.score === 100 && neutral.level === 'good' && neutral.issue === null, '白光、均勻：滿分，沒有要改的');
+  const warm = q({ sclera: [250, 210, 150] });
+  ok(warm.level === 'poor' && warm.issue === 'warm', '偏黃的燈（像 2700K）：會影響顏色，往白光移動');
+  ok(q({ sclera: [235, 225, 205] }).level === 'good', '只偏一點點黃：不囉嗦，算好');
+  ok(q({ sclera: [200, 215, 245] }).issue === 'cool' && q({ sclera: [190, 230, 190] }).issue === 'green' && q({ sclera: [235, 200, 235] }).issue === 'magenta', '分得出偏藍、偏綠、偏紫紅');
+  ok(lightQuality({ sclera: [70, 70, 70], left: [70, 55, 48], right: [70, 55, 48] }).issue === 'dark', '太暗');
+  ok(lightQuality({ sclera: [255, 255, 255], left: [250, 240, 235], right: [250, 240, 235] }).issue === 'bright', '太亮／過曝');
+  const un = lightQuality({ sclera: [225, 225, 225], left: skin, right: [110, 88, 77] });
+  ok(un.issue === 'uneven' && un.score < neutral.score, '一邊亮一邊暗');
+  const noeye = q({ sclera: null });
+  ok(noeye.known === false && noeye.cast === null && noeye.level === 'good', '量不到眼白：只看亮度與均勻，不亂猜色偏');
+  ok(warm.score < q({ sclera: [240, 220, 190] }).score && q({ sclera: [240, 220, 190] }).score < neutral.score, '色偏越小分數越高（邊移動邊回饋靠這個）');
+  ok(lightTrend(null, 50) === 'same' && lightTrend(50, 56) === 'up' && lightTrend(60, 50) === 'down' && lightTrend(60, 62) === 'same', '變好、變差才講；差一點點不講');
+  ok(castOf(null) === null && castOf([225, 225, 225]).dir === 'neutral' && LIGHT.castOk < LIGHT.castBad, '色偏的方向與門檻');
+  const fake = { getImageData: (x, y, w, h) => ({ data: new Uint8ClampedArray(w * h * 4).fill(100) }) };
+  ok(patchRGB(fake, 10, 10, 4).join() === '100,100,100', '取樣：一小塊的平均色');
+  const lmF = []; for (const [k, p] of [[33, [.3, .4]], [133, [.42, .4]], [159, [.36, .38]], [145, [.36, .42]], [263, [.7, .4]], [362, [.58, .4]], [386, [.64, .38]], [374, [.64, .42]]]) lmF[k] = { x: p[0], y: p[1] };
+  const warmCtx = { getImageData: (x0, y0, w, h) => { const d = new Uint8ClampedArray(w * h * 4); for (let i = 0; i < d.length; i += 4) { const br = (i / 4) % 3 === 0; d[i] = br ? 250 : 90; d[i + 1] = br ? 205 : 60; d[i + 2] = br ? 140 : 40; } return { data: d }; } };
+  const sl = scleraLoose(warmCtx, lmF, 640, 480);
+  ok(sl && sl[0] > 240 && sl[2] < 150 && lightQuality({ sclera: sl, left: skin, right: skin }).issue === 'warm', '燈光很黃、嚴格取樣失敗時，寬鬆取樣仍量得到偏黃');
+  ok(scleraLoose({ getImageData: (x0, y0, w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }) }, lmF, 640, 480) === null, '眼睛全黑（閉眼、太暗）：量不到就說量不到');
+  ok(/if \(lm && ts - lastLight > 700\) \{ lastLight = ts; probeLight\(v, lm\); \}/.test(app) && /sclera: il\?\.rgb \|\| scleraLoose\(x, lm, W, H\)/.test(app), '取景時每 0.7 秒量一次，用眼白估色偏');
+  ok(/id="light" hidden/.test(readFileSync(new URL('./index.html', import.meta.url), 'utf8')) && !/disabled: .*light/i.test(app), '量表在拍照頁；光線不好也不擋拍照');
+
+  // 教學滿版、完成圖
+  ok(/#s4\.teach-mode > \.frame \{ bottom:0; height:auto; \}/.test(css) && /\.teach \{ top:auto; height:var\(--teach-h\);/.test(css), '教學時鏡子鋪滿整個畫面，面板浮在下方');
+  ok(/#s4\.teach-mode \.teach-cap \{ bottom:calc\(var\(--teach-h\) \+ 8px\);/.test(css), '字幕跟著面板高度走，不會被蓋住');
+  ok(/const ph = panel && !panel\.hidden \? panel\.offsetHeight : 0;/.test(app) && /Math\.max\(h - z \* h - ph, vis \* 0\.54 - z \* py\)/.test(app), '部位放在面板上方看得到的範圍裡');
+  ok(/tg\.append\(finishPic\(big \? 'base' : teachCh\(\)\.part \|\| 'base'\), el\('span', '', t\('teach\.final'\)\)\);/.test(app), '右上角是完成圖，點一下放大看全臉');
+  ok(/grip\.onclick = \(\) => \{ T\.mini = !T\.mini;/.test(app) && /ctlSlot\.replaceWith\(ctl\);/.test(app), '面板可以收合；「換你畫」那排在最上面，收合時也看得到');
+
+  // 手勢
+  ok(gestureFor({ motion: 'wiper' }).hold === 'far' && gestureFor({ motion: 'line' }).hold === 'pen' && gestureFor({ motion: 'stipple' }).hold === 'pinch', '暈染握尾端、描線像握筆、海綿用捏的');
+  ok(gestureFor({ motion: 'sweep' }, 'none').hold === 'finger' && gestureFor({ motion: 'sweep' }, 'sub').hold === 'mid', '沒有工具用指腹；棉花棒握中段');
+  ok(COACH_PARTS.every((p) => TEACH_STEPS[p].every((s) => ['full', 'sub', 'none'].every((m) => { const g = gestureFor(s, m); return GESTURE_HOLDS.includes(g.hold) && [1, 2].includes(g.press) && g.anim === s.motion; }))), '每一步、每種工具都有手勢');
+  ok(TEACH_MOTIONS.every((m) => new RegExp('\.g-' + m + ' \.mv \{ animation:g-' + m).test(css) || m === 'tap'), '六種手法各有動畫');
+  ok(/prefers-reduced-motion: reduce\) \{ \.gest \.mv, \.gest \.rip \{ animation:none; \} \}/.test(css), '減少動態效果時手勢不動');
+  ok(/gc\.innerHTML = gestureHTML\(s, teachMethod\(cur\.part\)\);/.test(app) && /<div class="gs">\$\{gestureSVG\(gNow\)\}<\/div>/.test(app), '手勢卡跟著步驟換；鏡子字幕上也有');
+  // 手邊的工具：簡單工具為主，可以設定並記住
+  ok(/stage: 'coarse', view: 'demo', \.\.\.loadTools\(\),/.test(app) && /return \{ owned: new Set\(\), hasSub: true \};/.test(app), '預設是簡單工具（手指、紙巾、棉花棒）；進教學時帶入上次的設定');
+  ok(/localStorage\.setItem\('lucid\.tools'/.test(app) && /v\.owned\.filter\(\(x\) => COACH_TOOLS\.includes\(x\)\)/.test(app), '工具設定記在這台裝置；讀回來只認得的才用');
+  ok(/card\('hand', true, null\), card\('tissue', true, null\)/.test(app) && /COACH_TOOLS\.filter\(\(x\) => x !== 'sponge'\)/.test(app), '簡單工具（手指、紙巾、棉花棒、海綿）排在前面，刷具在後');
+  ok(modeFrom(new Set(), false) === 'none' && modeFrom(new Set(), true) === 'some' && modeFrom(new Set(COACH_TOOLS), true) === 'full', '三個一鍵設定對應三種教法');
+  const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8').split(/\r?\n/);
+  const has3 = (k) => /', '.*', '/.test(dict.find((l) => l.startsWith("  '" + k + "':")) || '');
+  const keys = ['light.good', 'light.goodNoEye', 'light.t.good', 'light.t.fair', 'light.t.poor', 'light.up', 'light.down', ...['warm', 'cool', 'green', 'magenta', 'dark', 'bright', 'uneven'].map((x) => 'light.fix.' + x),
+    'teach.tools.s', 'teach.tools.simple', 'teach.tools.brushes', 'teach.tools.saved', 'teach.always', 'teach.preset.none', 'teach.preset.simple', 'teach.preset.full', 'teach.final', 'teach.panel', 'teach.gest.t', 'teach.press.l', 'teach.press.1', 'teach.press.2', ...GESTURE_HOLDS.map((h) => 'teach.hold.' + h), ...TEACH_MOTIONS.map((m) => 'teach.move.' + m)];
+  const miss = keys.filter((k) => !has3(k));
+  ok(miss.length === 0, '環境光、完成圖、手勢的文案三種語言齊全（' + keys.length + ' 句）' + (miss.length ? ' 缺：' + miss.join() : ''));
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

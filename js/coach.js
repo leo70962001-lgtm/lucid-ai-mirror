@@ -743,3 +743,18 @@ export function drawFaceMap(ctx, items, { lw = 3, colors = {} } = {}) {
   }
   ctx.restore();
 }
+
+/* ── 手勢：工具怎麼握、手怎麼動、用多少力 ────────────────────────
+   整理自美妝教學常講的握法：握在刷桿尾端力道自然變輕、用手腕帶動（暈染、刷開）；
+   要精準就握近一點、像握筆，小指輕靠臉頰穩住（描線）；海綿與粉撲用按壓彈開，不要拖；
+   沒有工具時用無名指指腹，力道最輕。
+   hold：far 握尾端｜mid 握中段｜pen 像握筆｜pinch 捏住海綿｜finger 指腹；press：1 很輕、2 輕 */
+export const GESTURE_HOLDS = ['far', 'mid', 'pen', 'pinch', 'finger'];
+export function gestureFor(step, method = 'full') {
+  const m = step.motion;
+  if (method === 'none') return { hold: 'finger', press: m === 'stipple' ? 2 : 1, anim: m };
+  if (m === 'stipple') return { hold: 'pinch', press: 2, anim: m };
+  if (m === 'line') return { hold: 'pen', press: 2, anim: m };
+  if (method === 'sub' || m === 'tap') return { hold: 'mid', press: 1, anim: m };   // 棉花棒短，握中段
+  return { hold: 'far', press: 1, anim: m };
+}
