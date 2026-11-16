@@ -3150,6 +3150,7 @@ const DICT = {
   'teach.hold.mid': ['握在中段，用拇指和兩指輕輕拿', 'Hold the middle lightly with thumb and two fingers', '真ん中を親指と2本の指で軽く'],
   'teach.hold.pen': ['像握筆一樣握近一點，小指輕靠臉頰穩住', 'Hold it like a pen, close to the tip; rest your little finger on your cheek', 'ペンのように近くを持ち、小指を頬に添えて安定'],
   'teach.hold.pinch': ['拇指和兩指捏住海綿（粉撲）', 'Pinch the sponge or puff with thumb and two fingers', 'スポンジ（パフ）を親指と2本の指でつまむ'],
+  'teach.hold.fingers': ['大範圍用三指指腹（食指、中指、無名指），先洗手', 'For large areas use the pads of three fingers — wash your hands first', '広い範囲は3本の指の腹で。先に手を洗って'],
   'teach.hold.finger': ['用無名指指腹，力道最輕', 'Use the pad of your ring finger — the gentlest touch', '薬指の腹で。いちばん力が弱い指です'],
   'teach.move.tap': ['垂直輕點，點到就離開', 'Tap straight down and lift off', 'まっすぐ置いてすぐ離す'],
   'teach.move.stipple': ['按下去再彈起來，一路往外，不要拖', 'Press and bounce outward — never drag', '押して弾ませながら外へ。こすらない'],
@@ -3186,7 +3187,7 @@ const DICT = {
   'teach.tool.cotton': ['棉花棒／化妝棉', 'Cotton swab / pad', '綿棒／コットン'],
   'teach.tool.cotton.use': ['替代刷具，也能修掉畫錯的地方', 'Replaces brushes and fixes mistakes', 'ブラシの代わりに。失敗の修正にも'],
   'teach.tool.hand': ['手指', 'Fingers', '指'],
-  'teach.tool.hand.use': ['無名指力道最輕，適合眼睛', 'The ring finger is gentlest, good for eyes', '薬指は力が弱く目元向き'],
+  'teach.tool.hand.use': ['先洗手；大範圍用三指指腹，眼周用無名指（力道最輕）', 'Wash first; three finger pads for large areas, ring finger around the eyes', '先に手を洗う。広い所は3本の指、目元は薬指で'],
   'teach.tool.tissue': ['紙巾', 'Tissue', 'ティッシュ'],
   'teach.tool.tissue.use': ['壓掉多餘的顏色與油光', 'Lifts excess colour and shine', '余分な色と油分を取ります'],
   'teach.items.t': ['今天會用到的化妝品', 'Today’s cosmetics', '今日使うコスメ'],
@@ -6002,7 +6003,7 @@ function arrowHead(ctx, tip, from, a) {
  * 畫一小步。t = 這一步的進度（0..1），null = 靜態（路線畫完、沒有工具）。
  * color：化妝品的顏色。motion / reps：手法與次數。spot：聚光燈橢圓。W、H：畫布大小（聚光燈用）。
  */
-function drawTeachStep(ctx, shapes, { lw = 3, t = null, tool = null, color = '#e39aa8', motion = 'sweep', reps = 1, spot = null, W = 0, H = 0, labels = null } = {}) {
+function drawTeachStep(ctx, shapes, { lw = 3, t = null, tool = null, color = '#e39aa8', motion = 'sweep', reps = 1, spot = null, W = 0, H = 0, labels = null, hand = null } = {}) {
   ctx.save();
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   const pulse = t == null ? 1 : 0.5 + 0.5 * Math.sin(t * Math.PI * 2 * Math.max(1, reps));
@@ -6100,7 +6101,7 @@ function drawTeachStep(ctx, shapes, { lw = 3, t = null, tool = null, color = '#e
     bounce = Math.abs(Math.sin(t * Math.PI * Math.max(1, reps))) * lw * 4;
   }
   // 5. 工具＋筆尖的小亮粉（化妝品的顏色）
-  if (toolAt && tool) {
+  if (toolAt && (tool || hand)) {
     ctx.save(); ctx.shadowBlur = 0;
     for (let i = 0; i < 5; i++) {
       const ang = i * 1.26 + t * 9, r = lw * (1.5 + ((t * 7 + i * 0.37) % 1) * 3);
@@ -6108,7 +6109,11 @@ function drawTeachStep(ctx, shapes, { lw = 3, t = null, tool = null, color = '#e
       ctx.beginPath(); ctx.arc(toolAt.x + Math.cos(ang) * r, toolAt.y + Math.sin(ang) * r, lw * 0.55, 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
-    drawTool(ctx, tool, toolAt.x + lw * 2.5, toolAt.y - lw - bounce, lw);
+    // 有手就畫手（像教學影片：一隻手在臉上示範），沒有才畫工具圓章
+    if (hand) {
+      const tilt = -Math.max(-0.45, Math.min(0.45, (toolAt.x - (hand.cx ?? toolAt.x)) / (hand.u * 12)));   // 手從臉的外側下方伸進來
+      drawHand(ctx, toolAt.x, toolAt.y - bounce * 0.6, { ...hand, tilt, color });
+    } else drawTool(ctx, tool, toolAt.x + lw * 2.5, toolAt.y - lw - bounce, lw);
   }
   ctx.restore();
 }
@@ -6390,6 +6395,69 @@ function gestureFor(step, method = 'full') {
   if (m === 'line') return { hold: 'pen', press: 2, anim: m };
   if (method === 'sub' || m === 'tap') return { hold: 'mid', press: 1, anim: m };   // 棉花棒短，握中段
   return { hold: 'far', press: 1, anim: m };
+}
+
+/* ── 手：像教學影片一樣，一隻手在臉上示範 ───────────────────────
+   (x, y) 是接觸皮膚的那一點（指腹或工具尖端），手從下方伸進來，u = 一根手指的寬度。
+   kind：fingers 三指指腹（底妝、腮紅推開）｜finger 單指（眼、唇的小範圍）｜sponge 捏著海綿｜tool 握著刷具或棉花棒
+   先用深一點的顏色畫大一圈當輪廓，再用膚色蓋上去 —— 幾個圖形疊起來看起來就是一隻手。 */
+const HAND = {
+  fingers: [['seg', -1.08, 1.0, -1.0, 5.2, 1.0], ['seg', 0, 0.5, 0, 5.2, 1.05], ['seg', 1.08, 0.9, 1.0, 5.2, 1.0], ['seg', 2.05, 2.2, 1.9, 5.6, 0.85],
+            ['blob', 0.45, 7.2, 2.25, 2.6], ['seg', -2.9, 5.0, -1.7, 7.4, 1.15], ['seg', 0.45, 8.5, 0.6, 15, 3.6]],
+  finger: [['seg', 0, 0.5, 0, 4.6, 1.05], ['blob', -1.1, 4.3, 0.62, 0.62], ['blob', 1.1, 4.2, 0.62, 0.62], ['blob', 2.1, 4.7, 0.55, 0.55],
+           ['blob', 0.4, 6.6, 2.3, 2.5], ['seg', -2.2, 5.0, -1.3, 6.6, 1.1], ['seg', 0.4, 8, 0.6, 15, 3.6]],
+};
+const NAILS = { fingers: [[-1.08, 0.95], [0, 0.45], [1.08, 0.85], [2.05, 2.15]], finger: [[0, 0.45]] };
+const GRIP = { pen: 2.7, mid: 4.6, far: 6.8 };
+
+function drawHand(ctx, x, y, { kind = 'fingers', u = 10, tilt = 0, hold = 'mid', tool = 'brush', color = '#c94f7c', alpha = 0.95 } = {}) {
+  const SK = '#f2cbb6', OL = '#b98670', NAIL = '#fbe9e1';
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(tilt);
+  ctx.globalAlpha = alpha; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.setLineDash([]);
+  const seg = (x1, y1, x2, y2, w, c) => { ctx.strokeStyle = c; ctx.lineWidth = w * u; ctx.beginPath(); ctx.moveTo(x1 * u, y1 * u); ctx.lineTo(x2 * u, y2 * u); ctx.stroke(); };
+  const blob = (cx, cy, rx, ry, c, rot = 0) => { ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(cx * u, cy * u, rx * u, ry * u, rot, 0, Math.PI * 2); ctx.fill(); };
+  const skin = (shapes, ox = 0, oy = 0) => {
+    ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = u * 0.7; ctx.shadowOffsetY = u * 0.15;
+    for (const [k, a, b, c, d, w] of shapes) (k === 'seg' ? seg(a + ox, b + oy, c + ox, d + oy, w + 0.26, OL) : blob(a + ox, b + oy, c + 0.13, d + 0.13, OL));
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    for (const [k, a, b, c, d, w] of shapes) (k === 'seg' ? seg(a + ox, b + oy, c + ox, d + oy, w, SK) : blob(a + ox, b + oy, c, d, SK));
+  };
+  if (kind === 'tool') {
+    // 工具：尖端在接觸點，桿子往右下；手握在桿子上（握筆近、暈染遠）
+    const dx = 0.42, dy = 0.91, L = tool === 'swab' ? 6.4 : 9, g = Math.min(GRIP[hold] ?? GRIP.mid, L - 1.6);
+    const at = (k) => [dx * k, dy * k];
+    ctx.shadowColor = 'rgba(0,0,0,.3)'; ctx.shadowBlur = u * 0.5;
+    if (tool === 'swab') {
+      seg(...at(0.4), ...at(L), 0.3, '#efe4dc');
+      blob(...at(0.35), 0.42, 0.6, '#ffffff', -0.43); blob(...at(L), 0.42, 0.6, '#ffffff', -0.43);
+      blob(...at(0.3), 0.3, 0.42, color, -0.43);
+    } else {
+      seg(...at(1.5), ...at(L), 0.42, '#4a3340');
+      seg(...at(0.95), ...at(1.6), 0.5, '#c9c2c6');
+      blob(...at(0.5), 0.44, 0.8, color, -0.43);
+    }
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+    const [gx, gy] = at(g);
+    const fist = [['seg', gx + 1.0, gy + 1.4, gx + 2.4, gy + 9, 3.4], ['blob', gx + 0.5, gy + 0.5, 1.95, 1.6],
+                  ['blob', gx + 1.5, gy - 0.5, 0.6, 0.6], ['blob', gx + 2.0, gy + 0.4, 0.58, 0.58], ['blob', gx + 2.2, gy + 1.4, 0.52, 0.52],
+                  ['seg', gx - 1.3, gy - 0.5, gx + 0.2, gy - 1.0, 0.95]];
+    if (hold === 'pen') fist.push(['seg', gx + 1.6, gy + 1.2, 2.9, 0.7, 0.8]);       // 小指輕靠在臉上穩住
+    skin(fist);
+    blob(gx - 1.3, gy - 0.55, 0.3, 0.36, NAIL, -1.2);
+  } else {
+    const oy = kind === 'sponge' ? 1.7 : 0, base = kind === 'finger' ? 'finger' : 'fingers';
+    if (kind === 'sponge') { ctx.shadowColor = 'rgba(0,0,0,.3)'; ctx.shadowBlur = u * 0.5; blob(0, 0.9, 1.35, 1.7, '#d98aa2'); ctx.shadowBlur = 0; ctx.shadowColor = 'transparent'; blob(0, 0.9, 1.22, 1.57, '#f4adc0'); }
+    skin(HAND[base], 0, oy);
+    ctx.globalAlpha = alpha * 0.75;
+    for (const [nx, ny] of NAILS[base]) blob(nx, ny + oy - 0.05, 0.3, 0.38, NAIL);
+  }
+  ctx.restore();
+}
+/** 這一步要畫哪一種手 */
+function handKind(part, g) {
+  if (g.hold === 'finger') return part === 'base' || part === 'cheek' ? 'fingers' : 'finger';
+  return g.hold === 'pinch' ? 'sponge' : 'tool';
 }
 
 
@@ -12428,9 +12496,10 @@ function gestureSVG(g) {
   return `<svg class="gest g-${g.anim}" viewBox="0 0 88 72" aria-hidden="true"><path class="sk" d="M4 62 Q44 52 84 62"/><circle class="rip" cx="44" cy="58" r="5"/><g class="mv">${body}</g>${mark}</svg>`;
 }
 /** 手勢卡：動畫＋握法、動作、力道 */
-function gestureHTML(step, method) {
+function gestureHTML(step, method, part) {
   const g = gestureFor(step, method);
-  return `${gestureSVG(g)}<div><b>${t('teach.gest.t')}</b><p>${t('teach.hold.' + g.hold)}</p><p>${t('teach.move.' + g.anim)}</p>
+  const holdKey = handKind(part, g) === 'fingers' ? 'fingers' : g.hold;      // 大範圍（底妝、腮紅）用三指指腹
+  return `${gestureSVG(g)}<div><b>${t('teach.gest.t')}</b><p>${t('teach.hold.' + holdKey)}</p><p>${t('teach.move.' + g.anim)}</p>
     <span class="press">${t('teach.press.l')} <i class="on"></i><i class="${g.press > 1 ? 'on' : ''}"></i><i></i> ${t('teach.press.' + g.press)}</span></div>`;
 }
 /** 這個部位用哪一組步驟：眼影依選的畫法 */
@@ -12482,7 +12551,7 @@ function teachStepUI() {
   const text = t(`teach.step.${key}.${s.id}`);
   const tb = (act, on, label, glyph) => `<button type="button" data-act="${act}" aria-pressed="${on}" aria-label="${label}" title="${label}" class="${on ? 'on' : ''}">${glyph}</button>`;
   const gNow = gestureFor(s, teachMethod(cur.part));
-  const gc = $('#teach-gest'); if (gc) gc.innerHTML = gestureHTML(s, teachMethod(cur.part));
+  const gc = $('#teach-gest'); if (gc) gc.innerHTML = gestureHTML(s, teachMethod(cur.part), cur.part);
   cap.innerHTML = `<div class="gs">${gestureSVG(gNow)}</div><div class="tx2"><div class="l1"><b>${T.view === 'demo' ? t('teach.demoing') : t('teach.view.self')}</b><span class="n">${T.step + 1}/${steps.length}</span><span class="tx">${text}</span></div>
     <div class="l2"><span class="mo">${motionTag(s)}</span><span class="btns">${tb('slow', T.slow, t('teach.slow'), '🐢')}${tb('pause', T.paused, t(T.paused ? 'teach.play' : 'teach.pause'), T.paused ? '▶' : '⏸')}${tb('voice', T.voice, t('teach.voice'), T.voice ? '🔊' : '🔈')}</span></div></div>`;
   const sayKey = cur.id + ':' + key + ':' + T.view + ':' + T.step;
@@ -12584,6 +12653,13 @@ function teachUnzoom() {
   zoomNow = null;
   const c = $('#ar'); if (c) { c.style.transform = ''; c.style.transformOrigin = ''; }
 }
+/** 鏡子上的手：像教學影片一樣，一隻手在臉上做這個動作（指腹，或握著刷具、棉花棒、海綿） */
+function teachHand(part, step, P) {
+  const method = teachMethod(part), g = gestureFor(step, method);
+  const fw = Math.hypot(P[454].x - P[234].x, P[454].y - P[234].y) || 1;
+  return { kind: handKind(part, g), hold: g.hold, tool: method === 'sub' ? 'swab' : 'brush',
+           u: fw * (part === 'eye' || part === 'lip' ? 0.058 : 0.075), cx: (P[234].x + P[454].x) / 2 };
+}
 /** 完成圖：整個妝畫好的樣子（畫在自己的照片上，沒有輔助線）。平常對準現在這個部位，點一下放大看全臉 */
 function finishPic(part) {
   const W = S.photo.width, H = S.photo.height, P = toPixels(S.photoLm, W, H), b = coachRegion(part, P, W, H);
@@ -12628,7 +12704,7 @@ function drawCoach(ctx, lm, W, H) {
   const z = teachZoom(cur.part, P, W, H);
   const lw = Math.max(2, Math.min(W, H) * 0.0055) / z;      // 放大後線條不要跟著變粗
   drawTeachStep(ctx, shapes, { lw, t: calm() ? null : k, tool: toolImg(teachToolIcon(cur.part, teachMethod(cur.part))),
-    color: cur.product?.color || '#e2b59a', motion: s.motion, reps: s.reps, spot: teachSpot(cur.part, P), W, H, labels: zoneLabels() });
+    color: cur.product?.color || '#e2b59a', motion: s.motion, reps: s.reps, spot: teachSpot(cur.part, P), W, H, labels: zoneLabels(), hand: teachHand(cur.part, s, P) });
 }
 
 /* ── 圖解：每一步一格（參考小紅書圖解版教學）───────────────────
