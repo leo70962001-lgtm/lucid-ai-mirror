@@ -417,7 +417,7 @@ export function drawTeachStep(ctx, shapes, { lw = 3, t = null, tool = null, colo
     ctx.save(); ctx.setLineDash([lw * 2, lw * 1.6]); ctx.lineWidth = lw * 0.7; ctx.strokeStyle = '#fff'; ctx.stroke(); ctx.restore();
   }
   // 3. 路線：先整條虛線＋終點箭頭（方向），再一筆一筆輪流畫上顏色
-  let toolAt = null, bounce = 0;
+  let toolAt = null, bounce = 0, sideX = null;        // sideX：現在這一筆在臉的哪一邊（決定手從哪邊伸進來）
   const n = paths.length, seg = t == null ? n : t * n, cur = Math.min(n - 1, Math.floor(seg)), kk = seg - cur;
   paths.forEach((s, j) => {
     ctx.save(); ctx.globalAlpha = 0.7; ctx.setLineDash([lw * 1.4, lw * 1.8]); ctx.lineWidth = lw * 0.8; ctx.strokeStyle = '#fff';
@@ -435,7 +435,7 @@ export function drawTeachStep(ctx, shapes, { lw = 3, t = null, tool = null, colo
     ctx.globalAlpha = 0.9; ctx.strokeStyle = '#fff'; ctx.lineWidth = lw * 0.7; const at = strokeTo(ctx, s.pts, q); ctx.stroke();
     ctx.restore();
     if (t != null && j === cur) {
-      toolAt = at.p;
+      toolAt = at.p; sideX = s.pts.reduce((a, p) => a + p.x, 0) / s.pts.length;
       if (motion === 'stipple') bounce = Math.abs(Math.sin(q * Math.PI * 7)) * lw * 3;
     }
   });
@@ -478,7 +478,9 @@ export function drawTeachStep(ctx, shapes, { lw = 3, t = null, tool = null, colo
     // 有手就畫手（像教學影片：一隻手在臉上示範），沒有才畫工具圓章
     if (hand) {
       const tilt = -Math.max(-0.45, Math.min(0.45, (toolAt.x - (hand.cx ?? toolAt.x)) / (hand.u * 12)));   // 手從臉的外側下方伸進來
-      drawHand(ctx, toolAt.x, toolAt.y - bounce * 0.6, { ...hand, tilt, color });
+      // 照片的手是從右下伸進來的；這一筆在畫面左半邊就左右翻轉，不要橫過整張臉（看整筆的位置，畫到一半不會突然翻面）
+      const flip = hand.cx != null && (sideX ?? toolAt.x) < hand.cx - hand.u;
+      drawHand(ctx, toolAt.x, toolAt.y - bounce * 0.6, { ...hand, tilt, color, flip });
     } else drawTool(ctx, tool, toolAt.x + lw * 2.5, toolAt.y - lw - bounce, lw);
   }
   ctx.restore();
@@ -776,7 +778,32 @@ const HAND = {
 const NAILS = { fingers: [[-1.08, 0.95], [0, 0.45], [1.08, 0.85], [2.05, 2.15]], finger: [[0, 0.45]] };
 const GRIP = { pen: 2.7, mid: 4.6, far: 6.8 };
 
-export function drawHand(ctx, x, y, { kind = 'fingers', u = 10, tilt = 0, hold = 'mid', tool = 'brush', color = '#c94f7c', alpha = 0.95 } = {}) {
+/**
+ * 手的照片（用 Gemini 產圖、去背）：比線條畫的手更像教學影片裡的樣子。
+ * w、h 圖的大小；at 接觸點（指腹、海綿頂端、刷毛、棉頭）；unit 圖上幾個像素等於一個 u（讓各張圖的手一樣大）。
+ * 圖在 images/hands/，由 app.js 載入後用 img 傳進 drawHand；沒傳（還沒載到、載不到）就畫下面的線條手。
+ */
+export const HAND_PICS = {
+  fingers: { w: 233, h: 520, at: [140, 26], unit: 32 },
+  finger: { w: 229, h: 520, at: [99, 22], unit: 32 },
+  sponge: { w: 191, h: 520, at: [73, 12], unit: 36 },
+  brush: { w: 301, h: 520, at: [14, 16], unit: 32, tint: [22, 24, 36] },      // tint：沾上化妝品顏色的地方（圓心與半徑）
+  swab: { w: 246, h: 520, at: [10, 9], unit: 32, tint: [15, 12, 20] },
+};
+export const handPicId = (kind, tool) => (kind === 'tool' ? (tool === 'swab' ? 'swab' : 'brush') : kind);
+
+export function drawHand(ctx, x, y, { kind = 'fingers', u = 10, tilt = 0, hold = 'mid', tool = 'brush', color = '#c94f7c', alpha = 0.95, img = null, flip = false } = {}) {
+  const pic = img ? HAND_PICS[handPicId(kind, tool)] : null;
+  if (pic) {
+    // 照片：接觸點對準 (x, y)；握工具的圖本來就斜著拿，少轉一點；flip = 從另一邊伸進來
+    const s = u / pic.unit;
+    ctx.save();
+    ctx.translate(x, y); ctx.rotate(kind === 'tool' ? tilt * 0.5 : tilt); if (flip) ctx.scale(-1, 1);
+    ctx.globalAlpha = Math.min(1, alpha + 0.05); ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = u * 0.7; ctx.shadowOffsetY = u * 0.15;
+    ctx.drawImage(img, -pic.at[0] * s, -pic.at[1] * s, pic.w * s, pic.h * s);
+    ctx.restore();
+    return;
+  }
   const SK = '#f2cbb6', OL = '#b98670', NAIL = '#fbe9e1';
   ctx.save();
   ctx.translate(x, y); ctx.rotate(tilt);

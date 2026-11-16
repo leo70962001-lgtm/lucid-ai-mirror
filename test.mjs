@@ -20,7 +20,7 @@ import { pwaState, isIOS, isInApp } from './js/pwa.js';
 import { nextDuel, duelSides, duelLines, duelOpts, duelPicked, DUEL_AXES } from './js/duel.js';
 import { SCENES, SCENE_IDS, sceneStepCount, mistakeShapes, drawCompare, faceMapItems, drawFaceMap, EYE_METHODS, eyeKey, eyeMeasurable, roleColor, PART_METHODS, methodKey, TEACH_STEPS, TEACH_STEP_MS, TEACH_MOTIONS, stepMs, stepStart, drawTeachStep, teachSpot, teachStepShapes, demoAt, demoAmount, teachToolIcon } from './js/coach.js';
 import { LIGHT, castOf, lightQuality, lightTrend, patchRGB, scleraLoose } from './js/lightcheck.js';
-import { GESTURE_HOLDS, gestureFor, drawHand, handKind } from './js/coach.js';
+import { GESTURE_HOLDS, gestureFor, drawHand, handKind, HAND_PICS, handPicId } from './js/coach.js';
 import { PAINT_SIZES, PAINT_MODES, PAINT_KIT, defaultKit, kitOf, paintOpts, mirrorUV } from './js/paintkit.js';
 import { lessonChapters, modeFrom, lessonRegions, averageSamples, assessPart, LESSON_LEVELS } from './js/lesson.js';
 import { GROWTH_KEY, GROWTH_PARTS, addRecord, growthTrend, growthDelta, sparkPoints, practiceAdvice, FIX_STEP } from './js/growth.js';
@@ -2183,7 +2183,23 @@ console.log('\n\x1b[1m50. 拍照前的環境光檢查；教學滿版與完成圖
   recH.length = 0;
   drawTeachStep(ctxH, teachStepShapes('cheek', 'sweep', P), { lw: 3, t: null, motion: 'sweep', hand: { kind: 'fingers', u: 20 } });
   ok(!recH.some((r) => r[0] === 'rotate'), '靜態圖（圖解、減少動態效果）不畫手');
-  ok(/hand: teachHand\(cur\.part, s, P\)/.test(app) && /tool: method === 'sub' \? 'swab' : 'brush'/.test(app), '鏡子上的手跟著手邊的工具：手指、棉花棒、刷具');
+  ok(/hand: teachHand\(cur\.part, s, P, cur\.product\?\.color \|\| '#e2b59a'\)/.test(app) && /tool = method === 'sub' \? 'swab' : 'brush'/.test(app), '鏡子上的手跟著手邊的工具：手指、棉花棒、刷具');
+  // 手的照片（Gemini 產圖、去背）
+  ok(['fingers', 'finger', 'sponge', 'brush', 'swab'].every((id) => HAND_PICS[id] && existsSync(new URL('./images/hands/' + id + '.webp', import.meta.url))), '五種手都有照片：三指、單指、捏海綿、握刷具、握棉花棒');
+  ok(Object.values(HAND_PICS).every((p) => p.at[0] >= 0 && p.at[0] <= p.w && p.at[1] >= 0 && p.at[1] < p.h * 0.1 && p.unit > 0), '接觸點在圖的最上緣附近（指腹、工具尖端）');
+  ok(handPicId('tool', 'swab') === 'swab' && handPicId('tool', 'brush') === 'brush' && handPicId('fingers', 'brush') === 'fingers' && handPicId('sponge', 'swab') === 'sponge', '握工具的手依工具選圖，其他依手勢');
+  recH.length = 0;
+  drawHand(ctxH, 200, 150, { kind: 'fingers', u: 16, tilt: 0.1, img: { width: 233, height: 520 } });
+  const dI = recH.find((r) => r[0] === 'drawImage'), tI = recH.find((r) => r[0] === 'translate');
+  ok(dI && tI && tI[1] === 200 && tI[2] === 150 && Math.abs(dI[2] + 140 * 0.5) < 1e-6 && Math.abs(dI[3] + 26 * 0.5) < 1e-6 && Math.abs(dI[5] - 260) < 1e-6 && !recH.some((r) => r[0] === 'ellipse'), '有照片就畫照片：接觸點對準要畫的位置，大小跟著臉');
+  recH.length = 0;
+  drawTeachStep(ctxH, teachStepShapes('cheek', 'sweep', P), { lw: 3, t: 0.4, motion: 'sweep', hand: { kind: 'fingers', u: 20, cx: 1e6, img: { width: 233, height: 520 } } });
+  const flipL = recH.some((r) => r[0] === 'scale' && r[1] === -1);
+  recH.length = 0;
+  drawTeachStep(ctxH, teachStepShapes('cheek', 'sweep', P), { lw: 3, t: 0.4, motion: 'sweep', hand: { kind: 'fingers', u: 20, cx: -1e6, img: { width: 233, height: 520 } } });
+  ok(flipL && !recH.some((r) => r[0] === 'scale' && r[1] === -1), '這一筆在畫面左半邊時手左右翻轉，從外側伸進來');
+  ok(app.includes('im.src = globalThis.__LUCID_HANDS__?.[id] || ' + '\x60images/hands/\x24{id}.webp\x60') && /if \(!im \|\| !pic\?\.tint/.test(app), '照片載好才用，載不到就畫線條手；單檔版用內嵌的圖');
+  ok(readFileSync(new URL('./build.mjs', import.meta.url), 'utf8').includes('globalThis.__LUCID_HANDS__ = \x24{JSON.stringify(hands)}'), '建置時把手的照片放進網站與單檔版');
   // 手邊的工具：簡單工具為主，可以設定並記住
   ok(/stage: 'coarse', view: 'demo', \.\.\.loadTools\(\),/.test(app) && /return \{ owned: new Set\(\), hasSub: true \};/.test(app), '預設是簡單工具（手指、紙巾、棉花棒）；進教學時帶入上次的設定');
   ok(/localStorage\.setItem\('lucid\.tools'/.test(app) && /v\.owned\.filter\(\(x\) => COACH_TOOLS\.includes\(x\)\)/.test(app), '工具設定記在這台裝置；讀回來只認得的才用');

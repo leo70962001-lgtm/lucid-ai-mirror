@@ -119,6 +119,12 @@ if (existsSync(imgDir)) {
 }
 console.log(`商品照 ${Object.keys(images).length} 張（${KB(imgBytes)}）`);
 
+// ── 教學用的手（Gemini 產圖、已去背）：單檔版一樣內嵌 ──────
+const handDir = join(ROOT, 'images', 'hands');
+const hands = {};
+if (existsSync(handDir)) for (const f of readdirSync(handDir)) if (extname(f) === '.webp') hands[f.replace(/\.webp$/, '')] = `data:image/webp;base64,${readFileSync(join(handDir, f)).toString('base64')}`;
+console.log(`手的照片 ${Object.keys(hands).length} 張`);
+
 // ── 推論資源 ─────────────────────────────────────────────
 const dataUrl = (path, mime) => `data:${mime};base64,${B(path).toString('base64')}`;
 let assetSetup, assetBytes = 0;
@@ -196,6 +202,7 @@ html = html.replace(
 })();
 ${assetSetup}
 globalThis.__LUCID_IMAGES__ = ${JSON.stringify(images)};
+globalThis.__LUCID_HANDS__ = ${JSON.stringify(hands)};
 globalThis.__LUCID_SINGLEFILE__ = true;
 </script>
 <script>
@@ -231,6 +238,7 @@ const siteFiles = ['index.html', 'main.css', 'models/face_landmarker.task',
   ...readdirSync(ROOT).filter((x) => /^_.*\.html$/.test(x)),
   ...(existsSync(join(ROOT, 'vendor')) ? readdirSync(join(ROOT, 'vendor')).map((f) => join('vendor', f)) : []),
   ...(existsSync(imgDir) ? readdirSync(imgDir).map((f) => join('images', 'products', f)) : []),
+  ...Object.keys(hands).map((id) => join('images', 'hands', id + '.webp')),
   // 假鏡頭測試頁要用的那張臉 —— 沒複製進來的話，線上版的 _camtest.html 會直接相機錯誤
   'images/_source/face_e1tw71e1tw71e1tw.jpg',
   // _chart.html?sim= 與 _camtest.html?chart= 的假鏡頭（有色卡的畫面）
