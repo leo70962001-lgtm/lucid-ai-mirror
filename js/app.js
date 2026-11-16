@@ -36,7 +36,7 @@ import { TRENDS, TREND_PACK, trendsFor, trendPlan, trendLines, trendStale, trend
 import { COACH_MODES, COACH_TOOLS, COARSE_RATIO, COACH_GLYPH, coachMethod, coachToolKey, coachPlan, coachShapes, coachRegion, drawCoachShapes,
          TEACH_STEPS, teachStepShapes, demoAt, demoAmount, teachToolIcon, stepMs, stepStart, drawTeachStep, teachSpot,
          EYE_METHODS, eyeKey, eyeMeasurable, PART_METHODS, methodKey,
-         GESTURE_HOLDS, gestureFor,
+         GESTURE_HOLDS, gestureFor, handKind,
          SCENES, SCENE_IDS, sceneStepCount, mistakeShapes, drawCompare, faceMapItems, drawFaceMap } from './coach.js';
 import { lessonChapters, modeFrom, lessonRegions, lessonSample, averageSamples, assessPart, LESSON_LEVELS } from './lesson.js';
 import { lightQuality, lightTrend, patchRGB, scleraLoose } from './lightcheck.js';
@@ -1623,9 +1623,10 @@ function gestureSVG(g) {
   return `<svg class="gest g-${g.anim}" viewBox="0 0 88 72" aria-hidden="true"><path class="sk" d="M4 62 Q44 52 84 62"/><circle class="rip" cx="44" cy="58" r="5"/><g class="mv">${body}</g>${mark}</svg>`;
 }
 /** 手勢卡：動畫＋握法、動作、力道 */
-function gestureHTML(step, method) {
+function gestureHTML(step, method, part) {
   const g = gestureFor(step, method);
-  return `${gestureSVG(g)}<div><b>${t('teach.gest.t')}</b><p>${t('teach.hold.' + g.hold)}</p><p>${t('teach.move.' + g.anim)}</p>
+  const holdKey = handKind(part, g) === 'fingers' ? 'fingers' : g.hold;      // 大範圍（底妝、腮紅）用三指指腹
+  return `${gestureSVG(g)}<div><b>${t('teach.gest.t')}</b><p>${t('teach.hold.' + holdKey)}</p><p>${t('teach.move.' + g.anim)}</p>
     <span class="press">${t('teach.press.l')} <i class="on"></i><i class="${g.press > 1 ? 'on' : ''}"></i><i></i> ${t('teach.press.' + g.press)}</span></div>`;
 }
 /** 這個部位用哪一組步驟：眼影依選的畫法 */
@@ -1677,7 +1678,7 @@ function teachStepUI() {
   const text = t(`teach.step.${key}.${s.id}`);
   const tb = (act, on, label, glyph) => `<button type="button" data-act="${act}" aria-pressed="${on}" aria-label="${label}" title="${label}" class="${on ? 'on' : ''}">${glyph}</button>`;
   const gNow = gestureFor(s, teachMethod(cur.part));
-  const gc = $('#teach-gest'); if (gc) gc.innerHTML = gestureHTML(s, teachMethod(cur.part));
+  const gc = $('#teach-gest'); if (gc) gc.innerHTML = gestureHTML(s, teachMethod(cur.part), cur.part);
   cap.innerHTML = `<div class="gs">${gestureSVG(gNow)}</div><div class="tx2"><div class="l1"><b>${T.view === 'demo' ? t('teach.demoing') : t('teach.view.self')}</b><span class="n">${T.step + 1}/${steps.length}</span><span class="tx">${text}</span></div>
     <div class="l2"><span class="mo">${motionTag(s)}</span><span class="btns">${tb('slow', T.slow, t('teach.slow'), '🐢')}${tb('pause', T.paused, t(T.paused ? 'teach.play' : 'teach.pause'), T.paused ? '▶' : '⏸')}${tb('voice', T.voice, t('teach.voice'), T.voice ? '🔊' : '🔈')}</span></div></div>`;
   const sayKey = cur.id + ':' + key + ':' + T.view + ':' + T.step;
@@ -1779,6 +1780,13 @@ function teachUnzoom() {
   zoomNow = null;
   const c = $('#ar'); if (c) { c.style.transform = ''; c.style.transformOrigin = ''; }
 }
+/** 鏡子上的手：像教學影片一樣，一隻手在臉上做這個動作（指腹，或握著刷具、棉花棒、海綿） */
+function teachHand(part, step, P) {
+  const method = teachMethod(part), g = gestureFor(step, method);
+  const fw = Math.hypot(P[454].x - P[234].x, P[454].y - P[234].y) || 1;
+  return { kind: handKind(part, g), hold: g.hold, tool: method === 'sub' ? 'swab' : 'brush',
+           u: fw * (part === 'eye' || part === 'lip' ? 0.058 : 0.075), cx: (P[234].x + P[454].x) / 2 };
+}
 /** 完成圖：整個妝畫好的樣子（畫在自己的照片上，沒有輔助線）。平常對準現在這個部位，點一下放大看全臉 */
 function finishPic(part) {
   const W = S.photo.width, H = S.photo.height, P = toPixels(S.photoLm, W, H), b = coachRegion(part, P, W, H);
@@ -1823,7 +1831,7 @@ function drawCoach(ctx, lm, W, H) {
   const z = teachZoom(cur.part, P, W, H);
   const lw = Math.max(2, Math.min(W, H) * 0.0055) / z;      // 放大後線條不要跟著變粗
   drawTeachStep(ctx, shapes, { lw, t: calm() ? null : k, tool: toolImg(teachToolIcon(cur.part, teachMethod(cur.part))),
-    color: cur.product?.color || '#e2b59a', motion: s.motion, reps: s.reps, spot: teachSpot(cur.part, P), W, H, labels: zoneLabels() });
+    color: cur.product?.color || '#e2b59a', motion: s.motion, reps: s.reps, spot: teachSpot(cur.part, P), W, H, labels: zoneLabels(), hand: teachHand(cur.part, s, P) });
 }
 
 /* ── 圖解：每一步一格（參考小紅書圖解版教學）───────────────────

@@ -20,7 +20,7 @@ import { pwaState, isIOS, isInApp } from './js/pwa.js';
 import { nextDuel, duelSides, duelLines, duelOpts, duelPicked, DUEL_AXES } from './js/duel.js';
 import { SCENES, SCENE_IDS, sceneStepCount, mistakeShapes, drawCompare, faceMapItems, drawFaceMap, EYE_METHODS, eyeKey, eyeMeasurable, roleColor, PART_METHODS, methodKey, TEACH_STEPS, TEACH_STEP_MS, TEACH_MOTIONS, stepMs, stepStart, drawTeachStep, teachSpot, teachStepShapes, demoAt, demoAmount, teachToolIcon } from './js/coach.js';
 import { LIGHT, castOf, lightQuality, lightTrend, patchRGB, scleraLoose } from './js/lightcheck.js';
-import { GESTURE_HOLDS, gestureFor } from './js/coach.js';
+import { GESTURE_HOLDS, gestureFor, drawHand, handKind } from './js/coach.js';
 import { PAINT_SIZES, PAINT_MODES, PAINT_KIT, defaultKit, kitOf, paintOpts, mirrorUV } from './js/paintkit.js';
 import { lessonChapters, modeFrom, lessonRegions, averageSamples, assessPart, LESSON_LEVELS } from './js/lesson.js';
 import { GROWTH_KEY, GROWTH_PARTS, addRecord, growthTrend, growthDelta, sparkPoints, practiceAdvice, FIX_STEP } from './js/growth.js';
@@ -2168,7 +2168,22 @@ console.log('\n\x1b[1m50. 拍照前的環境光檢查；教學滿版與完成圖
   ok(COACH_PARTS.every((p) => TEACH_STEPS[p].every((s) => ['full', 'sub', 'none'].every((m) => { const g = gestureFor(s, m); return GESTURE_HOLDS.includes(g.hold) && [1, 2].includes(g.press) && g.anim === s.motion; }))), '每一步、每種工具都有手勢');
   ok(TEACH_MOTIONS.every((m) => new RegExp('\.g-' + m + ' \.mv \{ animation:g-' + m).test(css) || m === 'tap'), '六種手法各有動畫');
   ok(/prefers-reduced-motion: reduce\) \{ \.gest \.mv, \.gest \.rip \{ animation:none; \} \}/.test(css), '減少動態效果時手勢不動');
-  ok(/gc\.innerHTML = gestureHTML\(s, teachMethod\(cur\.part\)\);/.test(app) && /<div class="gs">\$\{gestureSVG\(gNow\)\}<\/div>/.test(app), '手勢卡跟著步驟換；鏡子字幕上也有');
+  ok(/gc\.innerHTML = gestureHTML\(s, teachMethod\(cur\.part\), cur\.part\);/.test(app) && /<div class="gs">\$\{gestureSVG\(gNow\)\}<\/div>/.test(app), '手勢卡跟著步驟換；鏡子字幕上也有');
+  // 手畫在臉上（像教學影片）
+  const P = Array.from({ length: 468 }, (_, i) => ({ x: 120 + (i * 37) % 400, y: 60 + (i * 53) % 360 }));
+  ok(handKind('base', { hold: 'finger' }) === 'fingers' && handKind('eye', { hold: 'finger' }) === 'finger' && handKind('base', { hold: 'pinch' }) === 'sponge' && handKind('lip', { hold: 'pen' }) === 'tool', '底妝、腮紅用三指指腹；眼、唇用單指；海綿用捏的；刷具用握的');
+  const recH = [];
+  const ctxH = new Proxy({}, { get: (o, k) => (k in o ? o[k] : (...a) => { recH.push([k, ...a]); }), set: (o, k, v) => { o[k] = v; return true; } });
+  let threwH = false;
+  try { for (const kind of ['fingers', 'finger', 'sponge', 'tool']) for (const hold of ['pen', 'mid', 'far']) for (const tool of ['brush', 'swab']) drawHand(ctxH, 100, 100, { kind, hold, tool, u: 12, tilt: 0.2 }); } catch { threwH = true; }
+  ok(!threwH && recH.some((r) => r[0] === 'ellipse') && recH.some((r) => r[0] === 'stroke') && recH.filter((r) => r[0] === 'save').length === recH.filter((r) => r[0] === 'restore').length, '四種手、三種握法、兩種工具都畫得出來，畫完狀態有還原');
+  recH.length = 0;
+  drawTeachStep(ctxH, teachStepShapes('cheek', 'sweep', P), { lw: 3, t: 0.4, tool: { width: 40, complete: true }, motion: 'sweep', hand: { kind: 'fingers', hold: 'finger', u: 20, cx: 320 } });
+  ok(recH.some((r) => r[0] === 'rotate') && !recH.some((r) => r[0] === 'drawImage'), '有手的時候畫手，不畫工具圓章；手會依位置傾斜');
+  recH.length = 0;
+  drawTeachStep(ctxH, teachStepShapes('cheek', 'sweep', P), { lw: 3, t: null, motion: 'sweep', hand: { kind: 'fingers', u: 20 } });
+  ok(!recH.some((r) => r[0] === 'rotate'), '靜態圖（圖解、減少動態效果）不畫手');
+  ok(/hand: teachHand\(cur\.part, s, P\)/.test(app) && /tool: method === 'sub' \? 'swab' : 'brush'/.test(app), '鏡子上的手跟著手邊的工具：手指、棉花棒、刷具');
   // 手邊的工具：簡單工具為主，可以設定並記住
   ok(/stage: 'coarse', view: 'demo', \.\.\.loadTools\(\),/.test(app) && /return \{ owned: new Set\(\), hasSub: true \};/.test(app), '預設是簡單工具（手指、紙巾、棉花棒）；進教學時帶入上次的設定');
   ok(/localStorage\.setItem\('lucid\.tools'/.test(app) && /v\.owned\.filter\(\(x\) => COACH_TOOLS\.includes\(x\)\)/.test(app), '工具設定記在這台裝置；讀回來只認得的才用');
@@ -2177,7 +2192,7 @@ console.log('\n\x1b[1m50. 拍照前的環境光檢查；教學滿版與完成圖
   const dict = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8').split(/\r?\n/);
   const has3 = (k) => /', '.*', '/.test(dict.find((l) => l.startsWith("  '" + k + "':")) || '');
   const keys = ['light.good', 'light.goodNoEye', 'light.t.good', 'light.t.fair', 'light.t.poor', 'light.up', 'light.down', ...['warm', 'cool', 'green', 'magenta', 'dark', 'bright', 'uneven'].map((x) => 'light.fix.' + x),
-    'teach.tools.s', 'teach.tools.simple', 'teach.tools.brushes', 'teach.tools.saved', 'teach.always', 'teach.preset.none', 'teach.preset.simple', 'teach.preset.full', 'teach.final', 'teach.panel', 'teach.gest.t', 'teach.press.l', 'teach.press.1', 'teach.press.2', ...GESTURE_HOLDS.map((h) => 'teach.hold.' + h), ...TEACH_MOTIONS.map((m) => 'teach.move.' + m)];
+    'teach.tools.s', 'teach.tools.simple', 'teach.tools.brushes', 'teach.tools.saved', 'teach.always', 'teach.preset.none', 'teach.preset.simple', 'teach.preset.full', 'teach.final', 'teach.panel', 'teach.gest.t', 'teach.press.l', 'teach.press.1', 'teach.press.2', ...GESTURE_HOLDS.map((h) => 'teach.hold.' + h), 'teach.hold.fingers', ...TEACH_MOTIONS.map((m) => 'teach.move.' + m)];
   const miss = keys.filter((k) => !has3(k));
   ok(miss.length === 0, '環境光、完成圖、手勢的文案三種語言齊全（' + keys.length + ' 句）' + (miss.length ? ' 缺：' + miss.join() : ''));
 }
