@@ -2244,7 +2244,8 @@ console.log('\n\x1b[1m51. 語音引導：口語台詞、錄好的自然語音（
   const strayV = langsV.flatMap((l) => haveV[l].filter((k) => !keysV.includes(k)).map((k) => l + '/' + k));
   ok(strayV.length === 0, '錄音檔名都對得上步驟（沒有孤兒檔）' + (strayV.length ? '：' + strayV.join() : ''));
   const fullV = (l) => Object.keys(TEACH_STEPS).filter((sk) => groupV(sk).every((k) => haveV[l].includes(k)));
-  ok(['base', 'eye', 'eye.mono', 'eye.outer', 'eye.liner'].every((sk) => fullV('zh').includes(sk)), '中文的底妝與四種眼妝畫法整組都有錄音；目前進度 ' + langsV.map((l) => l + ' ' + haveV[l].length + '/' + keysV.length + '（整組 ' + fullV(l).length + '/' + Object.keys(TEACH_STEPS).length + '）').join('、'));
+  const nGroupV = Object.keys(TEACH_STEPS).length;
+  ok(fullV('zh').length === nGroupV && fullV('ja').length === nGroupV && haveV.zh.length === keysV.length && haveV.ja.length === keysV.length && fullV('en').length >= nGroupV - 2 && haveV.en.includes('done'), '中文、日文每一句都有錄音；英文至少九個部位整組齊全。目前進度 ' + langsV.map((l) => l + ' ' + haveV[l].length + '/' + keysV.length + '（整組 ' + fullV(l).length + '/' + Object.keys(TEACH_STEPS).length + '）').join('、'));
   const secsV = langsV.flatMap((l) => haveV[l].map((k) => [readFileSync(new URL('./' + voiceClipUrl(l, k), import.meta.url)).length * 8 / 40000, l + '/' + k])).sort((p, q) => p[0] - q[0]);   // 40 kbps 固定位元率：大小 → 秒數
   ok(secsV.length > 0 && secsV[0][0] > 1 && secsV.at(-1)[0] / voiceRate(true) * 1000 < VOICE_HOLD_MS, '每一句長度合理（最短 ' + secsV[0]?.[0].toFixed(1) + 's ' + secsV[0]?.[1] + '，最長 ' + secsV.at(-1)?.[0].toFixed(1) + 's ' + secsV.at(-1)?.[1] + '），放慢之後也在示範願意等的時間內');
 

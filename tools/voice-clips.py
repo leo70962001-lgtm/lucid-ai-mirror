@@ -53,6 +53,25 @@ def tidy(path):
     n = len(x) // win
     rms = np.sqrt((x[:n * win].reshape(n, win) ** 2).mean(axis=1) + 1e-12)
     loud = rms > max(0.004, rms.max() * 0.03)                   # 比最大聲小 30 dB 以下算空白
+    # 頭尾很小聲、又跟講話隔開的雜音（換氣聲、切開多句錄音時留下的半口氣）不算講話：
+    # 從兩端往內，音量不到最大聲的 8%、跟下一段隔了 0.08 秒以上的就丟掉。
+    # 句尾很輕的子音（k、t、す）緊接在講話後面，不會被丟。
+    for step in (1, -1):
+        i = 0 if step == 1 else n - 1
+        while 0 <= i < n:
+            while 0 <= i < n and not loud[i]:
+                i += step
+            j = i
+            while 0 <= j < n and loud[j]:
+                j += step
+            k = j
+            while 0 <= k < n and not loud[k]:
+                k += step
+            lo, hi = (i, j) if step == 1 else (j + 1, i + 1)
+            if not (0 <= k < n) or rms[lo:hi].max() >= rms.max() * 0.08 or abs(k - j) < 8:
+                break
+            loud[lo:hi] = False
+            i = j
     idx = np.flatnonzero(loud)
     a = max(0, idx[0] * win - int(sr * LEAD_S))
     b = min(len(x), (idx[-1] + 1) * win + int(sr * TAIL_S))
