@@ -3269,3 +3269,16 @@ AR 每秒重估一次，狀態改變時主動說：
 
 換色號、拉濃度、切對比模式，AI 都當場回應，而且回應裡帶著數字（跟前一支差多少 ΔE、現在濃度多少）。
 見上面〈改成對話〉的 AR 那一列。
+
+## Android APK（離線安裝檔）
+
+除了網頁安裝（PWA），也可以包成一個 APK 直接裝到 Android 手機：整個 App（含臉部模型）都在 APK 裡，裝好後不用網路、不依賴 Chrome。
+
+- 做法：用 Capacitor 把 `dist/site/` 包進 Android 的 WebView 外殼。App 內的網址是 `https://localhost`，所以相機能用。
+- 專案與建置工具不在這個 repo 裡，放在這台電腦的 `C:\Users\user\android-build\`（JDK 21、Android SDK、Capacitor 專案 `lucid-app`、簽章金鑰）。金鑰不能放進公開的 repo。
+- 重新打包：`bash /c/Users/user/android-build/build-apk.sh 1.1`（版本名稱自己取；會重建網站、編譯、簽章，輸出到桌面 `LUCID-AI-Mirror-版本.apk`）。
+- 套件名稱 `com.lucid.aimirror`，最低 Android 7.0，權限只有相機與網路，直向顯示。
+- 包成 APK 時（`js/pwa.js` 的 `isNativeApp()`）當成「已安裝」：不顯示安裝邀請，也不註冊 service worker。
+- 簽章金鑰 `lucid-app/lucid-release.jks` 與 `lucid-app/android/keystore.properties` 要留著：之後的更新版要用同一把金鑰簽，手機才能直接覆蓋安裝。
+- 這是自己簽章的安裝檔，不是 Google Play 上架版；手機要允許「安裝未知來源的應用程式」。
+- 還沒在實體手機上測過。已知在 WebView 裡可能不能用的：把圖片存到手機（教學卡、妝容照的下載）、語音朗讀。

@@ -2200,6 +2200,16 @@ console.log('\n\x1b[1m50. 拍照前的環境光檢查；教學滿版與完成圖
   ok(flipL && !recH.some((r) => r[0] === 'scale' && r[1] === -1), '這一筆在畫面左半邊時手左右翻轉，從外側伸進來');
   ok(app.includes('im.src = globalThis.__LUCID_HANDS__?.[id] || ' + '\x60images/hands/\x24{id}.webp\x60') && /if \(!im \|\| !pic\?\.tint/.test(app), '照片載好才用，載不到就畫線條手；單檔版用內嵌的圖');
   ok(readFileSync(new URL('./build.mjs', import.meta.url), 'utf8').includes('globalThis.__LUCID_HANDS__ = \x24{JSON.stringify(hands)}'), '建置時把手的照片放進網站與單檔版');
+  // Android APK（Capacitor 外殼）：當成已安裝，不顯示安裝邀請，也不註冊 service worker
+  {
+    const pwaSrc = readFileSync(new URL('./js/pwa.js', import.meta.url), 'utf8');
+    const { isStandalone: standaloneNow, pwaState: stateNow } = await import('./js/pwa.js');
+    const before = standaloneNow();
+    globalThis.Capacitor = { isNativePlatform: () => true };
+    const inApk = standaloneNow() && stateNow() === 'installed';
+    delete globalThis.Capacitor;
+    ok(!before && inApk && /location\.protocol === 'file:' \|\| isNativeApp\(\)\) return false;/.test(pwaSrc), '包成 APK 時當成已安裝：不顯示安裝邀請、不註冊 service worker');
+  }
   // 手邊的工具：簡單工具為主，可以設定並記住
   ok(/stage: 'coarse', view: 'demo', \.\.\.loadTools\(\),/.test(app) && /return \{ owned: new Set\(\), hasSub: true \};/.test(app), '預設是簡單工具（手指、紙巾、棉花棒）；進教學時帶入上次的設定');
   ok(/localStorage\.setItem\('lucid\.tools'/.test(app) && /v\.owned\.filter\(\(x\) => COACH_TOOLS\.includes\(x\)\)/.test(app), '工具設定記在這台裝置；讀回來只認得的才用');
