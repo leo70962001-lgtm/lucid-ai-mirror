@@ -19,7 +19,7 @@ const TYPES = {
   '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.task': 'application/octet-stream',
   '.wasm': 'application/wasm',
-  '.png':  'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.mp4': 'video/mp4',
+  '.png':  'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.mp4': 'video/mp4', '.mp3': 'audio/mpeg',
   '.webp': 'image/webp', '.svg': 'image/svg+xml',
 };
 

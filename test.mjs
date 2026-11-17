@@ -1952,7 +1952,7 @@ console.log('\n\x1b[1m48. 化妝教學獨立成一段；量真的臉；成長紀
   const dictF = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8').split(/\r?\n/);
   const has3m = (k) => /', '.*', '/.test(dictF.find((l) => l.startsWith("  '" + k + "':")) || '');
   ok([...TEACH_MOTIONS.map((m) => 'teach.motion.' + m), ...COACH_PARTS.flatMap((p) => ['teach.wrong.' + p, 'teach.right.' + p]), 'teach.slow', 'teach.pause', 'teach.play', 'teach.voice'].every(has3m), '手法、常見錯誤與正確做法、慢速暫停語音：三種語言');
-  ok(/u\.lang = \{ zh: 'zh-TW', en: 'en-US', ja: 'ja-JP' \}/.test(app) && /localStorage\.getItem\('lucid\.voice'\) === '1'/.test(app), '語音唸步驟，預設關閉、記得使用者的選擇');
+  ok(/VOICE_LANG = \{ zh: 'zh-TW', en: 'en-US', ja: 'ja-JP' \}/.test(readFileSync(new URL('./js/voice.js', import.meta.url), 'utf8')) && /localStorage\.getItem\('lucid\.voice'\) === '1'/.test(app), '語音唸步驟，預設關閉、記得使用者的選擇');
   for (const part of COACH_PARTS) for (const s of TEACH_STEPS[part]) ok(/', '.*', '/.test(readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8').split(/\r?\n/).find((l) => l.startsWith("  'teach.step." + part + '.' + s.id + "':")) || ''), '步驟文案三種語言：' + part + '.' + s.id);
   const calls2 = [];
   const ctx2 = new Proxy({}, { get: (o, k) => (k in o ? o[k] : (...a) => { calls2.push(k); }), set: (o, k, v) => { o[k] = v; return true; } });
@@ -2221,6 +2221,102 @@ console.log('\n\x1b[1m50. 拍照前的環境光檢查；教學滿版與完成圖
     'teach.tools.s', 'teach.tools.simple', 'teach.tools.brushes', 'teach.tools.saved', 'teach.always', 'teach.preset.none', 'teach.preset.simple', 'teach.preset.full', 'teach.final', 'teach.panel', 'teach.gest.t', 'teach.press.l', 'teach.press.1', 'teach.press.2', ...GESTURE_HOLDS.map((h) => 'teach.hold.' + h), 'teach.hold.fingers', ...TEACH_MOTIONS.map((m) => 'teach.move.' + m)];
   const miss = keys.filter((k) => !has3(k));
   ok(miss.length === 0, '環境光、完成圖、手勢的文案三種語言齊全（' + keys.length + ' 句）' + (miss.length ? ' 缺：' + miss.join() : ''));
+}
+
+console.log('\n\x1b[1m51. 語音引導：口語台詞、錄好的自然語音（Gemini）、示範等語音講完\x1b[0m');
+{
+  const { voiceSay, voiceStop, voicePause, voiceSlow, voiceBusy, voiceClipUrl, voiceRate, voiceWarm, VOICE_HOLD_MS } = await import('./js/voice.js');
+  const { demoAdvance } = await import('./js/coach.js');
+  const appV = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8');
+  const dictV = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8').split(/\r?\n/);
+  const groupV = (sk) => TEACH_STEPS[sk].map((s) => sk + '.' + s.id);
+  const keysV = [...Object.keys(TEACH_STEPS).flatMap(groupV), 'done'];
+  const lineV = (k) => dictV.find((l) => l.startsWith("  'teach.say." + k + "':")) || '';
+  const missV = keysV.filter((k) => !/', '.*', '/.test(lineV(k)));
+  ok(missV.length === 0, '每一小步（加上示範結束）都有一句口語的語音台詞，三種語言齊全（' + keysV.length + ' 句）' + (missV.length ? ' 缺：' + missV.join() : ''));
+  const extraV = dictV.filter((l) => l.startsWith("  'teach.say.")).map((l) => l.slice(13, l.indexOf("':"))).filter((k) => !keysV.includes(k));
+  ok(extraV.length === 0, '沒有多出來、對不上步驟的台詞' + (extraV.length ? '：' + extraV.join() : ''));
+  ok(voiceClipUrl('ja', 'eye.mono.find') === 'audio/ja/eye.mono.find.mp3' && voiceRate(false) === 1 && voiceRate(true) < 1 && voiceRate(true) >= 0.8, '錄音放在 audio/<語言>/<步驟>.mp3；慢速示範時語音也放慢一點');
+
+  // 錄音檔：有的檔名都對得上步驟；目前錄到哪裡（額度用完時會是部分）
+  const langsV = ['zh', 'en', 'ja'];
+  const haveV = Object.fromEntries(langsV.map((l) => { const d = new URL('./audio/' + l + '/', import.meta.url); return [l, existsSync(d) ? readdirSync(d).filter((f) => f.endsWith('.mp3')).map((f) => f.slice(0, -4)) : []]; }));
+  const strayV = langsV.flatMap((l) => haveV[l].filter((k) => !keysV.includes(k)).map((k) => l + '/' + k));
+  ok(strayV.length === 0, '錄音檔名都對得上步驟（沒有孤兒檔）' + (strayV.length ? '：' + strayV.join() : ''));
+  const fullV = (l) => Object.keys(TEACH_STEPS).filter((sk) => groupV(sk).every((k) => haveV[l].includes(k)));
+  ok(['base', 'eye', 'eye.mono', 'eye.outer', 'eye.liner'].every((sk) => fullV('zh').includes(sk)), '中文的底妝與四種眼妝畫法整組都有錄音；目前進度 ' + langsV.map((l) => l + ' ' + haveV[l].length + '/' + keysV.length + '（整組 ' + fullV(l).length + '/' + Object.keys(TEACH_STEPS).length + '）').join('、'));
+  const secsV = langsV.flatMap((l) => haveV[l].map((k) => [readFileSync(new URL('./' + voiceClipUrl(l, k), import.meta.url)).length * 8 / 40000, l + '/' + k])).sort((p, q) => p[0] - q[0]);   // 40 kbps 固定位元率：大小 → 秒數
+  ok(secsV.length > 0 && secsV[0][0] > 1 && secsV.at(-1)[0] / voiceRate(true) * 1000 < VOICE_HOLD_MS, '每一句長度合理（最短 ' + secsV[0]?.[0].toFixed(1) + 's ' + secsV[0]?.[1] + '，最長 ' + secsV.at(-1)?.[0].toFixed(1) + 's ' + secsV.at(-1)?.[1] + '），放慢之後也在示範願意等的時間內');
+
+  // 播放：用假的 Audio、fetch、內建語音，看每一種情況走哪一條路
+  const keep = { Audio: globalThis.Audio, fetch: globalThis.fetch, cou: URL.createObjectURL, ss: globalThis.speechSynthesis, U: globalThis.SpeechSynthesisUtterance };
+  const plays = [], said = [], asked = [], gone = new Set();
+  let net = true, blockPlay = false, el = null;
+  globalThis.Audio = class { constructor() { this.paused = true; this.ended = false; this.src = ''; this.playbackRate = 1; el = this; }
+    play() { this.paused = false; this.ended = false; plays.push(this.src); if (blockPlay) { this.paused = true; return Promise.reject(new Error('NotAllowedError')); } return Promise.resolve(); }
+    pause() { this.paused = true; } };
+  globalThis.fetch = async (u) => { asked.push(u); if (!net) throw new Error('offline'); return { ok: !gone.has(u), blob: async () => ({}), arrayBuffer: async () => new ArrayBuffer(0) }; };
+  URL.createObjectURL = () => 'blob:clip' + asked.length;
+  globalThis.SpeechSynthesisUtterance = class { constructor(x) { this.text = x; } };
+  globalThis.speechSynthesis = { speaking: false, speak(u) { said.push([u.text, u.lang, u.rate]); this.speaking = true; }, cancel() { this.speaking = false; }, pause() {}, resume() {} };
+  try {
+    const r1 = await voiceSay('cheek.sweep', '往太陽穴帶過去', { lang: 'zh', group: groupV('cheek') });
+    ok(r1 === 'clip' && asked[0] === 'audio/zh/cheek.sweep.mp3' && asked.length === 4 && plays.at(-1).startsWith('blob:') && said.length === 0 && voiceBusy(), '整組都有錄音就播錄音（用 fetch 抓成 blob 再播，service worker 才存得到；同組的先載好），不用內建語音');
+    voicePause(true); const pausedBusy = voiceBusy(); voicePause(false);
+    ok(!pausedBusy && voiceBusy() && plays.length === 2, '示範暫停時語音跟著停，繼續時接著講');
+    await voiceSay('cheek.sweep', 'x', { lang: 'zh', slow: true, group: groupV('cheek') });
+    const slowRate = el.playbackRate; voiceSlow(false);
+    ok(slowRate === voiceRate(true) && el.playbackRate === 1 && asked.length === 4, '慢速時放慢、講到一半可以切回原速；同一句不重複下載');
+    el.ended = true; el.paused = true;
+    ok(!voiceBusy(), '講完之後不再算「還在講」');
+    gone.add('audio/zh/done.mp3');
+    ok(await voiceSay('done', '換你畫', { lang: 'zh', soft: true }) === null && said.length === 0, '示範結束那一句沒有錄音、而前面是錄音：不講，不要突然換成機器的聲音');
+    gone.add('audio/zh/lip.upper.mp3');
+    const r2 = await voiceSay('lip.load', '先沾一點點顏色', { lang: 'zh', group: groupV('lip') }), nAsk2 = asked.length;
+    const r2b = await voiceSay('lip.center', '點在中央', { lang: 'zh', group: groupV('lip') });
+    ok(r2 === 'tts' && r2b === 'tts' && said.at(-2)[0] === '先沾一點點顏色' && said.at(-2)[1] === 'zh-TW' && voiceBusy() && asked.length === nAsk2, '同一個部位少一句錄音：整個部位都用內建語音唸（不混著講），也不會每一步都再去問一次');
+    ok(await voiceSay('done', '換你畫', { lang: 'zh', soft: true }) === 'tts', '前面是內建語音時，示範結束那一句照樣用內建語音講');
+    net = false;
+    const r3 = await voiceSay('eye.load', '先沾淺色', { lang: 'zh' });
+    net = true;
+    ok(r3 === 'tts' && await voiceSay('eye.load', 'x', { lang: 'zh' }) === 'clip', '連不上（沒網路）就先用內建語音；網路回來之後下次再試，不會一直卡在內建語音');
+    blockPlay = true;
+    ok(await voiceSay('eye.load', 'y', { lang: 'en' }) === 'tts' && said.at(-1)[1] === 'en-US', '錄音播不出來（瀏覽器擋自動播放）也退回內建語音');
+    blockPlay = false;
+    const nAsk = asked.length;
+    globalThis.__LUCID_SINGLEFILE__ = true;
+    const r4 = await voiceSay('done', 'z', { lang: 'ja' });
+    delete globalThis.__LUCID_SINGLEFILE__;
+    ok(r4 === 'tts' && asked.length === nAsk && said.at(-1)[1] === 'ja-JP', '單檔版沒有錄音檔：不去抓，直接用內建語音');
+    const p1 = voiceSay('base.dots', 'a', { lang: 'zh' }), p2 = voiceSay('base.spread', 'b', { lang: 'zh' });
+    const both = await Promise.all([p1, p2]);
+    ok(both[0] === null && both[1] === 'clip', '上一句還在載入就換下一句：只講新的那一句');
+    voiceStop();
+    ok(!voiceBusy() && el.paused, '關語音、離開教學時整個停掉');
+    delete globalThis.speechSynthesis; net = false;
+    ok(await voiceSay('eye.line', 'c', { lang: 'zh' }) === null && !voiceBusy(), '沒有錄音也沒有內建語音：不出聲、不出錯，只看字幕');
+    net = true;
+    ok(await voiceWarm('ja', ['done', 'lip.load']) === 2 && asked.includes('audio/ja/done.mp3'), '打開語音時把這個語言的錄音先抓一輪（之後離線也有聲音）');
+  } finally {
+    voiceStop();
+    globalThis.Audio = keep.Audio; globalThis.fetch = keep.fetch; URL.createObjectURL = keep.cou;
+    if (keep.ss) globalThis.speechSynthesis = keep.ss; else delete globalThis.speechSynthesis;
+    if (keep.U) globalThis.SpeechSynthesisUtterance = keep.U; else delete globalThis.SpeechSynthesisUtterance;
+  }
+
+  // 示範等語音：這一步要走完而語音還在講，就停在最後一格
+  const ms0 = stepMs(TEACH_STEPS.cheek[0]), totalC = TEACH_STEPS.cheek.reduce((s, x) => s + stepMs(x), 0);
+  const hold = demoAdvance('cheek', ms0 - 10, 50, true), go = demoAdvance('cheek', ms0 - 10, 50, false), mid = demoAdvance('cheek', 1000, 50, true);
+  ok(hold.held && demoAt('cheek', hold.el).i === 0 && demoAt('cheek', hold.el).k > 0.99 && !go.held && demoAt('cheek', go.el).i === 1 && !mid.held && mid.el === 1050, '語音還沒講完：停在這一步的最後一格等它；講完（或步驟還沒走完）就照常前進');
+  const endHold = demoAdvance('cheek', totalC - 5, 50, true), endGo = demoAdvance('cheek', totalC - 5, 50, false);
+  ok(endHold.held && !demoAt('cheek', endHold.el).done && demoAt('cheek', endGo.el).done && !demoAdvance('cheek', totalC + 100, 50, true).held, '最後一步也等語音講完才算示範結束；結束之後不再等');
+  ok(/demoAdvance\(key, T\.demo\.el, adv, !!T\.voice && \(T\.holdMs \|\| 0\) < VOICE_HOLD_MS && voiceBusy\(\)\)/.test(appV) && /T\.holdMs = mv\.held \? \(T\.holdMs \|\| 0\) \+ dt : mv\.leaving \? 0 : T\.holdMs;/.test(appV), '鏡子上的示範接上「等語音」，最多等 ' + VOICE_HOLD_MS / 1000 + ' 秒（語音卡住也不會停住不動）');
+  ok(/teachSay\(fin \? 'done' : key \+ '\.' \+ s\.id, fin \? null : key\)/.test(appV) && /group: sk \? TEACH_STEPS\[sk\]\.map\(\(s\) => sk \+ '\.' \+ s\.id\) : null, soft: !sk \}\)/.test(appV) && !appV.includes('speechSynthesis'), '每換一步講那一步的口語台詞（整組一起判斷用錄音還是內建語音），示範走完講「換你畫」；app.js 不再直接叫內建語音');
+  ok(/if \(S\.teach\.voice\) voiceOn\(\);/.test(appV) && /if \(T\.voice\) \{ T\.saidKey = ''; voiceOn\(\); \} else voiceStop\(\);/.test(appV) && /function voiceOn\(\) \{ voiceUnlock\(\); voiceWarm\(getLang\(\), VOICE_KEYS\); \}/.test(appV), '按下 🔈（或上次開著、進教學）的那一下解鎖播放並預抓錄音');
+  ok(/T\.paused = !T\.paused; voicePause\(T\.paused\);/.test(appV) && /T\.slow = !T\.slow; voiceSlow\(T\.slow\);/.test(appV) && /\n  voiceStop\(\);\n\}\nfunction teachToAR/.test(appV), '暫停、慢速、離開教學都帶著語音一起');
+  const buildV = readFileSync(new URL('./build.mjs', import.meta.url), 'utf8'), swV = readFileSync(new URL('./sw.js', import.meta.url), 'utf8');
+  ok(buildV.includes("'js/voice.js'") && buildV.includes('...audioFiles,') && buildV.includes('!/^(vendor|models|audio)[\\\\/]/.test(f)') && /const BIG = \/\\\/\(vendor\|models\|images\|icons\|audio\)\\\/\/;/.test(swV), '建置把錄音放進網站；安裝時不先全部下載，用到（或打開語音）才存，存了就離線可用');
+  ok(readFileSync(new URL('./server.js', import.meta.url), 'utf8').includes("'.mp3': 'audio/mpeg'"), '本機伺服器認得 mp3');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);

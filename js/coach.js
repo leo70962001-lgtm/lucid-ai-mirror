@@ -320,6 +320,17 @@ export function demoAt(part, elapsed) {
 export function stepStart(part, i) {
   return TEACH_STEPS[part].slice(0, i).reduce((a, s) => a + stepMs(s), 0);
 }
+/**
+ * 示範往前走 adv 毫秒。語音還在講（busy）而這一步正要走完時，停在這一步的最後一格等它 ——
+ * 口語的一句話常常比動作長，沒講完就換步會被切掉。
+ * 回傳 { el: 新的毫秒, held: 這一格在等語音, leaving: 這一格本來要換步 }
+ */
+export function demoAdvance(part, el, adv, busy) {
+  const at = demoAt(part, el), to = demoAt(part, el + adv);
+  const leaving = !at.done && (to.done || to.i !== at.i);
+  if (leaving && busy) return { el: stepStart(part, at.i) + stepMs(TEACH_STEPS[part][at.i]) - 1, held: true, leaving };
+  return { el: el + adv, held: false, leaving };
+}
 /** 示範時這個部位的顏色到目標的幾成：上一步做完的量 → 這一步做完的量 */
 export function demoAmount(part, i, k) {
   const st = TEACH_STEPS[part], from = i ? st[i - 1].upto : 0, to = st[i].upto;

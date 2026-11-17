@@ -14,7 +14,7 @@
 const VERSION = 'dev';
 const SHELL = [];           // 建置時填入
 const CACHE = 'lucid-' + VERSION;
-const BIG = /\/(vendor|models|images|icons)\//;
+const BIG = /\/(vendor|models|images|icons|audio)\//;
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
