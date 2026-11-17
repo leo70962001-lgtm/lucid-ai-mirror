@@ -7187,13 +7187,15 @@ function posePass(step, m, base) {
  *   iPhone / iPad Safari —— 沒有這個事件，只能教：分享 → 加入主畫面
  *   LINE、Facebook、Instagram 的內建瀏覽器 —— 不能安裝，要先用 Safari / Chrome 開
  *   已經裝好、從主畫面打開 —— 什麼都不顯示
+ *   Android APK（Capacitor 包的外殼）—— 本來就是 App：當成已安裝，也不註冊 service worker（檔案都在 APK 裡）
  * 畫面（按鈕、說明）在 app.js；這裡只管狀態。
  */
 let deferred = null;
 let listener = null;
 
+const isNativeApp = () => globalThis.Capacitor?.isNativePlatform?.() === true;
 const isStandalone = () =>
-  !!(globalThis.matchMedia?.('(display-mode: standalone)').matches || globalThis.navigator?.standalone === true);
+  !!(globalThis.matchMedia?.('(display-mode: standalone)').matches || globalThis.navigator?.standalone === true || isNativeApp());
 const isIOS = (ua = globalThis.navigator?.userAgent || '', touch = globalThis.navigator?.maxTouchPoints || 0) =>
   /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && touch > 1);      // iPadOS 13 以後自稱 Mac
 const isInApp = (ua = globalThis.navigator?.userAgent || '') => /\bLine\/|FBAN|FBAV|Instagram|MicroMessenger/i.test(ua);
@@ -7215,7 +7217,7 @@ function pwaState(env = {}) {
 function initPWA(onChange) {
   listener = onChange;
   const nav = globalThis.navigator;
-  if (!nav || !('serviceWorker' in nav) || location.protocol === 'file:') return false;
+  if (!nav || !('serviceWorker' in nav) || location.protocol === 'file:' || isNativeApp()) return false;
   if (/\/_[^/]*\.html$/.test(location.pathname)) return false;     // 測試頁、量測台不註冊
   nav.serviceWorker.register('sw.js').catch(() => { /* 沒有 sw.js（例如單檔版）就當一般網頁 */ });
   // 第一次打開時，模型與 WASM 在 service worker 接手之前就載完了 —— 不補存的話要第二次打開才離線可用。
