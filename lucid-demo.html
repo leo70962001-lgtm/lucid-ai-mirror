@@ -3423,6 +3423,52 @@ const DICT = {
   'teach.step.lip.spread': ['往兩邊嘴角推開', 'Spread out toward the corners', '口角へ広げます'],
   'teach.step.lip.upper': ['沿著唇峰描上唇線', 'Trace the upper line along the peaks', '山に沿って上唇の輪郭を'],
   'teach.step.lip.lower': ['收好下唇線，紙巾輕抿', 'Finish the lower line, blot on a tissue', '下唇を整え、ティッシュで押さえます'],
+  // 語音引導講的話（口語、一次一個動作；錄音在 audio/<語言>/<名字>.mp3，改了字要重錄）
+  'teach.say.base.dots': ['先把粉底點在額頭、兩邊臉頰、鼻子和下巴。', 'Start by dotting foundation on your forehead, both cheeks, nose and chin.', 'まず、ファンデーションを額、両頬、鼻、あごに置きます。'],
+  'teach.say.base.spread': ['從臉的中間往外推開，用輕輕按壓的方式。', 'Now press it outward from the centre of your face.', '顔の中心から外へ、やさしく押さえながら広げましょう。'],
+  'teach.say.base.detail': ['鼻翼、嘴角和眼睛下方，再少量補一點。', 'Add a little more around the nose, the corners of your mouth, and under the eyes.', '小鼻、口角、目の下に、少しだけ足します。'],
+  'teach.say.base.edge': ['最後把臉的邊緣往脖子帶開，就不會有分界線。', 'Then blend the edges down toward your neck, so there\'s no line.', '最後に、輪郭を首のほうへなじませます。'],
+  'teach.say.eye.load': ['先沾淺色眼影，在手背上拍掉多餘的粉。', 'Pick up the light shade, and tap off the extra on the back of your hand.', '淡い色を取って、手の甲で余分な粉を落とします。'],
+  'teach.say.eye.lay': ['把淺色從眼頭往眼尾，來回刷滿整個眼窩。', 'Sweep the light shade back and forth across the lid, from inner to outer.', '淡い色を、目頭から目尻へ、まぶた全体に往復させてのせます。'],
+  'teach.say.eye.line': ['換深色，貼著睫毛根部畫一條細細的線。', 'Switch to the deeper shade, and draw a thin line right along the lashes.', '次に濃い色で、まつげの際に細いラインを入れます。'],
+  'teach.say.eye.blend': ['再把交界的地方往上暈開，來回輕輕刷。', 'Then blend that edge upward with light back-and-forth strokes.', '境目を上に向かって、軽く往復させてぼかしましょう。'],
+  'teach.say.eye.mono.find': ['先睜開眼睛，看一下眼窩的範圍，不要畫到眉骨。', 'Keep your eyes open and find your eye socket. Stop below the brow bone.', '目を開けたまま、塗る範囲を確かめます。眉骨までは塗りません。'],
+  'teach.say.eye.mono.lay': ['沾少量眼影，從睫毛上方往上薄薄地鋪開。', 'Pick up a little colour, and wash it thinly upward from the lash line.', '少しだけ色を取って、まつげの上から薄く広げます。'],
+  'teach.say.eye.mono.edge': ['拿乾淨的刷子，輕輕掃過邊緣，讓顏色淡出去。', 'Take a clean brush and gently sweep the edge so it fades out.', 'きれいなブラシで、縁をそっとぼかします。'],
+  'teach.say.eye.mono.check': ['睜開眼睛檢查一下，兩邊的濃淡一樣就可以了。', 'Open your eyes and check that both sides match.', '目を開けて、左右の濃さがそろっているか確かめましょう。'],
+  'teach.say.eye.outer.base': ['先用淺色，薄薄地鋪滿整個上眼皮。', 'Start with the light shade, thinly, over the whole upper lid.', 'まず淡い色を、上まぶた全体に薄くのせます。'],
+  'teach.say.eye.outer.place': ['深色壓在眼尾後面三分之一的地方，先少量就好。', 'Press the deep shade on the outer third. Just a little to begin with.', '締め色を、目尻側の三分の一に置きます。最初は少しだけ。'],
+  'teach.say.eye.outer.blend': ['從眼尾往眼睛中間，輕輕暈開。', 'Blend gently from the outer corner toward the centre.', '目尻から中央へ、やさしくぼかします。'],
+  'teach.say.eye.outer.lower': ['刷子上剩下的粉，順手帶過下眼尾外側。', 'Use what\'s left on the brush along the outer lower lid.', 'ブラシに残った粉を、下まぶたの目尻側にのせます。'],
+  'teach.say.eye.liner.liner': ['眼線貼著睫毛根部畫，眼尾再延長一點點就好。', 'Draw the liner right along the lash roots, and extend it just a touch at the end.', 'アイラインはまつげの根元に沿って引き、目尻を少しだけ延ばします。'],
+  'teach.say.eye.liner.aegyo': ['臥蠶下方畫淡淡的陰影，前段再點一點亮色。', 'Add a soft shadow just under the lower lash line, and a touch of highlight at the front.', '涙袋の下に淡い影を入れて、目頭側には明るい色をのせます。'],
+  'teach.say.eye.liner.lash': ['先把睫毛夾翹，再刷一層睫毛膏。', 'Curl your lashes first, then add one coat of mascara.', 'まつげを上げてから、マスカラをひと塗りします。'],
+  'teach.say.cheek.load': ['先沾一點點腮紅，在手背上拍掉多餘的粉。', 'Pick up a little blush, and tap off the extra on the back of your hand.', 'チークを少し取って、手の甲で余分な粉を落とします。'],
+  'teach.say.cheek.place': ['微笑一下，在顴骨最高的地方輕輕點上去。', 'Smile, and dab it on the highest point of your cheek.', 'にっこり笑って、頬のいちばん高いところに軽く置きます。'],
+  'teach.say.cheek.sweep': ['接著往太陽穴的方向，斜斜地帶過去。', 'Then sweep it up toward your temple.', 'そのまま、こめかみに向かって斜めに流します。'],
+  'teach.say.cheek.blend': ['最後在邊緣畫小圈圈，把顏色暈開。', 'Finish with small circles to soften the edge.', '最後に、縁を小さな円でぼかしましょう。'],
+  'teach.say.cheek.flat.load': ['先沾一點點腮紅，在手背上拍掉多餘的粉。', 'Pick up a little blush, and tap off the extra on the back of your hand.', 'チークを少し取って、手の甲で余分な粉を落とします。'],
+  'teach.say.cheek.flat.place': ['在顴骨高點的下方，輕輕點幾下定位。', 'Dab a few times just below the high point of your cheek.', '頬の高いところの少し下に、軽く置きます。'],
+  'teach.say.cheek.flat.sweep': ['從內往外，水平地橫刷過去。', 'Sweep straight across, from the inside out.', '内側から外側へ、横にすっと払います。'],
+  'teach.say.cheek.flat.blend': ['外側的邊緣畫小圈圈，把顏色暈開。', 'Soften the outer edge with small circles.', '外側の縁を、小さな円でぼかします。'],
+  'teach.say.cheek.apple.load': ['先沾一點點腮紅，在手背上拍掉多餘的粉。', 'Pick up a little blush, and tap off the extra on the back of your hand.', 'チークを少し取って、手の甲で余分な粉を落とします。'],
+  'teach.say.cheek.apple.smile': ['微笑一下，找到蘋果肌最高的地方。', 'Smile, and find the roundest part of your cheek.', 'にっこり笑って、頬のいちばん高いところを探します。'],
+  'teach.say.cheek.apple.circle': ['在蘋果肌上畫小圈圈，慢慢上色。', 'Make small circles there to build the colour slowly.', 'そこに小さな円を描きながら、少しずつ色をのせます。'],
+  'teach.say.cheek.apple.blend': ['邊緣用指腹輕輕拍開。', 'Then pat the edge with your fingertip.', '縁は指の腹で、軽くたたいてぼかします。'],
+  'teach.say.lip.load': ['先沾一點點顏色，薄薄的就好。', 'Pick up just a little colour. Thin is fine to start.', '色を少しだけ取ります。まずは薄めで大丈夫です。'],
+  'teach.say.lip.center': ['在上下唇的中央，先點上顏色。', 'Dot the colour at the centre of your upper and lower lips.', '上下の唇の中央に、色を置きます。'],
+  'teach.say.lip.spread': ['再往兩邊嘴角慢慢推開。', 'Then spread it slowly out toward the corners.', 'そこから口角へ、ゆっくり広げましょう。'],
+  'teach.say.lip.upper': ['沿著唇峰，把上唇的輪廓描出來。', 'Trace the upper lip line along the peaks.', '山に沿って、上唇の輪郭をなぞります。'],
+  'teach.say.lip.lower': ['最後收好下唇的線條，用紙巾輕輕抿一下。', 'Finish the lower lip line, then blot gently on a tissue.', '下唇の輪郭を整えて、ティッシュで軽く押さえます。'],
+  'teach.say.lip.gradient.prep': ['先擦一層潤唇膏，等一下再用紙巾輕輕擦掉。', 'Put on some lip balm, and blot it off after a moment.', 'リップクリームを塗って、少し置いてからティッシュで押さえます。'],
+  'teach.say.lip.gradient.core': ['顏色只點在嘴唇內側，唇心的位置。', 'Dot the colour only on the inner part of your lips.', '色は唇の内側だけにのせます。'],
+  'teach.say.lip.gradient.push': ['用指腹或棉花棒，往外輕輕推淡。', 'Fade it outward with a fingertip or a cotton swab.', '指か綿棒で、外へ向かってぼかします。'],
+  'teach.say.lip.gradient.gloss': ['最後在唇心疊一點點唇蜜。', 'Finish with a touch of gloss at the centre.', '最後に、中央にグロスを少し重ねます。'],
+  'teach.say.lip.matte.prep': ['先擦潤唇膏，幫嘴唇保濕。', 'Start with lip balm to moisturise.', 'まずリップクリームで保湿します。'],
+  'teach.say.lip.matte.line': ['沿著唇線慢慢描，唇峰留到最後再修。', 'Trace slowly along the lip line, and leave the peaks for last.', '輪郭に沿ってゆっくりなぞり、山は最後に整えます。'],
+  'teach.say.lip.matte.fill': ['從中央往外填滿，薄薄一層就好。', 'Fill in from the centre outward, in one thin layer.', '中央から外へ、薄く塗りつぶします。'],
+  'teach.say.lip.matte.blot': ['用紙巾抿一下，再看看要不要多疊一層。', 'Blot on a tissue, then see if you\'d like another layer.', 'ティッシュで押さえてから、重ねるかどうか決めましょう。'],
+  'teach.say.done': ['示範到這裡。換你跟著畫，慢慢來就好。', 'That\'s the demo. Now it\'s your turn. Take your time.', 'お手本はここまでです。次はあなたの番。ゆっくりで大丈夫ですよ。'],
   'teach.checking': ['正在看…', 'Checking…', '確認中…'],
   'teach.self.base': ['鏡子現在是你真的臉。邊緣跟脖子接得起來就可以', 'The mirror now shows your real face. Blend until the edge meets your neck', '鏡は今、本当の顔です。首となじめばOKです'],
   'teach.side.left': ['畫面左邊', 'the left of the screen', '画面の左側'],
@@ -5955,6 +6001,17 @@ function demoAt(part, elapsed) {
 function stepStart(part, i) {
   return TEACH_STEPS[part].slice(0, i).reduce((a, s) => a + stepMs(s), 0);
 }
+/**
+ * 示範往前走 adv 毫秒。語音還在講（busy）而這一步正要走完時，停在這一步的最後一格等它 ——
+ * 口語的一句話常常比動作長，沒講完就換步會被切掉。
+ * 回傳 { el: 新的毫秒, held: 這一格在等語音, leaving: 這一格本來要換步 }
+ */
+function demoAdvance(part, el, adv, busy) {
+  const at = demoAt(part, el), to = demoAt(part, el + adv);
+  const leaving = !at.done && (to.done || to.i !== at.i);
+  if (leaving && busy) return { el: stepStart(part, at.i) + stepMs(TEACH_STEPS[part][at.i]) - 1, held: true, leaving };
+  return { el: el + adv, held: false, leaving };
+}
 /** 示範時這個部位的顏色到目標的幾成：上一步做完的量 → 這一步做完的量 */
 function demoAmount(part, i, k) {
   const st = TEACH_STEPS[part], from = i ? st[i - 1].upto : 0, to = st[i].upto;
@@ -7240,6 +7297,156 @@ async function promptInstall() {
   const r = await e.userChoice.catch(() => null);
   listener?.();
   return r?.outcome === 'accepted';
+}
+
+
+/* ═══ js/voice.js ═══ */
+/**
+ * 教學的語音引導。
+ *
+ * 每一小步有一句口語的說明（i18n 的 teach.say.*，比字幕多一點語氣、一次只講一個動作），
+ * 事先用 Gemini 的語音產生錄成 audio/<語言>/<步驟>.mp3（中、英、日各一套，同一個聲音）。
+ * 播的順序：
+ *   1. 有錄音就播錄音（網站、裝好的 App、APK）
+ *   2. 拿不到錄音（單檔版、第一次用就沒網路）→ 用裝置內建的語音唸同一句
+ *   3. 連內建語音都沒有 → 只看字幕
+ * 同一個部位（同一組步驟）的每一句都有錄音才用錄音 —— 不要同一段示範裡一句是錄好的聲音、
+ * 下一句變成機器的聲音。少一句就整個部位都用內建語音。
+ *
+ * 錄音用 fetch 抓成 blob 再播，不直接把網址交給 <audio>：<audio> 會用分段讀取（Range），
+ * service worker 不存分段的回應，離線時就播不出來。
+ * 整個 App 共用一個 <audio>：手機（尤其 iOS）只讓「使用者點過」的那個元素自己出聲，
+ * 所以在按下 🔈 或進教學的那一下先用一小段無聲解鎖（voiceUnlock），之後換步才播得出來。
+ */
+
+
+const VOICE_LANG = { zh: 'zh-TW', en: 'en-US', ja: 'ja-JP' };
+const voiceClipUrl = (lang, key) => `audio/${lang}/${key}.mp3`;
+/** 慢速示範時語音也放慢一點（瀏覽器會保持音高，不會變調） */
+const voiceRate = (slow) => (slow ? 0.85 : 1);
+/** 示範最多等語音這麼久；語音卡住也不會讓示範停住不動 */
+const VOICE_HOLD_MS = 10000;
+
+const VOICE_SILENT = 'data:audio/wav;base64,UklGRrQBAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YZABAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA';
+const voiceBlobs = new Map();          // 錄音網址 → Promise<blob 網址 | null>
+let voiceEl = null;                    // 共用的 <audio>
+let voiceSeq = 0;                      // 每講一句加一；晚到的載入結果對不上號就丟掉
+let voiceLoading = false;
+let voiceMode = null;                  // 'clip' 正在播錄音、'tts' 正在用內建語音
+let voiceLast = null;                  // 上一句是怎麼講的（'clip' / 'tts'）
+
+function voiceAudio() {
+  if (!voiceEl && typeof Audio === 'function') { voiceEl = new Audio(); voiceEl.preload = 'auto'; }
+  return voiceEl;
+}
+function voiceBlob(url) {
+  if (typeof fetch !== 'function') return Promise.resolve(null);
+  if (!voiceBlobs.has(url)) {
+    const p = (async () => {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) return '';                               // 這一句沒有錄音：記住，不要每一步都再問一次
+        return URL.createObjectURL(await r.blob());
+      } catch { return null; }                              // 連不上（可能只是暫時沒網路）
+    })();
+    voiceBlobs.set(url, p);
+    p.then((u) => { if (u === null) voiceBlobs.delete(url); });   // 連不上的下次再試
+  }
+  return voiceBlobs.get(url);
+}
+function voiceTts(text, lang, slow) {
+  try {
+    if (!text || !('speechSynthesis' in globalThis)) return false;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = VOICE_LANG[lang] || VOICE_LANG.zh;
+    u.rate = slow ? 0.8 : 0.95;
+    speechSynthesis.speak(u);
+    voiceMode = 'tts';
+    return true;
+  } catch { return false; }
+}
+function voiceQuiet() {
+  try { if (voiceEl && !voiceEl.paused) voiceEl.pause(); } catch { /* 沒在播 */ }
+  try { if ('speechSynthesis' in globalThis) speechSynthesis.cancel(); } catch { /* 沒有語音功能 */ }
+  voiceMode = null;
+}
+
+/**
+ * 講一句：key 是錄音的名字（例如 'cheek.sweep'、'done'），text 是同一句的文字（沒有錄音時給內建語音唸）。
+ *   group：同一個部位全部的句子名字 —— 每一句都有錄音才播錄音（順便先載好，換步時不用等）
+ *   soft： 這一句可有可無（示範結束的那一句）—— 沒有錄音而上一句是錄音時就不講，不要突然換成機器的聲音
+ * 回傳 'clip'（播了錄音）、'tts'（內建語音）、null（沒出聲，或中途被下一句取代）。
+ */
+async function voiceSay(key, text, { slow = false, lang = getLang(), group = null, soft = false } = {}) {
+  const seq = ++voiceSeq;
+  voiceQuiet();
+  let src = null;
+  if (!globalThis.__LUCID_SINGLEFILE__) {
+    voiceLoading = true;
+    const all = await Promise.all([key, ...(group || []).filter((k) => k !== key)].map((k) => voiceBlob(voiceClipUrl(lang, k))));
+    if (seq !== voiceSeq) return null;
+    voiceLoading = false;
+    src = all.every(Boolean) ? all[0] : null;
+  }
+  if (src) {
+    try {
+      const a = voiceAudio();
+      a.src = src;
+      a.defaultPlaybackRate = a.playbackRate = voiceRate(slow);
+      voiceMode = 'clip';
+      await a.play();
+      voiceLast = 'clip';
+      return 'clip';
+    } catch {
+      if (seq !== voiceSeq) return null;      // 被下一句打斷，不是播不了
+      voiceMode = null;
+    }
+  }
+  if (soft && voiceLast === 'clip') return null;
+  if (!voiceTts(text, lang, slow)) return null;
+  voiceLast = 'tts';
+  return 'tts';
+}
+/** 全部停掉（關語音、離開教學） */
+function voiceStop() {
+  voiceSeq++;
+  voiceLoading = false;
+  voiceLast = null;
+  voiceQuiet();
+}
+/** 示範暫停／繼續時語音跟著停、跟著接下去講 */
+function voicePause(on) {
+  try {
+    if (voiceMode === 'clip' && voiceEl && !voiceEl.ended) { if (on) voiceEl.pause(); else voiceEl.play()?.catch?.(() => {}); }
+    else if (voiceMode === 'tts') { if (on) speechSynthesis.pause(); else speechSynthesis.resume(); }
+  } catch { /* 停不了就讓它講完 */ }
+}
+/** 講到一半切換慢速 */
+function voiceSlow(slow) {
+  try { if (voiceEl) voiceEl.defaultPlaybackRate = voiceEl.playbackRate = voiceRate(slow); } catch { /* 不支援變速就維持原速 */ }
+}
+/** 這一句還在講（或還在載入）嗎：示範用它決定要不要等一下再換步 */
+function voiceBusy() {
+  if (voiceLoading) return true;
+  if (voiceMode === 'clip') return !!voiceEl && !voiceEl.ended && !voiceEl.paused;
+  if (voiceMode === 'tts') { try { return !!speechSynthesis.speaking; } catch { return false; } }
+  return false;
+}
+/** 在使用者按下去的那一下呼叫：用一小段無聲把共用的 <audio> 解鎖 */
+function voiceUnlock() {
+  try {
+    const a = voiceAudio();
+    if (!a || voiceBusy()) return;
+    a.src = VOICE_SILENT;
+    a.play()?.catch?.(() => {});
+  } catch { /* 解不了鎖就等第一句自己試 */ }
+}
+/** 打開語音時把這個語言的錄音先抓一輪（service worker 會存起來），之後離線也有聲音；回傳抓到幾句 */
+async function voiceWarm(lang, keys) {
+  if (globalThis.__LUCID_SINGLEFILE__) return 0;
+  let n = 0;
+  for (const k of keys) if (await voiceBlob(voiceClipUrl(lang, k))) n++;     // 一句一句來，不跟正在講的那一句搶頻寬
+  return n;
 }
 
 
@@ -10957,6 +11164,7 @@ const isReady = () => !!landmarker;
 
 
 
+
 // 顯示端校色：把「想讓顧客看到的顏色」換成「要送給這台螢幕的碼值」。
 // 沒有校正資料時原樣回傳，所以未校正的機台一切照舊。
 // 校正資料由 _calib.html 量測擬合後寫入 localStorage。
@@ -12192,6 +12400,7 @@ function enterTeach() {
               slow: false, paused: false, voice: voicePref(), prevGrowth: loadGrowth() };
   SHOT_CACHE.clear();
   $('#teach-cap').onclick = teachCapClick;
+  if (S.teach.voice) voiceOn();                 // 上次開著語音：進教學的這一下順便解鎖播放
   // 手法圖要畫在「完成的妝」上
   const tmp = el('canvas');
   renderOnPhoto(tmp, S.picks, S.amount, S.look, false);
@@ -12209,7 +12418,7 @@ function leaveTeach() {
   $('#s4').classList.remove('teach-mode');
   $('#teach').hidden = true;
   $('#teach-target').hidden = true; $('#teach-cap').hidden = true; $('#s4').classList.remove('demo-run', 'demo-paused', 'teach-mini'); $('#teach-target').classList.remove('big'); teachUnzoom();
-  try { speechSynthesis.cancel(); } catch { /* 沒有語音功能 */ }
+  voiceStop();
 }
 function teachToAR() {
   leaveTeach();
@@ -12537,26 +12746,25 @@ const stepKey = (part) => methodKey(part, S.methods[part]);
 /** 鏡子與圖解上的分區文字 */
 const zoneLabels = () => Object.fromEntries(['base', 'main', 'deep', 'shade', 'shine', 'lower', 'liner', 'lash', 'limit', 'lipline', 'core'].map((k) => [k, t('teach.zone.' + k)]));
 function voicePref() { try { return localStorage.getItem('lucid.voice') === '1'; } catch { return false; } }
-/** 語音唸步驟（裝置內建的語音，離線也能用）；預設關著，按 🔈 打開 */
-function teachSay(text) {
-  if (!S.teach?.voice || !('speechSynthesis' in window)) return;
-  try {
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = { zh: 'zh-TW', en: 'en-US', ja: 'ja-JP' }[getLang()] || 'zh-TW';
-    u.rate = S.teach.slow ? 0.8 : 0.95;
-    speechSynthesis.speak(u);
-  } catch { /* 沒有語音功能就只看字 */ }
+/** 語音會講的每一句：每個畫法的每一小步，加上示範結束的那一句（錄音檔名與 teach.say.* 都用這組名字） */
+const VOICE_KEYS = [...Object.entries(TEACH_STEPS).flatMap(([k, st]) => st.map((s) => k + '.' + s.id)), 'done'];
+/** 打開語音的那一下：解鎖播放，並把這個語言的錄音先抓起來（之後離線也有聲音） */
+function voiceOn() { voiceUnlock(); voiceWarm(getLang(), VOICE_KEYS); }
+/** 語音講這一步：口語的一句話，先播錄好的自然語音，拿不到才用裝置內建的語音；預設關著，按 🔈 打開 */
+function teachSay(name, sk) {
+  if (!S.teach?.voice) return;
+  // sk：這個部位用的那組步驟 —— 整組都有錄音才播錄音；示範結束的那一句（沒有 sk）可有可無
+  voiceSay(name, t('teach.say.' + name), { slow: S.teach.slow, group: sk ? TEACH_STEPS[sk].map((s) => sk + '.' + s.id) : null, soft: !sk });
 }
 /** 鏡子字幕上的按鈕：慢速、暫停、語音 */
 function teachCapClick(e) {
   const b = e.target.closest('button'), T = S.teach; if (!b || !T) return;
-  if (b.dataset.act === 'slow') T.slow = !T.slow;
-  else if (b.dataset.act === 'pause') T.paused = !T.paused;
+  if (b.dataset.act === 'slow') { T.slow = !T.slow; voiceSlow(T.slow); }
+  else if (b.dataset.act === 'pause') { T.paused = !T.paused; voicePause(T.paused); }
   else if (b.dataset.act === 'voice') {
     T.voice = !T.voice;
     try { localStorage.setItem('lucid.voice', T.voice ? '1' : '0'); } catch { /* 記不住也沒關係 */ }
-    if (T.voice) { T.saidKey = ''; } else { try { speechSynthesis.cancel(); } catch { /* 沒有語音功能 */ } }
+    if (T.voice) { T.saidKey = ''; voiceOn(); } else voiceStop();
   }
   teachStepUI();
 }
@@ -12584,8 +12792,8 @@ function teachStepUI() {
   const gc = $('#teach-gest'); if (gc) gc.innerHTML = gestureHTML(s, teachMethod(cur.part), cur.part);
   cap.innerHTML = `<div class="gs">${gestureSVG(gNow)}</div><div class="tx2"><div class="l1"><b>${T.view === 'demo' ? t('teach.demoing') : t('teach.view.self')}</b><span class="n">${T.step + 1}/${steps.length}</span><span class="tx">${text}</span></div>
     <div class="l2"><span class="mo">${motionTag(s)}</span><span class="btns">${tb('slow', T.slow, t('teach.slow'), '🐢')}${tb('pause', T.paused, t(T.paused ? 'teach.play' : 'teach.pause'), T.paused ? '▶' : '⏸')}${tb('voice', T.voice, t('teach.voice'), T.voice ? '🔊' : '🔈')}</span></div></div>`;
-  const sayKey = cur.id + ':' + key + ':' + T.view + ':' + T.step;
-  if (T.saidKey !== sayKey) { T.saidKey = sayKey; teachSay(text + '。' + t('teach.motion.' + s.motion)); }
+  const sayKey = cur.id + ':' + key + ':' + T.view + ':' + T.step + (fin ? ':done' : '');   // 示範走完再講一句「換你畫」
+  if (T.saidKey !== sayKey) { T.saidKey = sayKey; T.holdMs = 0; teachSay(fin ? 'done' : key + '.' + s.id, fin ? null : key); }
 }
 function teachEnd(box) {
   const T = S.teach;
@@ -12750,7 +12958,10 @@ function drawCoach(ctx, lm, W, H) {
   const adv = T.paused ? 0 : dt * (T.slow ? 0.5 : 1);           // 慢速：一半的速度
   let k;
   if (T.view === 'demo' && T.demo) {
-    T.demo.el += adv;
+    // 語音還沒講完就先停在這一步的最後等它（最多等 VOICE_HOLD_MS，語音卡住也不會停住不動）
+    const mv = demoAdvance(key, T.demo.el, adv, !!T.voice && (T.holdMs || 0) < VOICE_HOLD_MS && voiceBusy());
+    T.demo.el = mv.el;
+    T.holdMs = mv.held ? (T.holdMs || 0) + dt : mv.leaving ? 0 : T.holdMs;
     const d = demoAt(key, T.demo.el);
     k = d.done ? null : d.k;
     if (d.i !== T.step || d.done !== T.demo.done) { T.step = d.i; T.demo.done = d.done; teachStepUI(); }

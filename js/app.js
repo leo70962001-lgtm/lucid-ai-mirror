@@ -34,7 +34,7 @@ import { pickLesson, lessonLines, nextQuiz, onQuizAnswer, learnRecap } from './l
 import { newTaste, noteTaste, tasteRead, tasteSuggest, tasteSummary, describeLip, LIP_FAMILIES } from './lipcolor.js';
 import { TRENDS, TREND_PACK, trendsFor, trendPlan, trendLines, trendStale, trendStaleLines } from './trends.js';
 import { COACH_MODES, COACH_TOOLS, COARSE_RATIO, COACH_GLYPH, coachMethod, coachToolKey, coachPlan, coachShapes, coachRegion, drawCoachShapes,
-         TEACH_STEPS, teachStepShapes, demoAt, demoAmount, teachToolIcon, stepMs, stepStart, drawTeachStep, teachSpot,
+         TEACH_STEPS, teachStepShapes, demoAt, demoAdvance, demoAmount, teachToolIcon, stepMs, stepStart, drawTeachStep, teachSpot,
          EYE_METHODS, eyeKey, eyeMeasurable, PART_METHODS, methodKey,
          GESTURE_HOLDS, gestureFor, handKind, HAND_PICS, handPicId,
          SCENES, SCENE_IDS, sceneStepCount, mistakeShapes, drawCompare, faceMapItems, drawFaceMap } from './coach.js';
@@ -47,6 +47,7 @@ import { skinCondition, skinCondTop, skinCondLines } from './skincond.js';
 import { nextDuel, duelLines, duelOpts, duelPicked } from './duel.js';
 import { faceFit } from './fit.js';
 import { initPWA, pwaState, promptInstall } from './pwa.js';
+import { voiceSay, voiceStop, voicePause, voiceSlow, voiceBusy, voiceUnlock, voiceWarm, VOICE_HOLD_MS } from './voice.js';
 import { pickSurprise, newCheer, cheerFor, aiReactFor, POSE_STEPS, POSE_EMO, POSE_HOLD_MS, poseMetrics, posePass } from './live.js';
 import { findHairline, faceFeatures, classifyFace, faceLookBonus, faceReasonFor } from './faceshape.js';
 import { lineEmoji, optEmoji } from './emoji.js';
@@ -1289,6 +1290,7 @@ function enterTeach() {
               slow: false, paused: false, voice: voicePref(), prevGrowth: loadGrowth() };
   SHOT_CACHE.clear();
   $('#teach-cap').onclick = teachCapClick;
+  if (S.teach.voice) voiceOn();                 // 上次開著語音：進教學的這一下順便解鎖播放
   // 手法圖要畫在「完成的妝」上
   const tmp = el('canvas');
   renderOnPhoto(tmp, S.picks, S.amount, S.look, false);
@@ -1306,7 +1308,7 @@ function leaveTeach() {
   $('#s4').classList.remove('teach-mode');
   $('#teach').hidden = true;
   $('#teach-target').hidden = true; $('#teach-cap').hidden = true; $('#s4').classList.remove('demo-run', 'demo-paused', 'teach-mini'); $('#teach-target').classList.remove('big'); teachUnzoom();
-  try { speechSynthesis.cancel(); } catch { /* 沒有語音功能 */ }
+  voiceStop();
 }
 function teachToAR() {
   leaveTeach();
@@ -1634,26 +1636,25 @@ const stepKey = (part) => methodKey(part, S.methods[part]);
 /** 鏡子與圖解上的分區文字 */
 const zoneLabels = () => Object.fromEntries(['base', 'main', 'deep', 'shade', 'shine', 'lower', 'liner', 'lash', 'limit', 'lipline', 'core'].map((k) => [k, t('teach.zone.' + k)]));
 function voicePref() { try { return localStorage.getItem('lucid.voice') === '1'; } catch { return false; } }
-/** 語音唸步驟（裝置內建的語音，離線也能用）；預設關著，按 🔈 打開 */
-function teachSay(text) {
-  if (!S.teach?.voice || !('speechSynthesis' in window)) return;
-  try {
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = { zh: 'zh-TW', en: 'en-US', ja: 'ja-JP' }[getLang()] || 'zh-TW';
-    u.rate = S.teach.slow ? 0.8 : 0.95;
-    speechSynthesis.speak(u);
-  } catch { /* 沒有語音功能就只看字 */ }
+/** 語音會講的每一句：每個畫法的每一小步，加上示範結束的那一句（錄音檔名與 teach.say.* 都用這組名字） */
+const VOICE_KEYS = [...Object.entries(TEACH_STEPS).flatMap(([k, st]) => st.map((s) => k + '.' + s.id)), 'done'];
+/** 打開語音的那一下：解鎖播放，並把這個語言的錄音先抓起來（之後離線也有聲音） */
+function voiceOn() { voiceUnlock(); voiceWarm(getLang(), VOICE_KEYS); }
+/** 語音講這一步：口語的一句話，先播錄好的自然語音，拿不到才用裝置內建的語音；預設關著，按 🔈 打開 */
+function teachSay(name, sk) {
+  if (!S.teach?.voice) return;
+  // sk：這個部位用的那組步驟 —— 整組都有錄音才播錄音；示範結束的那一句（沒有 sk）可有可無
+  voiceSay(name, t('teach.say.' + name), { slow: S.teach.slow, group: sk ? TEACH_STEPS[sk].map((s) => sk + '.' + s.id) : null, soft: !sk });
 }
 /** 鏡子字幕上的按鈕：慢速、暫停、語音 */
 function teachCapClick(e) {
   const b = e.target.closest('button'), T = S.teach; if (!b || !T) return;
-  if (b.dataset.act === 'slow') T.slow = !T.slow;
-  else if (b.dataset.act === 'pause') T.paused = !T.paused;
+  if (b.dataset.act === 'slow') { T.slow = !T.slow; voiceSlow(T.slow); }
+  else if (b.dataset.act === 'pause') { T.paused = !T.paused; voicePause(T.paused); }
   else if (b.dataset.act === 'voice') {
     T.voice = !T.voice;
     try { localStorage.setItem('lucid.voice', T.voice ? '1' : '0'); } catch { /* 記不住也沒關係 */ }
-    if (T.voice) { T.saidKey = ''; } else { try { speechSynthesis.cancel(); } catch { /* 沒有語音功能 */ } }
+    if (T.voice) { T.saidKey = ''; voiceOn(); } else voiceStop();
   }
   teachStepUI();
 }
@@ -1681,8 +1682,8 @@ function teachStepUI() {
   const gc = $('#teach-gest'); if (gc) gc.innerHTML = gestureHTML(s, teachMethod(cur.part), cur.part);
   cap.innerHTML = `<div class="gs">${gestureSVG(gNow)}</div><div class="tx2"><div class="l1"><b>${T.view === 'demo' ? t('teach.demoing') : t('teach.view.self')}</b><span class="n">${T.step + 1}/${steps.length}</span><span class="tx">${text}</span></div>
     <div class="l2"><span class="mo">${motionTag(s)}</span><span class="btns">${tb('slow', T.slow, t('teach.slow'), '🐢')}${tb('pause', T.paused, t(T.paused ? 'teach.play' : 'teach.pause'), T.paused ? '▶' : '⏸')}${tb('voice', T.voice, t('teach.voice'), T.voice ? '🔊' : '🔈')}</span></div></div>`;
-  const sayKey = cur.id + ':' + key + ':' + T.view + ':' + T.step;
-  if (T.saidKey !== sayKey) { T.saidKey = sayKey; teachSay(text + '。' + t('teach.motion.' + s.motion)); }
+  const sayKey = cur.id + ':' + key + ':' + T.view + ':' + T.step + (fin ? ':done' : '');   // 示範走完再講一句「換你畫」
+  if (T.saidKey !== sayKey) { T.saidKey = sayKey; T.holdMs = 0; teachSay(fin ? 'done' : key + '.' + s.id, fin ? null : key); }
 }
 function teachEnd(box) {
   const T = S.teach;
@@ -1847,7 +1848,10 @@ function drawCoach(ctx, lm, W, H) {
   const adv = T.paused ? 0 : dt * (T.slow ? 0.5 : 1);           // 慢速：一半的速度
   let k;
   if (T.view === 'demo' && T.demo) {
-    T.demo.el += adv;
+    // 語音還沒講完就先停在這一步的最後等它（最多等 VOICE_HOLD_MS，語音卡住也不會停住不動）
+    const mv = demoAdvance(key, T.demo.el, adv, !!T.voice && (T.holdMs || 0) < VOICE_HOLD_MS && voiceBusy());
+    T.demo.el = mv.el;
+    T.holdMs = mv.held ? (T.holdMs || 0) + dt : mv.leaving ? 0 : T.holdMs;
     const d = demoAt(key, T.demo.el);
     k = d.done ? null : d.k;
     if (d.i !== T.step || d.done !== T.demo.done) { T.step = d.i; T.demo.done = d.done; teachStepUI(); }
