@@ -1,5 +1,5 @@
 #!/bin/sh
-# LUCID demo —— 用 localhost 啟動，這樣相機才能用。
+# KOTO demo —— 用 localhost 啟動，這樣相機才能用。
 # 相機需要 secure context；file:// 一定會被瀏覽器擋掉。
 cd "$(dirname "$0")" || exit 1
 open_url() { (command -v xdg-open >/dev/null && xdg-open "$1") || (command -v open >/dev/null && open "$1") || true; }

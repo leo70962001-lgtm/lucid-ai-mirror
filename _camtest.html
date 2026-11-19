@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<title>LUCID AI Smart Mirror — AI × AR 智慧美妝體驗儀</title>
+<title>KOTO — 妝容工坊 Makeup Atelier</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <!-- 安裝成 App（PWA）：Android / 電腦版 Chrome 讀 manifest；iPhone 讀下面幾個 apple 標籤 -->
 <meta name="description" content="AI 美妝教學與 AR 試妝：用手機鏡頭看化妝前後，AI 問答教你用什麼化妝品、工具、手法，沒有工具也能畫。可安裝、可離線。">
@@ -11,7 +11,7 @@
 <meta name="theme-color" content="#f7f6f3">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="LUCID 美妝鏡">
+<meta name="apple-mobile-web-app-title" content="KOTO">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
@@ -21,7 +21,7 @@
 
 <!-- 開機畫面 -->
 <div id="boot">
-  <div class="logo"><b>LUCID</b> AI SMART MIRROR</div>
+  <div class="logo"><b>KOTO</b><i></i> MAKEUP ATELIER</div>
   <div class="bar"><i></i></div>
   <p id="boot-msg" data-i18n="boot.init">初始化…</p>
 </div>
@@ -30,18 +30,17 @@
 
   <!-- ══════════ 鏡面主體 ══════════ -->
   <div id="mirror">
+    <!-- 標題列兩排：上面是字標、語言、設定；下面是返回、這個階段的名字（大字）、第幾段 -->
     <div id="bar">
-      <button id="back" data-i18n-title="btn.back" title="上一步">‹</button>
-      <h1 id="title">STEP 1: FACIAL PHOTO<small id="subtitle">智慧拍照 · 請對準引導框</small></h1>
+      <div id="brand"><b>KOTO</b><i></i><span data-i18n="brand.tag">妝容工坊</span></div>
       <div id="lang"></div>
       <button id="set-btn" type="button" aria-haspopup="true">⚙</button>
+      <button id="back" data-i18n-title="btn.back" title="上一步">‹</button>
+      <h1 id="title">取景<small id="subtitle">請對準引導框</small></h1>
+      <div id="stage-no"><b id="stage-n">01</b><span>/05</span></div>
       <div id="badge">AI &amp; AR<br>Powered</div>
     </div>
     <div id="settings" hidden></div>
-
-    <div id="rail-steps">
-      <i class="pip on"></i><i class="pip"></i><i class="pip"></i><i class="pip"></i><i class="pip"></i>
-    </div>
 
     <div id="view">
 
@@ -62,7 +61,7 @@
       <section class="screen" id="s2" hidden>
         <div class="frame compact">
           <canvas id="shot"></canvas>
-          <div class="host"><i class="av">AI</i><div><b data-i18n="host.name">LUCID 美妝顧問</b><small><span data-i18n="host.s2"></span></small></div></div>
+          <div class="host"><i class="av">AI</i><div><b data-i18n="host.name">VERA 妝容顧問</b><small><span data-i18n="host.s2"></span></small></div></div>
           <div class="fx" id="s2-fx"></div>
           <div class="hold-hint" id="shot-hint" data-i18n="hold.hint" hidden>按住畫面看素顏</div>
         </div>
@@ -102,7 +101,7 @@
           <button class="paint-btn" id="paint-btn" type="button" data-i18n="paint.btn">✍️ 自己畫</button>
           <div class="rec-badge" id="rec-badge" hidden>● REC <span></span></div>
           <!-- 直播間的固定配置：左上主播資訊、右側互動按鈕、飄愛心與橫幅的特效層 -->
-          <div class="host"><i class="av">AI</i><div><b data-i18n="host.name">LUCID 美妝顧問</b><small><span data-i18n="host.s4"></span></small></div></div>
+          <div class="host"><i class="av">AI</i><div><b data-i18n="host.name">VERA 妝容顧問</b><small><span data-i18n="host.s4"></span></small></div></div>
           <div class="rail" id="s4-rail"></div>
           <div class="fx" id="s4-fx"></div>
           <figure class="teach-target" id="teach-target" hidden></figure>
@@ -242,6 +241,11 @@
     </div>
 
     <div id="dock"><div class="row" id="actions"></div></div>
+
+    <!-- 階段導覽：五個階段的名字排在最下面（原本是標題列下面的一條細線）；只顯示進度，不能點 -->
+    <div id="rail-steps">
+      <i class="pip on"><b>01</b><span data-i18n="nav.1">取景</span></i><i class="pip"><b>02</b><span data-i18n="nav.2">解析</span></i><i class="pip"><b>03</b><span data-i18n="nav.3">試色</span></i><i class="pip"><b>04</b><span data-i18n="nav.4">跟練</span></i><i class="pip"><b>05</b><span data-i18n="nav.5">成果</span></i>
+    </div>
 
     <div id="foot"><span>AI &amp; AR Powered</span><span id="calib-tag"></span><span id="clock">--:--</span></div>
   </div>

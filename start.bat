@@ -1,6 +1,6 @@
 @echo off
 REM ---------------------------------------------------------------
-REM  LUCID AI Smart Mirror - local launcher
+REM  KOTO Makeup Atelier - local launcher
 REM
 REM  Serves the demo on http://localhost:5173 so the CAMERA works.
 REM  Browsers only allow getUserMedia on https:// or localhost;
@@ -12,7 +12,7 @@ REM  remaining bytes under the new codepage and even REM lines
 REM  start executing as commands). Chinese instructions live in
 REM  the separate file: HOW-TO-RUN.txt
 REM ---------------------------------------------------------------
-title LUCID AI Smart Mirror
+title KOTO Makeup Atelier
 cd /d "%~dp0"
 
 netstat -ano | findstr ":5173 " | findstr "LISTENING" >nul 2>nul

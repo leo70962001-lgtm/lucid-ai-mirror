@@ -2752,7 +2752,7 @@ body {
 .spark polyline { stroke:var(--ink); stroke-width:1.75; }
 .spark .end { fill:var(--rose); stroke:var(--cream-1); }
 .spark line { stroke:var(--line); stroke-dasharray:1 7; stroke-width:6; }      /* 基準線畫成刻度 */
-.grow-table th { font:700 10.5px/1.4 inherit; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-2); }
+.grow-table th { font-size:10.5px; font-weight:700; line-height:1.4; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-2); }
 .grow-table .n { font-family:var(--font-num); }
 .grow-start, .grow-actions button { border-radius:var(--radius-sm); }
 #s5-prod > summary { border-radius:var(--radius-sm); }
@@ -2782,3 +2782,113 @@ body {
   #lang button { padding:8px 8px; }
 }
 @media (prefers-reduced-motion:reduce) { .pip.on { animation:none; } .btn, .sw-btn, .advisor .opts button { transition:none; } }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   KOTO 版面 —— 2026-11 改名與重新排版（名稱與版面架構的方向由 Gemini 提出）
+   目標：認識舊版的人看不出是同一個 App。
+     · 標題列兩排：上面是字標 KOTO、語言、設定；下面是返回、這個階段的名字（大字）、第幾段
+     · 階段導覽從標題列下面的一條細線，搬到畫面最下面，五個階段都有名字
+     · 手機上鏡子左右貼齊螢幕（原本是一張有邊距的圓角卡片）
+     · 第一段的主要按鈕是相機的圓形快門
+     · 鏡子左上角的「AI 主播」徽章拿掉，模式切換與復原鈕往上補位
+     · 大螢幕：商品卡從右邊換到左邊
+   ═══════════════════════════════════════════════════════════════════════ */
+:root { --bar-h:88px; }
+
+/* ── 標題列：兩排 ── */
+#bar {
+  height:auto; display:grid; grid-template-columns:auto minmax(0, 1fr) auto auto;
+  grid-template-areas:"brand brand lang set" "back title title no";
+  align-items:center; column-gap:10px; row-gap:5px;
+  padding:calc(7px + env(safe-area-inset-top)) 14px 9px;
+}
+#brand { grid-area:brand; display:flex; align-items:center; gap:8px; min-width:0; }
+#brand b { font:700 15px/1 var(--display); letter-spacing:.24em; color:var(--ink); }
+#brand i { flex:none; width:7px; height:7px; margin-left:-5px; border:1.5px solid var(--rose); border-radius:50%; }
+#brand span {
+  min-width:0; padding-left:9px; border-left:1px solid var(--line-strong);
+  font-size:10px; font-weight:500; line-height:1.2; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#lang { grid-area:lang; margin:0; }
+#lang button { padding:6px 8px; font-size:10px; }
+#set-btn { grid-area:set; width:28px; height:28px; font-size:13px; }
+#back { grid-area:back; width:38px; height:38px; }
+#bar h1 {
+  grid-area:title; flex:none; min-width:0; font-size:21px; font-weight:700; letter-spacing:.02em; line-height:1.15;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#bar h1 small {
+  display:block; margin-top:3px; font-size:11.5px; font-weight:500; letter-spacing:.02em; line-height:1.3; color:var(--ink-3);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#stage-no { grid-area:no; align-self:start; padding-top:1px; font:500 11px/1 var(--font-num); color:var(--ink-3); white-space:nowrap; }
+#stage-no b { font:700 21px/1.15 var(--font-num); letter-spacing:-.03em; color:var(--rose); }
+#badge { display:none; }
+
+/* ── 階段導覽：畫面最下面，五個階段的名字 ── */
+#rail-steps {
+  flex:none; display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:0;
+  padding:0 8px max(6px, env(safe-area-inset-bottom)); border-top:1px solid var(--line); background:var(--cream-0);
+}
+.pip {
+  position:relative; flex:initial; height:auto; display:grid; justify-items:center; gap:3px; padding:7px 2px 0;
+  border-radius:0; background:none; box-shadow:none; font-style:normal; color:var(--ink-3);
+  transform:none; animation:none; transition:color .2s;
+}
+.pip::before { content:""; position:absolute; left:14%; right:14%; top:-1px; height:2px; background:transparent; }
+.pip b { font:600 9px/1 var(--font-num); letter-spacing:.06em; }
+.pip span { max-width:100%; font-size:11px; font-weight:600; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pip.done { background:none; color:var(--ink); }
+.pip.done::before { background:var(--ink); }
+.pip.on { background:none; color:var(--rose-soft); animation:none; }
+.pip.on::before { background:var(--rose); transform-origin:left center; animation:at-sweep .26s var(--ease); }
+#dock { padding:8px 14px 8px; }
+#foot { display:none; }
+
+/* ── 第一段：相機的圓形快門，上傳照片縮在左邊 ── */
+#mirror:has(#s1:not([hidden])) #actions { position:relative; justify-content:center; min-height:86px; }
+#mirror:has(#s1:not([hidden])) #actions .btn.primary {
+  flex:none; display:grid; justify-items:center; gap:7px; min-height:0; padding:5px 10px 0; border:0; border-radius:0;
+  background:none; box-shadow:none; color:var(--ink); font-size:11px; font-weight:600; letter-spacing:.1em;
+}
+#mirror:has(#s1:not([hidden])) #actions .btn.primary::before {
+  content:""; width:58px; height:58px; border-radius:50%; background:var(--ink);
+  box-shadow:0 0 0 3px var(--cream-0), 0 0 0 5px var(--ink); transition:transform .12s var(--ease);
+}
+#mirror:has(#s1:not([hidden])) #actions .btn.primary:hover:not(:disabled) { background:none; box-shadow:none; color:var(--ink); }
+#mirror:has(#s1:not([hidden])) #actions .btn.primary:active:not(:disabled) { transform:none; box-shadow:none; }
+#mirror:has(#s1:not([hidden])) #actions .btn.primary:active:not(:disabled)::before { transform:scale(.9); }
+#mirror:has(#s1:not([hidden])) #actions .btn:not(.primary) {
+  position:absolute; left:0; top:50%; transform:translateY(-50%); flex:none; min-height:42px; padding:9px 12px; font-size:12.5px;
+  max-width:calc(50% - 48px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;     /* 再長也不會碰到快門 */
+}
+#mirror:has(#s1:not([hidden])) #actions .btn:not(.primary):active:not(:disabled) { transform:translateY(-50%); }
+
+/* ── 鏡子上的東西：拿掉左上角的顧問徽章，模式切換與復原鈕往上補位；右側按鈕改成方的 ── */
+.frame .host { display:none; }
+#s4 .seg.float { top:12px; }
+#s4 .hist { top:52px; }
+.rail .rb i { border-radius:12px; }
+.rail.tight .rb i { border-radius:10px; }
+#boot .logo i { display:inline-block; width:8px; height:8px; margin:0 14px 1px -4px; border:1.5px solid var(--rose); border-radius:50%; vertical-align:middle; }
+
+/* ── 手機：鏡子左右貼齊螢幕 ── */
+@media (max-width:560px) {
+  #bar { padding:calc(6px + env(safe-area-inset-top)) 12px 8px; }
+  #bar h1 { font-size:20px; letter-spacing:.01em; }
+  #bar h1 small { font-size:11px; }
+  #stage-no b { font-size:20px; }
+  #view { padding:0; }
+  .frame { border-radius:0; box-shadow:none; }
+  #s4.teach-mode > .frame { border-radius:0; }
+  #s1 > :not(.frame), #s3 > :not(.frame) { margin-left:14px; margin-right:14px; }
+  #s5-scroll { padding-left:14px; padding-right:10px; padding-top:10px; }
+  #s4 .seg.float { top:8px; }
+  #s4 .hist { top:46px; }
+  #rail-steps { padding:0 6px max(6px, env(safe-area-inset-bottom)); }
+  #dock { padding:8px 12px 8px; }
+}
+/* ── 大螢幕：商品卡在左、鏡子在右 ── */
+@media (min-width:1041px) { #stage { flex-direction:row-reverse; } }
+@media (prefers-reduced-motion:reduce) { .pip.on::before { animation:none; } }

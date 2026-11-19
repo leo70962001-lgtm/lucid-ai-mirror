@@ -68,4 +68,4 @@ http.createServer((req, res) => {
       'cache-control': 'no-cache',
     }).end(buf);
   });
-}).listen(PORT, () => console.log(`LUCID demo running at http://localhost:${PORT}`));
+}).listen(PORT, () => console.log(`KOTO demo running at http://localhost:${PORT}`));

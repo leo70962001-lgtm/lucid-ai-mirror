@@ -439,6 +439,7 @@ function go(n) {
   $('#subtitle').textContent = t('step' + n + '.tw');
   $('#back').disabled = n === 1;
   const shown = SHOWN[n];
+  { const no = $('#stage-n'); if (no) no.textContent = String(shown).padStart(2, '0'); }   // 標題右邊的「第幾段」
   [...document.querySelectorAll('.pip')].forEach((p, i) => {
     p.className = 'pip' + (i + 1 === shown ? ' on' : i + 1 < shown ? ' done' : '');
   });
@@ -1107,7 +1108,7 @@ function mountChat(where) {
       log.appendChild(row); prevWho = 'you'; continue;
     }
     const row = el('div', 'msg ai ' + m.l.kind + (prevWho === 'ai' ? ' cont' : ''));   // 連續的 AI 訊息只在第一則放頭像
-    if (prevWho !== 'ai') row.appendChild(el('i', 'avatar', 'AI'));
+    if (prevWho !== 'ai') row.appendChild(el('i', 'avatar', 'V'));
     const bubble = el('div', 'bubble');
     // 句子開頭的表情符號已經看得出是哪一類（建議 💡、提問 💬、例子 🌟…），種類標籤不再每句都掛。
     // 只留「你說的」：那句話的依據是客人自己的回答、不是量測 —— 這個差別要一直看得到。
@@ -1128,7 +1129,7 @@ function mountChat(where) {
   }
   if (pendingAt) {
     const row = el('div', 'msg ai typing' + (prevWho === 'ai' ? ' cont' : ''));
-    if (prevWho !== 'ai') row.appendChild(el('i', 'avatar', 'AI'));
+    if (prevWho !== 'ai') row.appendChild(el('i', 'avatar', 'V'));
     row.appendChild(el('div', 'bubble', '<i></i><i></i><i></i>'));
     log.appendChild(row);
     clearTimeout(c.timer);
@@ -1279,6 +1280,7 @@ const teachMethod = (part) => { const m = teachOwned(); return coachMethod(part,
 function setStepHead(en, tw, shown) {
   $('#title').firstChild.textContent = en;
   $('#subtitle').textContent = tw;
+  const no = $('#stage-n'); if (no) no.textContent = String(shown).padStart(2, '0');   // 標題右邊的「第幾段」
   [...document.querySelectorAll('.pip')].forEach((p, i) => { p.className = 'pip' + (i + 1 === shown ? ' on' : i + 1 < shown ? ' done' : ''); });
 }
 function enterTeach() {
@@ -4820,7 +4822,7 @@ function snapLook() {
   x.drawImage(src, 0, 0);
   x.fillStyle = '#fffaf9'; x.fillRect(0, H, W, bar);
   x.fillStyle = '#453640'; x.font = `600 ${Math.round(bar * 0.26)}px sans-serif`; x.textBaseline = 'middle';
-  x.fillText('LUCID · ' + new Date().toLocaleDateString(), pad, H + bar * 0.34);
+  x.fillText('KOTO · ' + new Date().toLocaleDateString(), pad, H + bar * 0.34);
   x.fillStyle = '#826a76'; x.font = `${Math.round(bar * 0.2)}px sans-serif`;
   x.fillText(['lip', 'eye', 'cheek'].map((k) => tf(S.picks[k], 'shade')).join('  ·  '), pad, H + bar * 0.7);
   // 右邊三顆色點：唇、眼、頰
