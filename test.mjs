@@ -2065,7 +2065,7 @@ console.log('\n\x1b[1m48. 化妝教學獨立成一段；量真的臉；成長紀
   ok(/box\.appendChild\(faceMapEl\(true\)\)/.test(app) && /box\.appendChild\(faceMapEl\(false\)\)/.test(app) && /const cmp = cmpShots\(cur\.part\);/.test(app), '全臉地圖在化妝品章與最後一頁；每個部位有對照圖');
   ok(/box\.appendChild\(depthMeters\(res, T\.prevGrowth \|\| \[\]\)\)/.test(app) && /depth: T\.results\[c\.id\]\.depth, sides: T\.results\[c\.id\]\.sides/.test(app), '完成章有深淺量表，紀錄一起存');
   ok(/S\.scene = id; Object\.assign\(S\.methods, SCENES\[id\]\)/.test(app) && /mountS5Nav\(\);/.test(app), '選情境一次配好畫法；最後一頁頁首可以跳到各區');
-  ok(/class="privacy-chip" data-i18n="privacy\.chip"/.test(readFileSync(new URL('./index.html', import.meta.url), 'utf8')), '拍照頁寫明照片不會上傳');
+  ok(/class="privacy-chip">.*<span data-i18n="privacy\.chip">/.test(readFileSync(new URL('./index.html', import.meta.url), 'utf8')), '拍照頁寫明照片不會上傳');
   ok(GROWTH_KEY === 'lucid.growth' && GROWTH_PARTS.join() === 'eye,cheek,lip', '紀錄的部位：眼、頰、唇');
 
   // 接線
@@ -2318,6 +2318,21 @@ console.log('\n\x1b[1m51. 語音引導：口語台詞、錄好的自然語音（
   const buildV = readFileSync(new URL('./build.mjs', import.meta.url), 'utf8'), swV = readFileSync(new URL('./sw.js', import.meta.url), 'utf8');
   ok(buildV.includes("'js/voice.js'") && buildV.includes('...audioFiles,') && buildV.includes('!/^(vendor|models|audio)[\\\\/]/.test(f)') && /const BIG = \/\\\/\(vendor\|models\|images\|icons\|audio\)\\\/\/;/.test(swV), '建置把錄音放進網站；安裝時不先全部下載，用到（或打開語音）才存，存了就離線可用');
   ok(readFileSync(new URL('./server.js', import.meta.url), 'utf8').includes("'.mp3': 'audio/mpeg'"), '本機伺服器認得 mp3');
+}
+
+console.log('\n\x1b[1m52. 功能圖示：線條圖示取代當圖示用的表情符號\x1b[0m');
+{
+  const { UI_ICONS, uiIcon } = await import('./js/icons.js');
+  const appI = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8'), htmlI = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const used = [...new Set([...appI.matchAll(/uiIcon\('([a-zA-Z]+)'\)/g)].map((m) => m[1]).concat([...appI.matchAll(/ic: '([a-zA-Z]+)'/g)].map((m) => m[1]), ['play', 'pause', 'soundOn', 'soundOff', 'chevronUp', 'chevronDown']))];
+  const missI = used.filter((n) => !UI_ICONS[n]);
+  ok(used.length >= 12 && missI.length === 0, '程式用到的每一個圖示都畫了（' + used.length + ' 個）' + (missI.length ? ' 缺：' + missI.join() : ''));
+  ok(Object.values(UI_ICONS).every((s) => /^(<(path|circle|line|rect|polyline|ellipse) [^<>]*\/>)+$/.test(s) && !/fill=|stroke=|style=/.test(s)), '圖示只有線條的基本形狀，顏色與線寬由外層決定（跟著文字顏色）');
+  ok(/viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1\.6"/.test(uiIcon('ask')) && uiIcon('nope').includes('</svg>') && uiIcon('ask', 'big').includes('class="ic big"'), '每個圖示同一個畫框與線寬；沒有的名字回空的圖，不會壞版');
+  ok(/<i>\$\{uiIcon\(r\.ic\)\}<\/i>/.test(appI) && /uiIcon\('slow'\)/.test(appI) && /uiIcon\(T\.voice \? 'soundOn' : 'soundOff'\)/.test(appI) && /uiIcon\(S\.sheet\.state === 'min' \? 'chevronUp' : 'chevronDown'\)/.test(appI), '右側按鈕、字幕上的慢速／暫停／語音、抽屜收合都用線條圖示');
+  ok(!/[⚙‹⌄🔒]/u.test(htmlI) && (htmlI.match(/<svg class="ic"/g) || []).length >= 6, '頁面骨架裡的返回、設定、分頁、收合、隱私提示也換成線條圖示');
+  const dictI = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8');
+  ok(['hist.undo', 'hist.redo', 'privacy.chip', 'teach.yourTurn', 'paint.btn'].every((k) => { const l = dictI.split(/\r?\n/).find((x) => x.includes("'" + k + "'")) || '↶'; return !/[↶↷🔒✍]/u.test(l); }), '文案裡不再夾著當圖示用的符號');
 }
 
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);
