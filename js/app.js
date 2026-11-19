@@ -10,11 +10,11 @@ import { renderMakeup, debugOverlay, LIPS_OUTER, EYE_R_ALL, EYE_L_ALL, SKIN_PATC
 import { setMakeup, setMakeupB, setSplit, setIntensity, setSweep, renderGL,
          screenToUV, brushDab, clearBrush, hasBrush, useBrush,
          beginStroke, undoStroke, redoStroke, strokeCount, redoCount,
-         pressureLevel, applyPressure, COVERAGE, setLighting, resetRefs, setColorMatrix, LIP_FX } from './makeup-gl.js';
+         pressureLevel, applyPressure, COVERAGE, setLighting, resetRefs, setColorMatrix, LIP_FX, setTwinkle } from './makeup-gl.js';
 import { loadChartQuad, fitFromCanvas, applyCCM, clearChartQuad } from './chart.js';
 import { sampleSkin, classifySkin, rankLooks, estimateIlluminant, estimateHighlight, applyGain,
          rgbToLab, hexToLab, deltaE, ITA_CLASSES } from './analysis.js';
-import { PRODUCTS, LOOKS, resolveLook, toneLabel, finishLabel, catLabel } from './products.js';
+import { PRODUCTS, LOOKS, resolveLook, toneLabel, finishLabel, catLabel, DETAILS, STYLES, DETAIL_DEFAULT, fxOf } from './products.js';
 import { MOODS, WEATHERS, PLANS, contextAdvice, adjustIntensity, rankWithContext,
          moodFromFace, externalWeather } from './context.js';
 import { lastBlendshapes, faceInfo } from './face.js';
@@ -28,7 +28,8 @@ import { EXPLAIN_ACTS, onSkin, onLook, onPicks, onShadeChange, onAmount, onFinis
          prefNote, prefRecall, observe, sessionSummary, DWELL_MS,
          colorStatus, colorLines, colorGuide, optsForColor, colorGuideOpts,
          plainSeason, askSeasonBase, askSeasonSplit, SEASON_ANSWER, explainSeason, seasonColors,
-         seasonShadeLine, optsForSeason, optLearn, optQuiz } from './advisor.js';
+         seasonShadeLine, optsForSeason, optLearn, optQuiz,
+         TOUR, tourStep, leadNext, intentOf, fxMenu } from './advisor.js';
 import { seasonFeatures, classifySeason, personFit } from './season.js';
 import { pickLesson, lessonLines, nextQuiz, onQuizAnswer, learnRecap } from './learn.js';
 import { newTaste, noteTaste, tasteRead, tasteSuggest, tasteSummary, describeLip, LIP_FAMILIES } from './lipcolor.js';
@@ -126,7 +127,11 @@ const S = {
   splitOff: 0,      // 分界線相對臉中線的偏移 —— 使用者拖的是這個
   pickB: null,      // 雙色模式下右半邊的唇色
   side: 'a',        // 色號列現在要套到哪一邊
-  tab: 'lip',       // 細調分頁：唇 / 眼 / 頰 / 手動上妝
+  tab: 'lip',       // 細調分頁：唇 / 眼 / 頰 / 細節 / 手動上妝
+  fx: null,         // 細節層的份量與各部位的畫法（跟著妝容給預設，使用者可以改）—— 見 fxNow()
+  build: null,      // 上妝過程重播：{ t0, steps, shown }
+  tour: null,       // 逐步帶看走到第幾步（null = 沒在帶）
+  done: {},         // 試妝畫面做過哪些事（tour / compare / detail / build）—— 「下一步建議」用
   finish: 'all',    // 色號列的質地篩選：all / matte / gloss / shimmer
   hist: [], redo: [],   // Step 4 的撤銷／重做
   shot: null, edited: null,               // 修圖的來源與成品
@@ -432,6 +437,7 @@ function go(n) {
   if (n !== 4 && lastSigB !== 'null') { setMakeupB(null); lastSigB = 'null'; }
   if (n !== 4) recStop();
   if (n !== 4 && S.teach) leaveTeach();
+  if (n !== 4 && S.build) { S.build = null; $('#build-cap')?.remove(); }
   if (n !== 4 && S.tab === 'paint') { S.tab = 'lip'; $('#s4')?.classList.remove('painting-mode'); const pb = $('#paintbar'); if (pb) pb.hidden = true; }
   S.step = n;
   cancelAnimationFrame(S.raf);
@@ -1166,7 +1172,7 @@ function mountChat(where) {
     const shown = more ? opts.slice(0, MAX) : opts;
     for (const o of shown) {
       const e = optEmoji(o);
-      const b = el('button', '', (e ? `<span class="emo">${e}</span>` : '') + t(o.key));
+      const b = el('button', o.lead ? 'lead' : '', (e ? `<span class="emo">${e}</span>` : '') + t(o.key));
       b.onclick = () => chatAct(where, o);
       row.appendChild(b);
     }
@@ -2181,6 +2187,9 @@ function sendAsk(where, text) {
   c.asking = false; c.draft = '';
   S.lastAct = performance.now();
   c.msgs.push({ who: 'you', text: escText(q) });       // 使用者打的字不能當 HTML
+  // 試妝畫面：聽得懂的指令（再淡一點、加眼線、跟素顏比…）直接做；問句照舊去查教學
+  const it = where === 's4' && S.step === 4 && !S.teach && !S.duel && !S.pose ? intentOf(q) : null;
+  if (it) { c.opts = back; chatAct(where, { ...it, key: 'opt.ask', _typed: true }); return; }
   const hits = qaSearch(q);
   // 查不到就老實說，留著標籤讓人自己找
   if (!hits.length) { c.asking = true; chatSay(where, [{ kind: 'fact', key: 'qa.none', params: {} }], back); return; }
@@ -2213,7 +2222,7 @@ function chatAct(where, o) {
   const prevOpts = c.opts;
   (c.asked ||= new Set()).add(o.act);      // 問過的「為什麼」不再出現在選項裡
   const quiet = o.act === 'guideStart';        // 進教學不留言
-  if (!quiet) chatYou(where, o.key, optEmoji(o));
+  if (!quiet && !o._typed) chatYou(where, o.key, optEmoji(o));     // 打字進來的那句話已經在對話裡了
   const r = runAct(o) || {};
   if (HEART_ACTS.has(o.act) && S.step === 4) floatHearts('s4');
   // AI 讀到了：在你那則留言蓋章
@@ -2281,6 +2290,7 @@ function whyOpts(group) {
 const MARK_SETS = {
   lip:    { poly: [LIPS_OUTER] },
   eye:    { poly: [EYE_R_ALL, EYE_L_ALL] },
+  brow:   { poly: [[70, 63, 105, 66, 107, 55, 65, 52, 53, 46], [300, 293, 334, 296, 336, 285, 295, 282, 283, 276]] },
   sclera: { poly: [EYE_R_ALL, EYE_L_ALL] },
   cheek:  { dots: [50, 101, 205, 280, 330, 425] },
   skin:   { dots: SKIN_PATCHES },              // sampleSkin 真正量的那 10 塊
@@ -2414,14 +2424,41 @@ function afterAnswer2(lines) {
 }
 
 /** AR 的選項：有上一支色號時才給「換回剛才那支」 */
+/** 「下一步建議」要看的：這一場做過哪些事 */
+const leadDone = () => ({ ...S.done, shade: S.tried.size >= 2, learn: !!S.guideDone, compare: S.done.compare || S.mode === 'bare' });
+/** 逐步帶看要講的資料 */
+const tourData = () => ({ lip: S.picks.lip.id, eye: S.picks.eye.id, cheek: S.picks.cheek.id,
+                          pct: Math.round(S.amount.lip * 100), style: fxNow().style, on: fxOn(), mode: S.mode });
+/** 平常的選項：AI 建議的下一步永遠排第一（標成主要按鈕），其餘照舊 */
+const withLead = (list) => {
+  const lead = leadNext(leadDone()).opt;
+  return [lead, ...list.filter((o) => o.act !== lead.act)];
+};
 const arOpts = () => (S.duel ? duelOpts() : S.pose ? poseOpts()
-  : [...(S.guideDone ? [] : [{ key: 'opt.guideStart', act: 'guideStart' }]),   // 最重要的功能放第一個，走過一次才退到右側按鈕
+  : S.tour != null && TOUR[S.tour] ? tourStep(S.tour, tourData()).opts
+  : withLead([...(S.guideDone ? [] : [{ key: 'opt.guideStart', act: 'guideStart' }]),   // 最重要的功能放前面，走過一次才退到右側按鈕
      ...(S.gifts > 0 ? [{ key: 'opt.openGift', act: 'surprise' }] : []),
      ...optsForAR(S.zoom, S.mode, !!S.prevLip),
      { key: 'opt.poseStart', act: 'poseStart' },
      { key: 'opt.trendNow', act: 'trendNow' },
      ...(tasteRead(S.taste).ready ? [{ key: 'opt.myTaste', act: 'myTaste' }] : []),
-     { key: 'opt.wrapUp', act: 'wrapUp' }, optLearn()]);
+     { key: 'opt.detailOpen', act: 'detailOpen' }, { key: 'opt.buildUp', act: 'buildUp' },
+     { key: 'opt.wrapUp', act: 'wrapUp' }, optLearn()]));
+
+const TOUR_KEYS = ['adv.tour.offer', 'adv.tour.lip', 'adv.tour.eye', 'adv.tour.cheek', 'adv.tour.detail', 'adv.tour.detailNone',
+                   'adv.tour.compare', 'adv.tour.learn', 'adv.tour.end'];
+/** 帶到第 S.tour 步：切到那個分頁、在鏡子上圈出來，講一句、給這一步能做的事 */
+function tourSay() {
+  const id = TOUR[S.tour];
+  if (id === 'lip' || id === 'eye' || id === 'cheek' || id === 'detail') {
+    if (S.tab === 'paint') exitPaint(true);
+    S.tab = id; mountTabs(); mountPanel(); mountModes();
+    if (id !== 'detail') markFace(id);
+  }
+  if (id === 'detail') S.done.detail = true;
+  const st = tourStep(S.tour, tourData());
+  return { lines: st.lines, replace: TOUR_KEYS, opts: st.opts };
+}
 
 /* ══ 直播間的互動元素 ═══════════════════════════════════════
    參考直播 App 的固定配置：右側一排直向的互動按鈕、按喜歡時飄愛心、重要時刻跳一條禮物式橫幅。
@@ -2686,7 +2723,44 @@ function switchLip(next, reason) {
 }
 
 function runAct(o) {
+  // 帶看的最後一步點了「教我」或「整理」：帶看結束，回來時是平常的選項
+  if (S.tour != null && (o.act === 'guideStart' || o.act === 'wrapUp')) S.tour = null;
   switch (o.act) {
+    // ── 細節層：開或關一樣 ──
+    case 'fxLiner': case 'fxBrow': case 'fxContour': case 'fxHighlight': {
+      const k = o.act.slice(2).toLowerCase();
+      const on = o.val === 'on' ? true : o.val === 'off' ? false : !(fxNow().level[k] > 0);
+      const ln = setDetail(k, on);
+      return { lines: [ln], replace: FX_KEYS, opts: arOpts() };
+    }
+    case 'detailOpen': {
+      if (S.tab === 'paint') exitPaint(true);
+      S.tab = 'detail'; S.done.detail = true; mountTabs(); mountPanel(); mountModes();
+      const m = fxMenu(fxOn());
+      return { lines: m.lines, replace: FX_KEYS, opts: [...m.opts, ...arOpts()] };
+    }
+    // ── 畫法：沒指定就換下一種 ──
+    case 'styleEye': case 'styleCheek': case 'styleLip': {
+      const cat = o.act.slice(5).toLowerCase(), list = STYLES[cat], cur = fxNow().style[cat];
+      const next = list.includes(o.val) ? o.val : list[(list.indexOf(cur) + 1) % list.length];
+      setStyle(cat, next, false);
+      return { lines: [{ kind: 'fact', key: `adv.style.${cat}.${next}`, params: {} }], replace: STYLE_KEYS, opts: arOpts() };
+    }
+    case 'buildUp': {
+      const ok = startBuild();
+      if (ok) S.done.build = true;
+      return { lines: [{ kind: 'fact', key: ok ? 'adv.build.go' : 'adv.build.none', params: {} }], replace: ['adv.build.go', 'adv.build.none'], opts: arOpts() };
+    }
+    // ── 逐步帶看 ──
+    case 'tourStart': S.tour = 0; S.done.tour = true; return tourSay();
+    case 'tourNext': {
+      if (S.tour == null) return {};
+      if (TOUR[S.tour] === 'compare') S.done.compare = true;
+      S.tour += 1;
+      if (S.tour >= TOUR.length) { S.tour = null; return { lines: [{ kind: 'fact', key: 'adv.tour.end', params: {} }], replace: TOUR_KEYS, opts: arOpts() }; }
+      return tourSay();
+    }
+    case 'tourEnd': S.tour = null; return { lines: [{ kind: 'fact', key: 'adv.tour.end', params: {} }], replace: TOUR_KEYS, opts: arOpts() };
     // 解釋完接著給追問 —— 被問第二次還答得出來，才叫肯回答
     // 不想一題一題回答：剩下的題目跳過，直接給建議
     case 'skipQs': {
@@ -2876,7 +2950,7 @@ function runAct(o) {
       return { lines: [{ kind: 'tip', key: 'adv.paint.start', params: {} }] };
     }
     case 'learn': {
-      const lesson = pickLesson({ cat: S.step === 4 && S.tab !== 'paint' ? S.tab : null, season: S.season?.season,
+      const lesson = pickLesson({ cat: S.step === 4 && S.picks?.[S.tab] ? S.tab : null, season: S.season?.season,
                                   level: S.level, audience: S.audience, learned: S.learned });
       if (lesson) S.learned.add(lesson.id);
       return { lines: lessonLines(lesson, S.season?.season) };
@@ -3092,6 +3166,7 @@ function runAct(o) {
       const want = o.act === 'compare' ? 'bare' : 'dual';
       const off = S.mode === want;                 // 再按一次就是關掉，跟畫面上的模式鈕同一個意思
       S.mode = off ? 'full' : want;
+      if (S.mode === 'bare') S.done.compare = true;
       if (S.mode === 'dual' && !S.pickB) S.pickB = altShade();
       $('#before').hidden = S.mode !== 'full';
       S.splitOff = 0; startApply(); mountModes(); mountPanel();
@@ -3176,11 +3251,12 @@ function bestTried() {
  * 這裡只負責「量現在的狀況」—— 使用者閒了多久、唇在畫面上佔多寬、試過幾支。
  * 主動說話很容易變成吵人，所以寧可少講：講過就不再講，使用者一動作就重新計時。
  */
+const LEAD_KEYS = ['adv.tour.offer', 'adv.lead.shade', 'adv.lead.compare', 'adv.lead.detail', 'adv.lead.build', 'adv.lead.learn', 'adv.lead.wrap'];
 function watchAR(lm, W) {
   if (S.step !== 4 || !lm || !S.skin) return;
   cheerTick(performance.now());
   poseTick(lm, performance.now());
-  if (S.duel || S.teach || S.pose || S.chat.s4?.asking) return;          // 正在玩二選一、跟著畫、動一動、打字問問題的時候，不插別的話
+  if (S.duel || S.teach || S.pose || S.tour != null || S.chat.s4?.asking) return;          // 正在玩二選一、跟著畫、動一動、逐步帶看、打字問問題的時候，不插別的話
   // 試了一陣子、手停下來的時候，AI 主動邀請「動一動看看」（一場一次）
   if (!S.posePrompted && S.tried.size >= 1 && !S.yesNo) {
     const arMs = S.arMs + (S.arT0 ? performance.now() - S.arT0 : 0);
@@ -3194,6 +3270,15 @@ function watchAR(lm, W) {
   // 還有問題等著回答時不插別的話 —— 否則新的提示會把答案按鈕換掉，
   // 畫面上剩一個問題卻沒有能回答的按鈕，點頭搖頭也跟著失效
   if (S.yesNo) return;
+  // 手停了 9 秒：提一次「下一步建議」。同一個建議只講一次，做完了才會換下一個
+  if (S.tour == null && !S.build && performance.now() - (S.lastAct || S.arT0 || 0) > 9000) {
+    const lead = leadNext(leadDone());
+    if (!S.said.has('lead:' + lead.id)) {
+      S.said.add('lead:' + lead.id); S.lastAct = performance.now();
+      chatReplace('s4', LEAD_KEYS, lead.lines, arOpts());
+      return;
+    }
+  }
   const now = performance.now();
   const lipPct = Math.abs(lm[291].x - lm[61].x) * 100;
   const ob = observe({
@@ -3415,28 +3500,97 @@ function renderStep3() {
 // 舊的 2D 版只有乘性，所以珠光在數學上就畫不出來。
 const BIAS = { matte: 0, gloss: 24, shimmer: 40 };
 
-function glCfgFor(p, amount, look) {
+// ── 畫法與細節層（2026-11）──────────────────────────────
+// 以前一個妝只有三樣東西（唇、眼影、腮紅），每樣只有顏色與濃淡。真的妝還有眼線、眉、修容、打亮，
+// 而且同一個顏色「怎麼畫」差很多（眼影單色或加深眼尾、腮紅圓的或斜的、唇滿版或咬唇）。
+// 妝容帶一組預設（products.js 的 detail / style），使用者在「細節」分頁與各部位的「畫法」可以改。
+const EYE_STYLE = { soft: { depth: 0, lower: 0, extent: 62 }, deep: { depth: 60, lower: 0, extent: 64 }, smoky: { depth: 85, lower: 65, extent: 72 } };
+const CHEEK_STYLE = { round: { shape: 'round', pos: 22, radius: 55 }, sweep: { shape: 'sweep', pos: 58, radius: 60 }, across: { shape: 'across', pos: 8, radius: 52 } };
+const blendHex = (h1, h2, k) => {
+  const n1 = parseInt(h1.slice(1), 16), n2 = parseInt(h2.slice(1), 16);
+  return '#' + [16, 8, 0].map((s) => Math.round((n1 >> s & 255) * (1 - k) + (n2 >> s & 255) * k).toString(16).padStart(2, '0')).join('');
+};
+/** 目前這個妝的細節與畫法。換了妝容就重新從妝容的預設開始 */
+function fxNow() {
+  if (!S.fx || S.fx.look !== (S.look?.id ?? null)) S.fx = fxOf(S.look);
+  return S.fx;
+}
+/** 細節開著哪些 */
+const fxOn = () => DETAILS.filter((k) => fxNow().level[k] > 0);
+
+function glCfgFor(p, amount, look, fxIn) {
   if (!p) return { lip: null, shadow: null, blush: null };
+  const fx = fxIn || (look && look === S.look ? fxNow() : fxOf(look));
+  const es = EYE_STYLE[fx.style.eye] || EYE_STYLE.soft, cs = CHEEK_STYLE[fx.style.cheek] || CHEEK_STYLE.round;
+  // 細節跟著所屬部位的濃度走：眼線、眉彩跟眼影；修容、打亮跟腮紅。那個部位歸零（素顏、分段示範），細節也不畫
+  const rel = (cat) => (amount[cat] > 0 ? Math.min(1.3, Math.max(0.5, amount[cat] / (look?.intensity?.[cat] || 0.4))) : 0);
+  const eyeK = rel('eye'), cheekK = rel('cheek');
+  const skin = S.skin?.hex || '#C9A084', L = fx.level;
   return {
     lip: p.lip && amount.lip > 0 ? {
       on: true, color: disp(p.lip.color),
       alpha: Math.round(amount.lip * COVERAGE.lip[p.lip.finish] * 100),   // 覆蓋率由質地決定
-      grad: look?.lipGradient ? 55 : 0,          // 韓系漸層唇
+      grad: fx.style.lip === 'gradient' ? 55 : 0,          // 咬唇漸層：內濃外淡
       soft: 15, bias: BIAS[p.lip.finish] ?? 12, finish: p.lip.finish,
     } : null,
     shadow: p.eye && amount.eye > 0 ? {
       on: true, color: disp(p.eye.color),
       alpha: Math.round(amount.eye * COVERAGE.eye[p.eye.finish] * 100),
-      extent: 62, grad: 78, soft: 40, bias: BIAS[p.eye.finish] ?? 18, finish: p.eye.finish,
+      extent: es.extent, grad: 78, soft: 40, bias: BIAS[p.eye.finish] ?? 18, finish: p.eye.finish,
+      depth: es.depth, lower: es.lower,
     } : null,
     blush: p.cheek && amount.cheek > 0 ? {
       on: true, color: disp(p.cheek.color),
       alpha: Math.round(amount.cheek * COVERAGE.cheek[p.cheek.finish] * 100),
-      radius: 55, pos: 22, core: 15, bias: BIAS[p.cheek.finish] ?? 10, finish: p.cheek.finish,
+      radius: cs.radius, pos: cs.pos, core: 15, bias: BIAS[p.cheek.finish] ?? 10, finish: p.cheek.finish, shape: cs.shape,
     } : null,
+    // 眼線：份量決定粗細與眼尾拉多長；線本身是實的（淡淡的眼線看起來像沒畫乾淨）
+    liner: L.liner > 0 && eyeK > 0 ? {
+      on: true, color: L.liner >= 0.8 ? '#17110F' : '#2B1D1B', finish: 'matte',
+      alpha: Math.round((0.6 + 0.3 * L.liner) * Math.min(1, eyeK) * 100),
+      width: Math.round(20 + 60 * L.liner), wing: Math.round(Math.min(80, Math.max(0, L.liner - 0.3) * 110)),
+    } : null,
+    brow: L.brow > 0 && eyeK > 0 ? { on: true, color: '#5C4636', finish: 'matte', alpha: Math.round(Math.min(60, L.brow * eyeK * 60)) } : null,
+    // 修容與打亮的顏色從量到的膚色推：修容是膚色加深，打亮是膚色往暖白靠
+    contour: L.contour > 0 && cheekK > 0 ? { on: true, color: blendHex(skin, '#3E2A22', 0.5), finish: 'matte', alpha: Math.round(Math.min(42, L.contour * cheekK * 44)) } : null,
+    highlight: L.highlight > 0 && cheekK > 0 ? { on: true, color: blendHex(skin, '#FFF7EC', 0.85), finish: 'shimmer', alpha: Math.round(Math.min(16, L.highlight * cheekK * 15)) } : null,
   };
 }
 const glCfg = () => glCfgFor(S.picks, S.amount, S.look);
+
+// ── 上妝過程重播 ───────────────────────────────────────
+// 「最後那張完成圖」單獨看沒有用 —— 看不出每一樣東西各自做了什麼。
+// 這裡在即時鏡子上從素顏開始，照真的上妝順序一層一層疊回去，鏡子上方寫現在是哪一層。
+const BUILD_ORDER = ['brow', 'shadow', 'liner', 'contour', 'blush', 'highlight', 'lip'];
+const BUILD_NAME = { brow: 'fx.brow', shadow: 'cat.eye', liner: 'fx.liner', contour: 'fx.contour', blush: 'cat.cheek', highlight: 'fx.highlight', lip: 'cat.lip' };
+const BUILD_MARK = { brow: 'brow', shadow: 'eye', liner: 'eye', contour: 'cheek', blush: 'cheek', highlight: 'cheek', lip: 'lip' };
+const BUILD_MS = 900;
+function startBuild() {
+  const cfg = glCfg(), steps = BUILD_ORDER.filter((k) => cfg[k]);
+  if (!steps.length || S.tab === 'paint') return false;
+  if (S.mode !== 'full') { S.mode = 'full'; $('#before').hidden = false; mountModes(); }
+  applyT0 = 0;
+  S.build = { t0: performance.now(), steps, shown: -2 };
+  return true;
+}
+function buildCap(text, n, total) {
+  let c = $('#build-cap');
+  if (!c) { c = el('div', 'build-cap'); c.id = 'build-cap'; c.setAttribute('role', 'status'); $('#s4-fx')?.appendChild(c); }
+  c.innerHTML = (n ? `<b>${n}<i>/${total}</i></b>` : '') + `<span>${text}</span>`;
+}
+/** 重播進行中：只留下已經疊上去的那幾層 */
+function buildMask(cfg) {
+  const B = S.build, i = Math.floor((performance.now() - B.t0) / BUILD_MS) - 1;      // −1 = 先停一拍素顏
+  if (i > B.steps.length) { S.build = null; $('#build-cap')?.remove(); return cfg; }
+  if (i !== B.shown) {
+    B.shown = i;
+    if (i < 0) buildCap(t('build.bare'));
+    else if (i >= B.steps.length) buildCap(t('build.done'));
+    else { buildCap(t(BUILD_NAME[B.steps[i]]), i + 1, B.steps.length); markFace(BUILD_MARK[B.steps[i]]); }
+  }
+  const keep = new Set(B.steps.slice(0, Math.max(0, i + 1)));
+  return Object.fromEntries(Object.entries(cfg).map(([k, v]) => [k, keep.has(k) ? v : null]));
+}
 
 // 每次 setMakeup 都會重建兩張 1024² 貼圖，不能每幀都做。
 // 用參數簽章比對，只有真的變了才重建。
@@ -3444,7 +3598,8 @@ let lastSig = '';
 function syncMakeup() {
   // 手動模式把自動上妝關掉 —— 臉先是素的，妝才是「自己畫上去的」。
   // 切回其他模式時 glCfg() 會原樣回來，手繪層則獨立保留。
-  const c = S.tab === 'paint' ? { lip: null, shadow: null, blush: null } : glCfg();
+  let c = S.tab === 'paint' ? { lip: null, shadow: null, blush: null } : glCfg();
+  if (S.build) c = S.tab === 'paint' || S.step !== 4 ? (S.build = null, $('#build-cap')?.remove(), c) : buildMask(c);
   const sig = JSON.stringify(c);
   if (sig !== lastSig) { setMakeup(c); lastSig = sig; }
   return c;
@@ -3665,7 +3820,9 @@ function enter4() {
            // 一進鏡子就問要不要教 —— 化妝指導是最重要的功能，以前只問新手，多數人不知道有
            // 一進鏡子先講「接下來會怎麼進行」—— 知道流程的人才敢動手
            { kind: 'tip', key: 'adv.arPlan', params: {} },
-           ...(!S.guideDone ? [{ kind: 'ask', key: 'adv.guide.ask', params: {} }] : [])], true);
+           ...(!S.done.tour && S.tour == null ? [{ kind: 'ask', key: 'adv.tour.offer', params: {} }]
+               : !S.guideDone ? [{ kind: 'ask', key: 'adv.guide.ask', params: {} }] : [])], true);
+  S.said.add('lead:tour');
   bindMirror($('#s4 .frame'));
   // ?debug 時把筆刷內部狀態掛出來 —— 現場要判斷「畫不上去」是筆觸沒進去，
   // 還是畫進去了但沒重繪，只靠看畫面分不出來。
@@ -3703,7 +3860,7 @@ function enter4() {
    所以顏色一律來自實際商品，不做任何美化臉型的處理。            */
 
 const MODES = [['full', 'mode.full'], ['bare', 'mode.bare'], ['dual', 'mode.dual']];
-const TABS = [['lip', 'sl.lip'], ['eye', 'sl.eye'], ['cheek', 'sl.cheek'], ['paint', 'mode.paint']];
+const TABS = [['lip', 'sl.lip'], ['eye', 'sl.eye'], ['cheek', 'sl.cheek'], ['detail', 'tab.detail'], ['paint', 'mode.paint']];
 
 /** 對比模式：浮在鏡面左上角。手動上妝時不出現 —— 分界線會把畫的東西切掉一半。 */
 function mountModes() {
@@ -3715,6 +3872,7 @@ function mountModes() {
     const b = el('button', S.mode === id ? 'on' : '', t(key));
     b.onclick = () => {
       S.mode = id;
+      if (id === 'bare') S.done.compare = true;
       S.splitOff = 0;          // 每次切進對比模式，分界線都從臉的中線出發
       if (id === 'dual' && !S.pickB) S.pickB = altShade();
       $('#before').hidden = id !== 'full';
@@ -3736,7 +3894,7 @@ function mountModes() {
 
 const snapshot = () => JSON.stringify({
   picks: ['lip', 'eye', 'cheek'].map((k) => S.picks[k].id),
-  amount: S.amount, pickB: S.pickB?.id ?? null, look: S.look?.id ?? null,
+  amount: S.amount, pickB: S.pickB?.id ?? null, look: S.look?.id ?? null, fx: fxNow(),
 });
 
 function restore(json) {
@@ -3748,6 +3906,7 @@ function restore(json) {
   S.amount = { ...v.amount };
   S.pickB = v.pickB ? PRODUCTS.find((x) => x.id === v.pickB) : null;
   if (v.look) S.look = LOOKS.find((x) => x.id === v.look) || S.look;
+  if (v.fx) S.fx = v.fx;
   paintPanel(); updateCallout();
   mountLooks(); mountTabs(); mountPanel();
 }
@@ -3829,9 +3988,9 @@ function mountTabs() {
   const box = $('#s4-tabs'); box.innerHTML = '';
   for (const [id, key] of TABS) {
     const b = el('button', S.tab === id ? 'on' : '');
-    if (id !== 'paint') b.innerHTML = `<i style="--c:${disp(S.picks[id].color)}"></i>`;
+    if (S.picks[id]) b.innerHTML = `<i style="--c:${disp(S.picks[id].color)}"></i>`;
     b.appendChild(el('span', '', t(key)));
-    b.onclick = () => { if (id === 'paint') return enterPaint(); if (S.tab === 'paint') exitPaint(true); S.tab = id; mountModes(); mountPanel(); };
+    b.onclick = () => { if (id === 'paint') return enterPaint(); if (S.tab === 'paint') exitPaint(true); S.tab = id; mountTabs(); mountModes(); mountPanel(); };
     box.appendChild(b);
   }
 }
@@ -4033,6 +4192,7 @@ function slider(labelKey, get, set, track = true) {
 function mountPanel() {
   const box = $('#s4-panel'); box.innerHTML = '';
   if (S.tab === 'paint') return mountBrushPanel(box);
+  if (S.tab === 'detail') return mountDetailPanel(box);
 
   const cat = S.tab;
   // 雙色只做在唇上 —— 眼影腮紅分左右看不出所以然，只會讓人以為壞了
@@ -4096,6 +4256,65 @@ function mountPanel() {
   box.appendChild(slider('sl.amount',
     () => Math.round(S.amount[cat] * 100),
     (v) => { S.amount[cat] = v / 100; hintSoon(cat); }));
+  box.appendChild(styleRow(cat));
+}
+
+/** 這個部位的畫法：同一個顏色，畫的方式不同 */
+function styleRow(cat) {
+  const row = el('div', 'styles');
+  row.appendChild(el('span', 'lb', t('style.label')));
+  for (const id of STYLES[cat]) {
+    const b = el('button', fxNow().style[cat] === id ? 'on' : '', t(`style.${cat}.${id}`));
+    b.type = 'button';
+    b.onclick = () => setStyle(cat, id, true);
+    row.appendChild(b);
+  }
+  return row;
+}
+const STYLE_KEYS = Object.entries(STYLES).flatMap(([c, list]) => list.map((id) => `adv.style.${c}.${id}`));
+/** 換畫法：鏡子重播一次上妝、圈出那個部位，AI 用一句話講這個畫法是什麼 */
+function setStyle(cat, id, say) {
+  if (fxNow().style[cat] === id) return false;
+  step(() => {
+    fxNow().style[cat] = id;
+    if (S.amount[cat] === 0) S.amount[cat] = S.look?.intensity[cat] ?? 0.6;
+  });
+  S.lastAct = performance.now();
+  startApply(); markFace(cat);
+  if (S.tab === cat) mountPanel();
+  if (say) chatReplace('s4', STYLE_KEYS, [{ kind: 'fact', key: `adv.style.${cat}.${id}`, params: {} }], arOpts());
+  return true;
+}
+/** 細節開了，但它跟著的那個部位濃度是 0 —— 把那個部位拉回妝容原本的濃度，不然開了也看不到 */
+function wakeFor(k) {
+  const cat = k === 'liner' || k === 'brow' ? 'eye' : 'cheek';
+  if (S.amount[cat] === 0) S.amount[cat] = S.look?.intensity[cat] ?? 0.4;
+}
+const FX_KEYS = [...DETAILS.map((k) => 'adv.fx.on.' + k), 'adv.fx.off', 'adv.fx.menu', 'adv.fx.menuNone'];
+const FX_MARK = { liner: 'eye', brow: 'brow', contour: 'cheek', highlight: 'cheek' };
+/** 開或關一樣細節（對話、打字指令用）。回傳 AI 要講的那一句 */
+function setDetail(k, on) {
+  const fx = fxNow();
+  step(() => { fx.level[k] = on ? (S.look?.detail?.[k] || DETAIL_DEFAULT[k]) : 0; if (on) wakeFor(k); });
+  S.done.detail = true;
+  startApply(); markFace(FX_MARK[k]);
+  if (S.tab === 'detail') mountPanel();
+  return { kind: 'fact', key: on ? 'adv.fx.on.' + k : 'adv.fx.off', params: on ? {} : { name: 'fx.' + k } };
+}
+
+/** 「細節」分頁：四樣各一條滑桿（0 = 不畫），再加一顆「看上妝過程」 */
+function mountDetailPanel(box) {
+  S.done.detail = true;
+  for (const k of DETAILS) {
+    box.appendChild(slider('fx.' + k,
+      () => Math.round(fxNow().level[k] * 100),
+      (v) => { fxNow().level[k] = v / 100; if (v > 0) wakeFor(k); S.lastAct = performance.now(); }));
+  }
+  box.appendChild(el('div', 'fx-note', t('fx.note')));
+  const b = el('button', 'build-btn', uiIcon('play') + t('opt.buildUp'));
+  b.type = 'button';
+  b.onclick = () => chatAct('s4', { key: 'opt.buildUp', act: 'buildUp' });
+  box.appendChild(b);
 }
 
 /**
@@ -4439,6 +4658,7 @@ function arLoop() {
         setSplit(S.mode === 'bare' || S.mode === 'dual' ? S.splitX : -1);
         const ph = applyPhase();      // 上妝掃掠 / 按住看素顏
         setIntensity(ph.k); setSweep(ph.sweep); useBrush(true);
+        setTwinkle(ts / 1000);          // 珠光的閃點隨時間此起彼落（照片上不閃，見 renderOnPhoto）
 
         dctx.drawImage(base4, 0, 0);
         const ok = renderGL(dctx, toPixels(smooth, W, H), W, H);
@@ -5001,7 +5221,7 @@ function renderOnPhoto(id, picks, amount, look, brush) {
   c.width = S.photo.width; c.height = S.photo.height;
   ctx.drawImage(S.photo, 0, 0);
   setMakeup(glCfgFor(picks, amount, look)); lastSig = '';   // 換掉了渲染器裡的妝，下一次 syncMakeup 要重建
-  setSplit(-1); setIntensity(100); setSweep(-1); useBrush(brush);
+  setSplit(-1); setIntensity(100); setSweep(-1); useBrush(brush); setTwinkle(-1);
   resetRefs();
   if (!renderGL(ctx, toPixels(S.photoLm, c.width, c.height), c.width, c.height)) {
     renderMakeup(ctx, S.photo, S.photoLm, {
@@ -5139,6 +5359,7 @@ function reset() {
   S.photo = S.photoLm = S.skin = S.look = S.picks = null;
   S.bag = []; S.rating = 0; S.tags.clear(); smooth = null;
   S.mode = 'full'; S.tab = 'lip'; S.finish = 'all'; S.splitX = 0.5; S.splitOff = 0; S.pickB = null; S.side = 'a'; lastSigB = 'init';
+  S.fx = null; S.build = null; S.tour = null; S.done = {}; $('#build-cap')?.remove();
   S.hist = []; S.redo = [];
   clearBrush();
   S.tried.clear(); S.arMs = 0; S.arT0 = 0;

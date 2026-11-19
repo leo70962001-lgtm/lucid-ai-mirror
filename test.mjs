@@ -2335,5 +2335,85 @@ console.log('\n\x1b[1m52. 功能圖示：線條圖示取代當圖示用的表情
   ok(['hist.undo', 'hist.redo', 'privacy.chip', 'teach.yourTurn', 'paint.btn'].every((k) => { const l = dictI.split(/\r?\n/).find((x) => x.includes("'" + k + "'")) || '↶'; return !/[↶↷🔒✍]/u.test(l); }), '文案裡不再夾著當圖示用的符號');
 }
 
+console.log('\n\x1b[1m53. 細節層、畫法、逐步帶看、下一步建議、打字指令\x1b[0m');
+{
+  const { DETAILS, STYLES, DETAIL_DEFAULT, fxOf } = await import('./js/products.js');
+  const { linerShape, deepen, DETAIL_LAYERS } = await import('./js/makeup-gl.js');
+  const { TOUR, tourStep, leadNext, LEADS, intentOf, optsForFx, fxMenu, FX_ACT } = await import('./js/advisor.js');
+  const { t: tt } = await import('./js/i18n.js');
+  const dictF = readFileSync(new URL('./js/i18n.js', import.meta.url), 'utf8').split(/\r?\n/);
+  const appF = readFileSync(new URL('./js/app.js', import.meta.url), 'utf8'), glF = readFileSync(new URL('./js/makeup-gl.js', import.meta.url), 'utf8');
+
+  // 妝容的預設
+  ok(DETAILS.join() === 'liner,brow,contour,highlight' && DETAIL_LAYERS.join() === DETAILS.join(), '細節層有四樣：眼線、眉彩、修容、打亮（引擎與目錄同一份名單）');
+  ok(LOOKS.every((l) => DETAILS.every((k) => l.detail[k] >= 0 && l.detail[k] <= 1) && STYLES.eye.includes(l.style.eye) && STYLES.cheek.includes(l.style.cheek)),
+     '每個妝容都有四樣細節的份量（0–1）與眼影、腮紅的畫法');
+  const fxR = fxOf(LOOKS.find((l) => l.id === 'retro')), fxM = fxOf(LOOKS.find((l) => l.id === 'men')), fxK = fxOf(LOOKS.find((l) => l.id === 'kbeauty'));
+  ok(fxR.level.liner > fxOf(LOOKS.find((l) => l.id === 'natural')).level.liner && fxR.style.eye === 'deep', '復古妝的眼線比偽素顏重，眼影是眼尾加深');
+  ok(fxM.level.liner === 0 && fxM.level.highlight === 0, '男士妝不畫眼線、不打亮');
+  ok(fxK.style.lip === 'gradient' && fxR.style.lip === 'full', '韓系妝的唇預設是咬唇漸層，其他是滿版');
+  ok(fxOf(null).look === null && DETAILS.every((k) => fxOf(null).level[k] === 0), '沒有妝容時細節全部是 0');
+  ok(DETAILS.every((k) => DETAIL_DEFAULT[k] > 0), '細節從沒開到打開，都有一個預設份量');
+
+  // 眼線的形狀
+  const E = [[0, 0], [10, -4], [20, -6], [30, -4], [40, 0]], up = [0, -1];
+  const thin = linerShape(E, up, 0, 0), thick = linerShape(E, up, 100, 0), wing = linerShape(E, up, 50, 80);
+  const thAt = (shape, i) => E[i][1] - shape[i][1];
+  ok(thin.length === E.length * 2 && wing.length === E.length * 2 + 1, '眼線是一個封閉的形狀；拉長眼尾時多一個尖');
+  ok(thAt(thick, 0) > thAt(thick, 4) * 2 && thAt(thick, 0) > thAt(thin, 0) * 2, '眼尾比眼頭粗；份量越高越粗');
+  ok(wing[0][0] < E[0][0] && wing[0][1] < E[0][1], '眼尾的尖往外、往上（往眉毛的方向）');
+  ok(deepen('#A9714B') === '#5d3e29' && deepen('#ffffff', 0.5) === '#808080', '眼影的深色是同一個顏色加深，不是另一個色相');
+
+  // 引擎真的畫了這幾層、照片不閃
+  ok(['cur.contour', 'cur.brow', 'cur.liner', 'cur.highlight', 's.depth', 's.lower', "bl.shape === 'across'"].every((k) => glF.includes(k)), '引擎的貼圖畫了四樣細節、眼影加深、下眼尾、腮紅的三種刷法');
+  ok(/uTwinkle < 0\.0 \? 1\.0/.test(glF) && /setTwinkle\(-1\)/.test(appF) && /setTwinkle\(ts \/ 1000\)/.test(appF), '珠光閃點在即時鏡子上會閃；照片上固定不閃（每次畫出來一樣）');
+  ok(/const rel = \(cat\) => \(amount\[cat\] > 0/.test(appF), '細節跟著所屬部位的濃度：那個部位歸零（素顏、分段示範）細節也不畫');
+
+  // 逐步帶看
+  ok(TOUR.join() === 'lip,eye,cheek,detail,compare,learn', '帶看的順序：唇 → 眼影 → 腮紅 → 細節 → 跟素顏比 → 學怎麼畫');
+  const steps = TOUR.map((_, i) => tourStep(i, { lip: 'L307', eye: 'E01', cheek: 'C01', pct: 60, style: { eye: 'soft', cheek: 'round' }, on: ['liner'], mode: 'full' }));
+  ok(steps.every((s) => s.lines.length === 1 && s.opts.filter((o) => o.lead).length === 1 && s.opts[0].lead), '每一步只講一句、只有一顆建議的按鈕，而且排第一');
+  ok(steps.every((s) => s.opts.every((o) => ACTS.includes(o.act) && optEmoji(o) && /^opt\./.test(o.key))), '帶看的選項都是已知動作、都有符號');
+  ok(steps.slice(0, 5).every((s) => s.opts.some((o) => o.act === 'tourNext') && s.opts.some((o) => o.act === 'tourEnd')), '前五步都能「下一個」或「先這樣」，不會卡住');
+  ok(steps[5].opts[0].act === 'guideStart' && tourStep(6, {}) === null, '最後一步建議的是「教我怎麼畫」；走完就沒有下一步');
+  const dOpts = steps[3].opts.map((o) => o.key);
+  ok(dOpts.includes('opt.fx.liner.off') && dOpts.includes('opt.fx.brow.on') && tourStep(3, { on: [] }).lines[0].key === 'adv.tour.detailNone', '細節那一步：開著的給「拿掉」、沒開的給「加上」；都沒開時照實說');
+  ok(tourStep(4, { mode: 'bare' }).opts[0].key === 'opt.compareOff', '素顏對比已經開著時，按鈕寫的是關掉');
+
+  // 下一步建議
+  ok(leadNext({}).id === 'tour' && leadNext({ tour: true }).id === 'shade' && leadNext({ tour: true, shade: true }).id === 'compare', '下一步建議照順序：先帶看，再試第二支，再跟素顏比');
+  ok(leadNext({ tour: 1, shade: 1, compare: 1, detail: 1, build: 1 }).id === 'learn' && leadNext({ tour: 1, shade: 1, compare: 1, detail: 1, build: 1, learn: 1 }).id === 'wrap', '都看過了建議學怎麼畫；學過了建議整理');
+  ok(LEADS.every((id) => { const d = Object.fromEntries(LEADS.slice(0, LEADS.indexOf(id)).map((k) => [k, true])); const l = leadNext(d); return l.id === id && l.opt.lead && ACTS.includes(l.opt.act) && optEmoji(l.opt) && l.lines.length === 1; }),
+     '每一種建議都是一句話＋一顆已知動作的按鈕');
+  ok(/const withLead = /.test(appF) && /o\.lead \? 'lead' : ''/.test(appF) && /S\.said\.has\('lead:' \+ lead\.id\)/.test(appF), '建議的那顆排在選項第一、標成主要按鈕；同一個建議 AI 只主動講一次');
+
+  // 打字指令
+  const I = (q) => { const r = intentOf(q); return r ? r.act + (r.val ? ':' + r.val : '') : null; };
+  ok(I('再淡一點') === 'softer' && I('make it bolder') === 'stronger' && I('換個顏色') === 'nextShade' && I('跟素顏比一比') === 'compare', '「再淡一點」「更明顯」「換色」「跟素顏比」打字就照做');
+  ok(I('加眼線') === 'fxLiner:on' && I('不要眼線') === 'fxLiner:off' && I('add contour') === 'fxContour:on' && I('ハイライトなし') === 'fxHighlight:off' && I('アイラインを入れて') === 'fxLiner:on', '細節可以用三種語言說加上或拿掉');
+  ok(I('煙燻') === 'styleEye:smoky' && I('咬唇') === 'styleLip:gradient' && I('帶我一步一步看') === 'tourStart' && I('看上妝過程') === 'buildUp', '畫法、帶看、上妝過程也認得');
+  ok(I('眼線怎麼畫') === null && I('修容怎麼畫') === null && I('how do I contour?') === null && I('你好') === null && I('') === null, '問句交給問答去答，不當成指令；認不出來就不亂做');
+  ok(qaSearch('眼線怎麼畫')[0]?.id === 'x:howLiner' && qaSearch('how do I contour')[0]?.id === 'x:howContour' && qaSearch('打亮放哪裡')[0]?.id === 'x:howHighlight', '眼線、修容、打亮怎麼畫，問答裡查得到');
+  ok(/intentOf\(q\)/.test(appF) && /_typed: true/.test(appF) && /!o\._typed\) chatYou/.test(appF), '打字指令走跟按鈕同一條路，使用者打的那句話不會出現兩次');
+
+  // 選項與文案
+  ok(optsForFx(['liner', 'brow']).map((o) => o.key).join() === 'opt.fx.liner.off,opt.fx.brow.off,opt.fx.contour.on,opt.fx.highlight.on' && fxMenu([]).lines[0].key === 'adv.fx.menuNone', '細節的四顆開關照現在的狀態寫');
+  const keys = ['tab.detail', 'fx.note', 'style.label', 'build.bare', 'build.done', 'opt.detailOpen', 'opt.buildUp', 'opt.tourStart', 'opt.tourNext', 'opt.tourEnd',
+                'adv.fx.menu', 'adv.fx.menuNone', 'adv.fx.off', 'adv.build.go', 'adv.build.none', 'adv.tour.offer', 'adv.tour.lip', 'adv.tour.eye', 'adv.tour.cheek', 'adv.tour.detail',
+                'adv.tour.detailNone', 'adv.tour.compare', 'adv.tour.learn', 'adv.tour.end', 'qa.howLiner.q', 'qa.howLiner.a', 'qa.howContour.q', 'qa.howContour.a', 'qa.howHighlight.q', 'qa.howHighlight.a',
+                ...DETAILS.flatMap((k) => ['fx.' + k, 'opt.fx.' + k + '.on', 'opt.fx.' + k + '.off', 'adv.fx.on.' + k]),
+                ...Object.entries(STYLES).flatMap(([c, list]) => list.flatMap((id) => [`style.${c}.${id}`, `adv.style.${c}.${id}`])),
+                ...LEADS.filter((k) => k !== 'tour').map((k) => 'adv.lead.' + k), ...Object.values(FX_ACT).map(() => 'opt.styleEye'), 'opt.styleCheek', 'opt.styleLip'];
+  const miss = [];
+  for (const k of new Set(keys)) {
+    const ln = dictF.find((x) => x.trimStart().startsWith("'" + k + "':"));
+    const parts = ln ? ln.slice(ln.indexOf('[')).match(/'((?:[^'\\]|\\.)*)'/g) : null;
+    if (!parts || parts.length !== 3 || parts.some((p) => p.length < 3)) miss.push(k);
+  }
+  ok(miss.length === 0, `新增的 ${new Set(keys).size} 條文案三種語言都有` + (miss.length ? '　缺：' + miss.slice(0, 5).join() : ''));
+  const said = keys.filter((k) => /^(adv|qa)\./.test(k)).map((k) => tt(k)).join('\n');
+  ok(!/顯瘦|小臉|修飾臉|瘦臉|變美|漂亮|好看/.test(said), '新增的句子不評價長相，也沒有顯瘦、小臉這類說法');
+}
+
 console.log(fail === 0 ? '\n\x1b[32m全部通過\x1b[0m\n' : `\n\x1b[31m${fail} 項失敗\x1b[0m\n`);
 process.exit(fail ? 1 : 0);

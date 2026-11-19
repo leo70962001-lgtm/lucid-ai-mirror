@@ -32,7 +32,15 @@ const EYE_UP_L  = [33,246,161,160,159,158,157,173,133];
 const EYE_UP_R  = [263,466,388,387,386,385,384,398,362];
 const BROW_LO_L = [46,53,52,65,55];
 const BROW_LO_R = [276,283,282,295,285];
+const BROW_UP_L = [70,63,105,66,107];           // 眉毛上緣（眉尾 → 眉頭），跟 BROW_LO 一一對應
+const BROW_UP_R = [300,293,334,296,336];
+const EYE_LO_L  = [33,7,163,144,145];           // 下睫毛根部，外眼角 → 中間
+const EYE_LO_R  = [263,249,390,373,374];
 const UV_CHEEK_L = 50,  UV_CHEEK_R = 280;      // 蘋果肌
+// 修容：耳前 → 嘴角方向的一道陰影（顴骨下方）；打亮：顴骨上緣、鼻樑、唇峰上方
+const CONTOUR_PTS = [[147, 187, 205], [376, 411, 425]];   // [耳前, 臉頰中段, 蘋果肌下方]：臉的側面在 UV 上攤得很開，要用正面看得到的點
+const HILITE_CHEEK = [[116, 50, 117], [345, 280, 346]];   // [靠太陽穴, 蘋果肌, 眼下外側]
+const HILITE_NOSE = [6, 195], HILITE_BOW = [0, 164];
 const UV_EYEOUT_L = 33, UV_EYEOUT_R = 263;     // 腮紅往顴骨移動的方向
 
 // 孔洞：眼球與口腔內側。
@@ -59,10 +67,19 @@ const LIP_EDGE_MAX = 2.5;
 
 // ── 參數 ─────────────────────────────────────────────────
 const blank = () => ({
-  shadow: { on: false, color: '#A9736A', alpha: 42, extent: 62, grad: 78, soft: 40, bias: 18 },
-  blush:  { on: false, color: '#DE8A81', alpha: 30, radius: 55, pos: 22, core: 15, bias: 10 },
+  // depth：睫毛根部到眼尾疊一層深色（0 = 單色漸層）；lower：下眼尾帶一點同色（煙燻）
+  shadow: { on: false, color: '#A9736A', alpha: 42, extent: 62, grad: 78, soft: 40, bias: 18, depth: 0, lower: 0 },
+  // shape：round 圓形（蘋果肌）／sweep 斜向橢圓（往顴骨刷）／across 橫過鼻樑（曬傷腮紅）
+  blush:  { on: false, color: '#DE8A81', alpha: 30, radius: 55, pos: 22, core: 15, bias: 10, shape: 'round' },
   lip:    { on: false, color: '#B94A55', alpha: 62, grad: 0,  soft: 15, bias: 12 },
+  // ── 細節層（2026-11）：三個主要部位之外，一個完整的妝還有這四樣 ──
+  contour:   { on: false, color: '#8E6B58', alpha: 18, finish: 'matte' },      // 修容：顴骨下方的陰影
+  highlight: { on: false, color: '#FFEFDD', alpha: 10, finish: 'shimmer' },    // 打亮：顴骨上緣、鼻樑、唇峰
+  brow:      { on: false, color: '#5A4334', alpha: 30, finish: 'matte' },      // 眉彩：眉頭淡、眉峰到眉尾實
+  liner:     { on: false, color: '#2A1C1A', alpha: 80, width: 50, wing: 35, finish: 'matte' },   // 眼線：內細外粗，wing 是眼尾拉長多少
 });
+/** 細節層的名字（畫的順序由 paint 決定） */
+export const DETAIL_LAYERS = ['liner', 'brow', 'contour', 'highlight'];
 
 // 兩層妝：A 畫在分界線左邊，B 畫在右邊。
 // 專櫃真的會這樣試色 —— 兩支色號同時上在同一張臉上，比記憶中的
@@ -147,6 +164,10 @@ export function setIntensity(v) { intensity = v; }
 export function setSplit(v) { split = v; }
 /** 上妝掃掠位置（UV 的 v，0–1 由上往下；負值 = 關閉） */
 export function setSweep(v) { sweep = v; }
+// 珠光閃點的時間（秒）。負值 = 不閃（照片用，每次畫出來都一樣）；即時鏡子每一幀給現在的時間，
+// 每一顆閃點有自己的相位，所以是此起彼落地閃，不是整片一起亮
+let twinkle = -1;
+export function setTwinkle(v) { twinkle = v; }
 
 // ── UV 幾何工具 ──────────────────────────────────────────
 const uvPt  = (i) => [FACE_MESH.uv[i * 2] * TEX, FACE_MESH.uv[i * 2 + 1] * TEX];
@@ -163,6 +184,32 @@ const resample = (idx, m) =>
 function rgba(hex, a) {
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${Math.max(0, Math.min(1, a))})`;
+}
+/** 同色系的深色：眼影盤裡搭配的那格深色（rgb 各乘 k） */
+export function deepen(hex, k = 0.55) {
+  const n = parseInt(hex.slice(1), 16);
+  return '#' + [n >> 16 & 255, n >> 8 & 255, n & 255].map((v) => Math.round(v * k).toString(16).padStart(2, '0')).join('');
+}
+const unit = (dx, dy) => { const d = Math.hypot(dx, dy) || 1; return [dx / d, dy / d]; };
+/**
+ * 眼線的形狀（UV 像素）：沿上睫毛根部，內眼角細、往眼尾變粗；wing > 0 時眼尾往外上方拉出一個尖。
+ * @param E   上睫毛根部的點，外眼角 → 內眼角
+ * @param up  往眉毛的單位方向
+ * @returns 多邊形的點（給 pathPts）
+ */
+export function linerShape(E, up, width, wing) {
+  const n = E.length - 1;
+  const eyeW = Math.hypot(E[n][0] - E[0][0], E[n][1] - E[0][1]);
+  const tMax = eyeW * (0.022 + 0.05 * width / 100);
+  const top = E.map((p, i) => {
+    const th = tMax * (0.22 + 0.78 * Math.pow(1 - i / n, 0.7));
+    return [p[0] + up[0] * th, p[1] + up[1] * th];
+  });
+  const wl = eyeW * 0.30 * wing / 100;
+  if (wl < 0.5) return [...top, ...rev(E)];
+  const out = unit(E[0][0] - E[n][0], E[0][1] - E[n][1]);
+  const tip = [E[0][0] + out[0] * wl + up[0] * wl * 0.55, E[0][1] + out[1] * wl + up[1] * wl * 0.55];
+  return [tip, ...top, ...rev(E)];
 }
 function pathPts(x, pts) {
   pts.forEach((p, k) => (k ? x.lineTo(p[0], p[1]) : x.moveTo(p[0], p[1])));
@@ -381,6 +428,26 @@ function paint(canvas, biasMode) {
   const k = () => 1;
   const col = (id) => (biasMode ? infoHex(finOf(cur[id]), id === 'lip') : cur[id].color);
 
+  // 修容：顴骨下方一道斜向的柔和陰影，耳前最深、往嘴角方向淡掉，停在蘋果肌外側下方
+  const ct = cur.contour;
+  if (ct.on && ct.alpha > 0) {
+    const a = ct.alpha / 100;
+    x.save();
+    x.filter = `blur(${TEX * 0.018}px)`;
+    x.lineCap = 'round'; x.lineWidth = TEX * 0.036;
+    for (const [ear, midc, apple] of CONTOUR_PTS) {
+      const p0 = uvPt(ear), pm = uvPt(midc), p1 = lerpP(pm, uvPt(apple), 0.65);
+      const g = x.createLinearGradient(p0[0], p0[1], p1[0], p1[1]);
+      g.addColorStop(0, rgba(col('contour'), a));
+      g.addColorStop(0.55, rgba(col('contour'), a * 0.8));
+      g.addColorStop(1, rgba(col('contour'), 0));
+      x.strokeStyle = g;
+      x.lineJoin = 'round';
+      x.beginPath(); x.moveTo(p0[0], p0[1]); x.lineTo(pm[0], pm[1]); x.lineTo(p1[0], p1[1]); x.stroke();
+    }
+    x.restore();
+  }
+
   // 眼影：上緣在睫毛根部與眉骨之間插值，漸層由睫毛根部往上淡出
   const s = cur.shadow;
   if (s.on && k('shadow') > 0 && s.alpha > 0) {
@@ -396,6 +463,59 @@ function paint(canvas, biasMode) {
       g.addColorStop(1, rgba(col('shadow'), a * (1 - fade)));
       x.fillStyle = g;
       x.beginPath(); pathPts(x, eyePts.concat(rev(top))); x.fill();
+      // 加深：眼影盤裡的深色壓在睫毛根部，眼尾最深、往眼頭淡掉 —— 單色漸層是平的，疊一層深色才有眼窩的層次
+      const deep = biasMode ? col('shadow') : deepen(col('shadow'));
+      if (s.depth > 0) {
+        const d = a * s.depth / 100;
+        const top2 = brow.map((bi, i) => lerpP(anchor[i], uvPt(bi), ext * 0.36));
+        const g2 = x.createLinearGradient(eyePts[0][0], eyePts[0][1], eyePts[eyePts.length - 1][0], eyePts[eyePts.length - 1][1]);
+        g2.addColorStop(0, rgba(deep, Math.min(1, d * 1.15)));
+        g2.addColorStop(0.5, rgba(deep, d * 0.6));
+        g2.addColorStop(1, rgba(deep, d * 0.18));
+        x.fillStyle = g2;
+        x.beginPath(); pathPts(x, eyePts.concat(rev(top2))); x.fill();
+      }
+      // 下眼尾：下睫毛根部外側一段帶一點深色，跟上眼尾接起來（煙燻）
+      if (s.lower > 0) {
+        const lo = (eye === EYE_UP_L ? EYE_LO_L : EYE_LO_R).map(uvPt);
+        const eyeW = Math.hypot(eyePts[eyePts.length - 1][0] - eyePts[0][0], eyePts[eyePts.length - 1][1] - eyePts[0][1]);
+        const dn = unit(from[0] - to[0], from[1] - to[1]);
+        const g3 = x.createLinearGradient(lo[0][0], lo[0][1], lo[lo.length - 1][0], lo[lo.length - 1][1]);
+        g3.addColorStop(0, rgba(deep, a * s.lower / 100 * 0.9));
+        g3.addColorStop(1, rgba(deep, 0));
+        x.strokeStyle = g3; x.lineWidth = eyeW * 0.09; x.lineCap = 'round'; x.lineJoin = 'round';
+        x.beginPath();
+        lo.forEach((p, k2) => { const q = [p[0] + dn[0] * eyeW * 0.045, p[1] + dn[1] * eyeW * 0.045]; k2 ? x.lineTo(q[0], q[1]) : x.moveTo(q[0], q[1]); });
+        x.stroke();
+      }
+    }
+  }
+
+  // 眉彩：填在眉毛上下緣之間。眉頭淡、眉峰到眉尾實 —— 眉頭畫實了會像貼上去的
+  const br = cur.brow;
+  if (br.on && br.alpha > 0) {
+    const a = br.alpha / 100;
+    x.filter = `blur(${TEX * 0.004}px)`;
+    for (const [up, lo] of [[BROW_UP_L, BROW_LO_L], [BROW_UP_R, BROW_LO_R]]) {
+      const U = up.map(uvPt), Lw = lo.map(uvPt), n = U.length - 1;
+      const tail = lerpP(U[0], Lw[0], 0.5), head = lerpP(U[n], Lw[n], 0.5);
+      const g = x.createLinearGradient(head[0], head[1], tail[0], tail[1]);
+      g.addColorStop(0, rgba(col('brow'), a * 0.4));
+      g.addColorStop(0.35, rgba(col('brow'), a));
+      g.addColorStop(1, rgba(col('brow'), a * 0.9));
+      x.fillStyle = g;
+      x.beginPath(); pathPts(x, U.concat(rev(Lw))); x.fill();
+    }
+  }
+
+  // 眼線：沿上睫毛根部，內細外粗，眼尾可以拉長。邊要俐落（只留一點點柔邊，免得鋸齒）
+  const ln = cur.liner;
+  if (ln.on && ln.alpha > 0) {
+    x.filter = 'blur(0.8px)';
+    x.fillStyle = rgba(col('liner'), ln.alpha / 100);
+    for (const [eye, brow] of [[EYE_UP_L, BROW_LO_L], [EYE_UP_R, BROW_LO_R]]) {
+      const m = mean(eye), b = mean(brow);
+      x.beginPath(); pathPts(x, linerShape(eye.map(uvPt), unit(b[0] - m[0], b[1] - m[1]), ln.width, ln.wing)); x.fill();
     }
   }
 
@@ -404,14 +524,58 @@ function paint(canvas, biasMode) {
   if (bl.on && k('blush') > 0 && bl.alpha > 0) {
     const a = bl.alpha / 100 * k('blush'), r = (bl.radius / 100) * TEX * 0.20, core = bl.core / 100;
     x.filter = 'none';
+    const sweepOn = bl.shape === 'sweep';
+    const centers = [];
     for (const [cheek, toward] of [[UV_CHEEK_L, UV_EYEOUT_L], [UV_CHEEK_R, UV_EYEOUT_R]]) {
       const c = lerpP(uvPt(cheek), uvPt(toward), (bl.pos / 100) * 0.55);
-      const g = x.createRadialGradient(c[0], c[1], 0, c[0], c[1], r);
+      centers.push(c);
+      const g = x.createRadialGradient(0, 0, 0, 0, 0, r);
       g.addColorStop(0, rgba(col('blush'), a));
       g.addColorStop(Math.min(0.95, core), rgba(col('blush'), a));
       g.addColorStop(1, rgba(col('blush'), 0));
-      x.fillStyle = g; x.fillRect(c[0] - r, c[1] - r, r * 2, r * 2);
+      // 斜向：橢圓的長軸順著「蘋果肌 → 外眼角」，像刷子往顴骨帶上去的那一筆
+      const tw = uvPt(toward), ck = uvPt(cheek);
+      x.save();
+      x.translate(c[0], c[1]);
+      if (sweepOn) { x.rotate(Math.atan2(tw[1] - ck[1], tw[0] - ck[0])); x.scale(1.4, 0.68); }
+      x.fillStyle = g; x.fillRect(-r, -r, r * 2, r * 2);
+      x.restore();
     }
+    // 橫過鼻樑：兩頰中間用一條很淡的帶子接起來（曬傷腮紅）
+    if (bl.shape === 'across') {
+      const mid = lerpP(centers[0], centers[1], 0.5), half = Math.hypot(centers[1][0] - centers[0][0], centers[1][1] - centers[0][1]) / 2;
+      const g = x.createRadialGradient(0, 0, 0, 0, 0, half);
+      g.addColorStop(0, rgba(col('blush'), a * 0.55));
+      g.addColorStop(0.6, rgba(col('blush'), a * 0.45));
+      g.addColorStop(1, rgba(col('blush'), 0));
+      x.save();
+      x.translate(mid[0], mid[1]); x.scale(1, Math.min(1, r * 0.55 / half));
+      x.fillStyle = g; x.fillRect(-half, -half, half * 2, half * 2);
+      x.restore();
+    }
+  }
+
+  // 打亮：顴骨上緣一道、鼻樑一道、唇峰上方一點。很淡的珠光淺色，疊在腮紅上面
+  const hl = cur.highlight;
+  if (hl.on && hl.alpha > 0) {
+    const a = hl.alpha / 100;
+    x.save();
+    x.filter = `blur(${TEX * 0.011}px)`;
+    x.lineCap = 'round'; x.strokeStyle = rgba(col('highlight'), a);
+    for (const [temple, apple, under] of HILITE_CHEEK) {
+      const base = lerpP(uvPt(apple), uvPt(under), 0.55);
+      const p0 = lerpP(base, uvPt(temple), 0.2), p1 = lerpP(base, uvPt(temple), 0.85);
+      x.lineWidth = TEX * 0.02;
+      x.beginPath(); x.moveTo(p0[0], p0[1]); x.lineTo(p1[0], p1[1]); x.stroke();
+    }
+    const n0 = uvPt(HILITE_NOSE[0]), n1 = uvPt(HILITE_NOSE[1]);
+    x.lineWidth = TEX * 0.011;
+    x.beginPath(); x.moveTo(n0[0], n0[1]); x.lineTo(n1[0], n1[1]); x.stroke();
+    const bow = lerpP(uvPt(HILITE_BOW[0]), uvPt(HILITE_BOW[1]), 0.5);
+    x.filter = `blur(${TEX * 0.005}px)`;
+    x.fillStyle = rgba(col('highlight'), a * 0.8);
+    x.beginPath(); x.arc(bow[0], bow[1], TEX * 0.007, 0, Math.PI * 2); x.fill();
+    x.restore();
   }
 
   // 唇：grad = 0 為滿版唇膏，拉高則變成中心濃、外緣淡的漸層唇
@@ -679,7 +843,7 @@ const FS = `#ifdef GL_FRAGMENT_PRECISION_HIGH
   #endif
   varying vec2 vUV; varying vec2 vScr;
   uniform sampler2D uBlend, uBias, uFrame;
-  uniform float uAlpha, uLo, uHi, uSweep;
+  uniform float uAlpha, uLo, uHi, uSweep, uTwinkle;
   uniform vec3 uGain;            // 相機線性值 → 反射率（眼白白平衡）
   uniform mat3 uCCM, uCCMInv;    // 色卡校正矩陣與反矩陣（沒有色卡時是單位矩陣）
   uniform float uYLip, uYSkin;   // 唇與皮膚的平均反射率亮度：明暗 s 的基準
@@ -784,7 +948,8 @@ const FS = `#ifdef GL_FRAGMENT_PRECISION_HIGH
     }
     // 珠光：雲母在受光面帶出商品色的光澤，加上固定在 UV 上的細閃 —— 頭一轉，閃點跟著皮膚走
     float n = fract(sin(dot(floor(vUV * 640.0), vec2(12.9898, 78.233))) * 43758.5453);
-    made += f.g * (P * 0.22 * smoothstep(0.85, 1.5, s) + vec3(0.35 * step(0.985, n) * s));
+    float tw = uTwinkle < 0.0 ? 1.0 : 0.3 + 1.6 * pow(0.5 + 0.5 * sin(6.2832 * (n * 41.0 + uTwinkle * 0.85)), 3.0);
+    made += f.g * (P * 0.22 * smoothstep(0.85, 1.5, s) + vec3(0.35 * step(0.985, n) * s * tw));
 
     vec3 lin = mix(cam, (uCCMInv * made) / uGain, a);
     // 立體的明暗與水膜的反光是「唇的形狀與表面」，不是顏料：水光唇釉是透的（覆蓋率低），
@@ -908,7 +1073,7 @@ export function renderGL(ctx, P, w, h) {
   if (!FACE_MESH || !P || P.length < FACE_MESH.vertexCount) return false;
   if (!gl && initGL(w, h) === false) return false;
   if (glCanvas.width !== w || glCanvas.height !== h) { glCanvas.width = w; glCanvas.height = h; }
-  if (!glState.lip.on && !glState.shadow.on && !glState.blush.on && !dualOn && !userInked) return true;
+  if (!Object.values(glState).some((s) => s.on) && !dualOn && !userInked) return true;
 
   if (texDirty || !uploaded) {
     const t = buildTextures();
@@ -947,6 +1112,7 @@ export function renderGL(ctx, P, w, h) {
   gl.enableVertexAttribArray(aUV); gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, 0, 0);
   gl.uniform1f(gl.getUniformLocation(prog, 'uAlpha'), intensity / 100);
   gl.uniform1f(gl.getUniformLocation(prog, 'uSweep'), sweep);
+  gl.uniform1f(gl.getUniformLocation(prog, 'uTwinkle'), twinkle);
   measureRefs(ctx, P, w, h);
   gl.uniform3f(gl.getUniformLocation(prog, 'uGain'), gain[0], gain[1], gain[2]);
   gl.uniformMatrix3fv(gl.getUniformLocation(prog, 'uCCM'), false, mat3col(ccm));

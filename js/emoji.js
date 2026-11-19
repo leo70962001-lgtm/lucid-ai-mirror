@@ -10,6 +10,11 @@
 
 // 句子：依文案鍵比對，先比對到的先用（越具體的放越前面）
 const LINE = [
+  [/^adv\.tour\./, '🧭'],
+  [/^adv\.lead\./, '👉'],
+  [/^adv\.fx\./, '✨'],
+  [/^adv\.style\./, '🎨'],
+  [/^adv\.build\./, '🎞️'],
   [/^coach\..*\.tip$/, '🙏'],
   [/^coach\./, '🖌️'],
   [/^qa\./, '📖'],
@@ -133,6 +138,9 @@ const ACT = {
   seaGold: '💛', seaSilver: '🤍', seaDunno: '🤔', seaCoral: '🧡', seaBrick: '🤎', seaSharp: '✨', seaHeavy: '😪',
   surprise: '🎁', swipeShade: '👉', poseStart: '🎬', poseSkip: '⏭️', poseEnd: '👌',
   qaPick: '📖',
+  fxLiner: '✒️', fxBrow: '〰️', fxContour: '🌗', fxHighlight: '✨', detailOpen: '🪄',
+  styleEye: '👁️', styleCheek: '🍑', styleLip: '💄', buildUp: '🎞️',
+  tourStart: '🧭', tourNext: '➡️', tourEnd: '👌',
 };
 const SEASON_EMO = { spring: '🌸', summer: '🌊', autumn: '🍂', winter: '❄️' };
 const CTX = {
