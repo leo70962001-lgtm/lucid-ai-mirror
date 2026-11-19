@@ -48,16 +48,24 @@ const DICT = {
   'chart.set':      ['色卡校正', 'Colour chart', 'カラーチャート補正'],
 
   // ── 步驟標題 ──
-  'step1.en': ['STEP 1: PHOTO', 'STEP 1: PHOTO', 'STEP 1: PHOTO'],
-  'step1.tw': ['拍照 · 請對準引導框', 'Photo · align with the guide', '撮影 · ガイド枠に合わせてください'],
-  'step2.en': ['STEP 2: AI CONSULT', 'STEP 2: AI CONSULT', 'STEP 2: AI CONSULT'],
-  'step2.tw': ['AI 諮詢 · 聊幾句，再給你妝容建議', 'AI consult · a quick chat, then look suggestions', 'AI カウンセリング · 少し話してからメイクを提案'],
-  'step3.en': ['STEP 3: TRY-ON', 'STEP 3: TRY-ON', 'STEP 3: TRY-ON'],
-  'step3.tw': ['照片試妝 · 沒有鏡頭時用照片看效果', 'Photo try-on · for devices without a camera', '写真で試す · カメラがない場合'],
-  'step4.en': ['STEP 3: AR TRY-ON', 'STEP 3: AR TRY-ON', 'STEP 3: AR TRY-ON'],
-  'step4.tw': ['AR 試妝 · 邊調整邊給你建議', 'AR try-on · suggestions as you adjust', 'AR で試す · 調整しながらアドバイス'],
-  'step5.en': ['STEP 5: YOUR GUIDE', 'STEP 5: YOUR GUIDE', 'STEP 5: YOUR GUIDE'],
-  'step5.tw': ['化妝指南 · 前後差別與怎麼畫', 'Guide · before/after and how to do it', 'ガイド · 前後の違いと塗り方'],
+  // 標題列的大字：這個階段的名字（各語言自己的說法，不再是「STEP n」）
+  'step1.en': ['取景', 'Capture', '撮影'],
+  'step1.tw': ['臉對準引導框', 'Line your face up with the guide', 'ガイド枠に顔を合わせてください'],
+  'step2.en': ['解析', 'Analyze', '診断'],
+  'step2.tw': ['聊幾句，再給你妝容建議', 'A quick chat, then look suggestions', '少し話してからメイクを提案'],
+  'step3.en': ['試色', 'Try-on', 'お試し'],
+  'step3.tw': ['沒有鏡頭時用照片看效果', 'On a photo, for devices without a camera', 'カメラがない場合は写真で'],
+  'step4.en': ['試色', 'Try-on', 'お試し'],
+  'step4.tw': ['在鏡子裡試，邊調整邊給建議', 'Live in the mirror, with tips as you adjust', '鏡で試しながらアドバイス'],
+  'step5.en': ['成果', 'Review', '記録'],
+  // 最下面的階段導覽、字標旁的小字
+  'nav.1': ['取景', 'Capture', '撮影'],
+  'nav.2': ['解析', 'Analyze', '診断'],
+  'nav.3': ['試色', 'Try-on', 'お試し'],
+  'nav.4': ['跟練', 'Coach', 'お稽古'],
+  'nav.5': ['成果', 'Review', '記録'],
+  'brand.tag': ['妝容工坊', 'Makeup Atelier', 'メイクアトリエ'],
+  'step5.tw': ['前後差別與怎麼畫', 'Before and after, and how to do it', '前後の違いと塗り方'],
 
   // ── Step 1 ──
   'hint.starting': ['正在啟動鏡頭…', 'Starting the camera…', 'カメラを起動中…'],
@@ -82,7 +90,7 @@ const DICT = {
 
   // ── 按鈕 ──
   'btn.upload':     ['上傳照片', 'Upload photo', '写真をアップロード'],
-  'btn.take':       ['TAKE PHOTO　拍照', 'TAKE PHOTO', 'TAKE PHOTO　撮影'],
+  'btn.take':       ['拍照', 'Capture', '撮影'],
   'btn.retake':     ['重拍', 'Retake', '撮り直す'],
   'btn.pickLook': ['選定妝容 · 開始試妝', 'Choose this look · try it on', 'このメイクに決定 · 試してみる'],
   'btn.changeLook': ['換妝容', 'Change look', 'メイクを変える'],
@@ -322,7 +330,7 @@ const DICT = {
 
   'adv.whyLightChart': ['判定之前先用鏡框邊的標準色卡校正：讀到 {n} 塊色塊，校正前色卡平均偏了 ΔE {raw}，校正後剩 ΔE {de} —— 不論櫃位燈光偏暖偏冷，膚色都先換算回標準光再判定。', 'Before judging, the standard colour chart by the mirror is used: {n} patches read, off by ΔE {raw} before correction and ΔE {de} after — so warm or cool store lighting is corrected before your skin is judged.', '判定の前に、鏡の横の標準カラーチャートで補正しています。{n} 色を読み取り、補正前は平均 ΔE {raw}、補正後は ΔE {de}。売場の照明が暖色でも寒色でも、標準光に換算してから判定します。'],
   // 直播間的元素：主播資訊、右側按鈕、橫幅
-  'host.name': ['LUCID 美妝顧問', 'LUCID Beauty AI', 'LUCID ビューティAI'],
+  'host.name': ['VERA 妝容顧問', 'VERA, your advisor', 'VERA メイクアドバイザー'],
   'host.s2': ['諮詢中', 'consulting', 'カウンセリング中'],
   'host.s4': ['試妝中', 'trying on', '試着中'],
   'rail.duel': ['二選一', 'Pick one', '二択'],
@@ -331,8 +339,8 @@ const DICT = {
   'banner.duel': ['命定色出爐：{shade}', 'Your shade: {shade}', '運命の色：{shade}'],
   'banner.snap': ['拍好了！最後一頁可以存', 'Snapped! Save it on the last page', '撮れました！最後のページで保存'],
   // 化妝教學（獨立的一段）
-  'teach.en': ['STEP 4: LESSON', 'STEP 4: LESSON', 'STEP 4: LESSON'],
-  'teach.tw': ['化妝教學 · 畫到自己臉上', 'Put the look on your real face', '実際の顔に塗るレッスン'],
+  'teach.en': ['跟練', 'Coach', 'お稽古'],
+  'teach.tw': ['工坊模式 · 畫到自己臉上', 'Atelier mode · on your real face', 'アトリエモード · 実際の顔に'],
   'btn.teach': ['學怎麼畫', 'Learn how', '塗り方を学ぶ'],
   'teach.prev': ['上一步', 'Back', '戻る'],
   'teach.next': ['下一步', 'Next', '次へ'],
@@ -806,7 +814,7 @@ const DICT = {
   'pwa.go': ['安裝', 'Install', 'インストール'],
   'pwa.later': ['之後再說', 'Not now', 'あとで'],
   'pwa.ok': ['知道了', 'Got it', 'わかりました'],
-  'pwa.invite.t': ['把 LUCID 美妝鏡加到主畫面', 'Add LUCID Mirror to your Home Screen', 'LUCID ミラーをホーム画面に'],
+  'pwa.invite.t': ['把 KOTO 加到主畫面', 'Add KOTO to your Home Screen', 'KOTO をホーム画面に'],
   'pwa.invite.s': ['像 App 一樣一點就開，沒網路也能用', 'Opens like an app — works offline too', 'アプリのようにすぐ開けて、オフラインでも使えます'],
   'pwa.st.installed': ['已安裝 —— 從主畫面打開就是 App', 'Installed — open it from your Home Screen', 'インストール済み —— ホーム画面から開けます'],
   'pwa.st.prompt': ['這個瀏覽器可以直接安裝', 'This browser can install it directly', 'このブラウザでそのままインストールできます'],
@@ -817,7 +825,7 @@ const DICT = {
   'pwa.guide.title': ['加到主畫面，跟著做', 'Add to Home Screen', 'ホーム画面に追加する手順'],
   'pwa.ios.1': ['點 Safari 下方（或上方）的「分享」按鈕 ⬆️', 'Tap Safari’s Share button ⬆️', 'Safari の「共有」ボタン ⬆️ をタップ'],
   'pwa.ios.2': ['往下滑，選「加入主畫面」➕', 'Scroll down and choose “Add to Home Screen” ➕', '下にスクロールして「ホーム画面に追加」➕'],
-  'pwa.ios.3': ['右上角點「加入」—— 主畫面就會出現 LUCID 美妝鏡', 'Tap “Add” — LUCID Mirror appears on your Home Screen', '右上の「追加」—— ホーム画面に LUCID ミラーが表示されます'],
+  'pwa.ios.3': ['右上角點「加入」—— 主畫面就會出現 KOTO', 'Tap “Add” — KOTO appears on your Home Screen', '右上の「追加」—— ホーム画面に KOTO が表示されます'],
   'pwa.inapp.1': ['點右上角的「⋯」', 'Tap “⋯” at the top right', '右上の「⋯」をタップ'],
   'pwa.inapp.2': ['選「用 Safari 開啟」（Android 選「用 Chrome 開啟」）', 'Choose “Open in Safari” (Android: “Open in Chrome”)', '「Safari で開く」（Android は「Chrome で開く」）'],
   // 滑動換色、動一動看看

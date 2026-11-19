@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<title>LUCID AI Smart Mirror — AI × AR 智慧美妝體驗儀</title>
+<title>KOTO — 妝容工坊 Makeup Atelier</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <!-- 安裝成 App（PWA）：Android / 電腦版 Chrome 讀 manifest；iPhone 讀下面幾個 apple 標籤 -->
 <meta name="description" content="AI 美妝教學與 AR 試妝：用手機鏡頭看化妝前後，AI 問答教你用什麼化妝品、工具、手法，沒有工具也能畫。可安裝、可離線。">
@@ -11,7 +11,7 @@
 <meta name="theme-color" content="#f7f6f3">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="LUCID 美妝鏡">
+<meta name="apple-mobile-web-app-title" content="KOTO">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
@@ -2770,7 +2770,7 @@ body {
 .spark polyline { stroke:var(--ink); stroke-width:1.75; }
 .spark .end { fill:var(--rose); stroke:var(--cream-1); }
 .spark line { stroke:var(--line); stroke-dasharray:1 7; stroke-width:6; }      /* 基準線畫成刻度 */
-.grow-table th { font:700 10.5px/1.4 inherit; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-2); }
+.grow-table th { font-size:10.5px; font-weight:700; line-height:1.4; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-2); }
 .grow-table .n { font-family:var(--font-num); }
 .grow-start, .grow-actions button { border-radius:var(--radius-sm); }
 #s5-prod > summary { border-radius:var(--radius-sm); }
@@ -2801,13 +2801,123 @@ body {
 }
 @media (prefers-reduced-motion:reduce) { .pip.on { animation:none; } .btn, .sw-btn, .advisor .opts button { transition:none; } }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   KOTO 版面 —— 2026-11 改名與重新排版（名稱與版面架構的方向由 Gemini 提出）
+   目標：認識舊版的人看不出是同一個 App。
+     · 標題列兩排：上面是字標 KOTO、語言、設定；下面是返回、這個階段的名字（大字）、第幾段
+     · 階段導覽從標題列下面的一條細線，搬到畫面最下面，五個階段都有名字
+     · 手機上鏡子左右貼齊螢幕（原本是一張有邊距的圓角卡片）
+     · 第一段的主要按鈕是相機的圓形快門
+     · 鏡子左上角的「AI 主播」徽章拿掉，模式切換與復原鈕往上補位
+     · 大螢幕：商品卡從右邊換到左邊
+   ═══════════════════════════════════════════════════════════════════════ */
+:root { --bar-h:88px; }
+
+/* ── 標題列：兩排 ── */
+#bar {
+  height:auto; display:grid; grid-template-columns:auto minmax(0, 1fr) auto auto;
+  grid-template-areas:"brand brand lang set" "back title title no";
+  align-items:center; column-gap:10px; row-gap:5px;
+  padding:calc(7px + env(safe-area-inset-top)) 14px 9px;
+}
+#brand { grid-area:brand; display:flex; align-items:center; gap:8px; min-width:0; }
+#brand b { font:700 15px/1 var(--display); letter-spacing:.24em; color:var(--ink); }
+#brand i { flex:none; width:7px; height:7px; margin-left:-5px; border:1.5px solid var(--rose); border-radius:50%; }
+#brand span {
+  min-width:0; padding-left:9px; border-left:1px solid var(--line-strong);
+  font-size:10px; font-weight:500; line-height:1.2; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#lang { grid-area:lang; margin:0; }
+#lang button { padding:6px 8px; font-size:10px; }
+#set-btn { grid-area:set; width:28px; height:28px; font-size:13px; }
+#back { grid-area:back; width:38px; height:38px; }
+#bar h1 {
+  grid-area:title; flex:none; min-width:0; font-size:21px; font-weight:700; letter-spacing:.02em; line-height:1.15;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#bar h1 small {
+  display:block; margin-top:3px; font-size:11.5px; font-weight:500; letter-spacing:.02em; line-height:1.3; color:var(--ink-3);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#stage-no { grid-area:no; align-self:start; padding-top:1px; font:500 11px/1 var(--font-num); color:var(--ink-3); white-space:nowrap; }
+#stage-no b { font:700 21px/1.15 var(--font-num); letter-spacing:-.03em; color:var(--rose); }
+#badge { display:none; }
+
+/* ── 階段導覽：畫面最下面，五個階段的名字 ── */
+#rail-steps {
+  flex:none; display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:0;
+  padding:0 8px max(6px, env(safe-area-inset-bottom)); border-top:1px solid var(--line); background:var(--cream-0);
+}
+.pip {
+  position:relative; flex:initial; height:auto; display:grid; justify-items:center; gap:3px; padding:7px 2px 0;
+  border-radius:0; background:none; box-shadow:none; font-style:normal; color:var(--ink-3);
+  transform:none; animation:none; transition:color .2s;
+}
+.pip::before { content:""; position:absolute; left:14%; right:14%; top:-1px; height:2px; background:transparent; }
+.pip b { font:600 9px/1 var(--font-num); letter-spacing:.06em; }
+.pip span { max-width:100%; font-size:11px; font-weight:600; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pip.done { background:none; color:var(--ink); }
+.pip.done::before { background:var(--ink); }
+.pip.on { background:none; color:var(--rose-soft); animation:none; }
+.pip.on::before { background:var(--rose); transform-origin:left center; animation:at-sweep .26s var(--ease); }
+#dock { padding:8px 14px 8px; }
+#foot { display:none; }
+
+/* ── 第一段：相機的圓形快門，上傳照片縮在左邊 ── */
+#mirror:has(#s1:not([hidden])) #actions { position:relative; justify-content:center; min-height:86px; }
+#mirror:has(#s1:not([hidden])) #actions .btn.primary {
+  flex:none; display:grid; justify-items:center; gap:7px; min-height:0; padding:5px 10px 0; border:0; border-radius:0;
+  background:none; box-shadow:none; color:var(--ink); font-size:11px; font-weight:600; letter-spacing:.1em;
+}
+#mirror:has(#s1:not([hidden])) #actions .btn.primary::before {
+  content:""; width:58px; height:58px; border-radius:50%; background:var(--ink);
+  box-shadow:0 0 0 3px var(--cream-0), 0 0 0 5px var(--ink); transition:transform .12s var(--ease);
+}
+#mirror:has(#s1:not([hidden])) #actions .btn.primary:hover:not(:disabled) { background:none; box-shadow:none; color:var(--ink); }
+#mirror:has(#s1:not([hidden])) #actions .btn.primary:active:not(:disabled) { transform:none; box-shadow:none; }
+#mirror:has(#s1:not([hidden])) #actions .btn.primary:active:not(:disabled)::before { transform:scale(.9); }
+#mirror:has(#s1:not([hidden])) #actions .btn:not(.primary) {
+  position:absolute; left:0; top:50%; transform:translateY(-50%); flex:none; min-height:42px; padding:9px 12px; font-size:12.5px;
+  max-width:calc(50% - 48px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;     /* 再長也不會碰到快門 */
+}
+#mirror:has(#s1:not([hidden])) #actions .btn:not(.primary):active:not(:disabled) { transform:translateY(-50%); }
+
+/* ── 鏡子上的東西：拿掉左上角的顧問徽章，模式切換與復原鈕往上補位；右側按鈕改成方的 ── */
+.frame .host { display:none; }
+#s4 .seg.float { top:12px; }
+#s4 .hist { top:52px; }
+.rail .rb i { border-radius:12px; }
+.rail.tight .rb i { border-radius:10px; }
+#boot .logo i { display:inline-block; width:8px; height:8px; margin:0 14px 1px -4px; border:1.5px solid var(--rose); border-radius:50%; vertical-align:middle; }
+
+/* ── 手機：鏡子左右貼齊螢幕 ── */
+@media (max-width:560px) {
+  #bar { padding:calc(6px + env(safe-area-inset-top)) 12px 8px; }
+  #bar h1 { font-size:20px; letter-spacing:.01em; }
+  #bar h1 small { font-size:11px; }
+  #stage-no b { font-size:20px; }
+  #view { padding:0; }
+  .frame { border-radius:0; box-shadow:none; }
+  #s4.teach-mode > .frame { border-radius:0; }
+  #s1 > :not(.frame), #s3 > :not(.frame) { margin-left:14px; margin-right:14px; }
+  #s5-scroll { padding-left:14px; padding-right:10px; padding-top:10px; }
+  #s4 .seg.float { top:8px; }
+  #s4 .hist { top:46px; }
+  #rail-steps { padding:0 6px max(6px, env(safe-area-inset-bottom)); }
+  #dock { padding:8px 12px 8px; }
+}
+/* ── 大螢幕：商品卡在左、鏡子在右 ── */
+@media (min-width:1041px) { #stage { flex-direction:row-reverse; } }
+@media (prefers-reduced-motion:reduce) { .pip.on::before { animation:none; } }
+
 </style>
 </head>
 <body>
 
 <!-- 開機畫面 -->
 <div id="boot">
-  <div class="logo"><b>LUCID</b> AI SMART MIRROR</div>
+  <div class="logo"><b>KOTO</b><i></i> MAKEUP ATELIER</div>
   <div class="bar"><i></i></div>
   <p id="boot-msg" data-i18n="boot.init">初始化…</p>
 </div>
@@ -2816,18 +2926,17 @@ body {
 
   <!-- ══════════ 鏡面主體 ══════════ -->
   <div id="mirror">
+    <!-- 標題列兩排：上面是字標、語言、設定；下面是返回、這個階段的名字（大字）、第幾段 -->
     <div id="bar">
-      <button id="back" data-i18n-title="btn.back" title="上一步">‹</button>
-      <h1 id="title">STEP 1: FACIAL PHOTO<small id="subtitle">智慧拍照 · 請對準引導框</small></h1>
+      <div id="brand"><b>KOTO</b><i></i><span data-i18n="brand.tag">妝容工坊</span></div>
       <div id="lang"></div>
       <button id="set-btn" type="button" aria-haspopup="true">⚙</button>
+      <button id="back" data-i18n-title="btn.back" title="上一步">‹</button>
+      <h1 id="title">取景<small id="subtitle">請對準引導框</small></h1>
+      <div id="stage-no"><b id="stage-n">01</b><span>/05</span></div>
       <div id="badge">AI &amp; AR<br>Powered</div>
     </div>
     <div id="settings" hidden></div>
-
-    <div id="rail-steps">
-      <i class="pip on"></i><i class="pip"></i><i class="pip"></i><i class="pip"></i><i class="pip"></i>
-    </div>
 
     <div id="view">
 
@@ -2848,7 +2957,7 @@ body {
       <section class="screen" id="s2" hidden>
         <div class="frame compact">
           <canvas id="shot"></canvas>
-          <div class="host"><i class="av">AI</i><div><b data-i18n="host.name">LUCID 美妝顧問</b><small><span data-i18n="host.s2"></span></small></div></div>
+          <div class="host"><i class="av">AI</i><div><b data-i18n="host.name">VERA 妝容顧問</b><small><span data-i18n="host.s2"></span></small></div></div>
           <div class="fx" id="s2-fx"></div>
           <div class="hold-hint" id="shot-hint" data-i18n="hold.hint" hidden>按住畫面看素顏</div>
         </div>
@@ -2888,7 +2997,7 @@ body {
           <button class="paint-btn" id="paint-btn" type="button" data-i18n="paint.btn">✍️ 自己畫</button>
           <div class="rec-badge" id="rec-badge" hidden>● REC <span></span></div>
           <!-- 直播間的固定配置：左上主播資訊、右側互動按鈕、飄愛心與橫幅的特效層 -->
-          <div class="host"><i class="av">AI</i><div><b data-i18n="host.name">LUCID 美妝顧問</b><small><span data-i18n="host.s4"></span></small></div></div>
+          <div class="host"><i class="av">AI</i><div><b data-i18n="host.name">VERA 妝容顧問</b><small><span data-i18n="host.s4"></span></small></div></div>
           <div class="rail" id="s4-rail"></div>
           <div class="fx" id="s4-fx"></div>
           <figure class="teach-target" id="teach-target" hidden></figure>
@@ -3029,6 +3138,11 @@ body {
 
     <div id="dock"><div class="row" id="actions"></div></div>
 
+    <!-- 階段導覽：五個階段的名字排在最下面（原本是標題列下面的一條細線）；只顯示進度，不能點 -->
+    <div id="rail-steps">
+      <i class="pip on"><b>01</b><span data-i18n="nav.1">取景</span></i><i class="pip"><b>02</b><span data-i18n="nav.2">解析</span></i><i class="pip"><b>03</b><span data-i18n="nav.3">試色</span></i><i class="pip"><b>04</b><span data-i18n="nav.4">跟練</span></i><i class="pip"><b>05</b><span data-i18n="nav.5">成果</span></i>
+    </div>
+
     <div id="foot"><span>AI &amp; AR Powered</span><span id="calib-tag"></span><span id="clock">--:--</span></div>
   </div>
 
@@ -3143,16 +3257,24 @@ const DICT = {
   'chart.set':      ['色卡校正', 'Colour chart', 'カラーチャート補正'],
 
   // ── 步驟標題 ──
-  'step1.en': ['STEP 1: PHOTO', 'STEP 1: PHOTO', 'STEP 1: PHOTO'],
-  'step1.tw': ['拍照 · 請對準引導框', 'Photo · align with the guide', '撮影 · ガイド枠に合わせてください'],
-  'step2.en': ['STEP 2: AI CONSULT', 'STEP 2: AI CONSULT', 'STEP 2: AI CONSULT'],
-  'step2.tw': ['AI 諮詢 · 聊幾句，再給你妝容建議', 'AI consult · a quick chat, then look suggestions', 'AI カウンセリング · 少し話してからメイクを提案'],
-  'step3.en': ['STEP 3: TRY-ON', 'STEP 3: TRY-ON', 'STEP 3: TRY-ON'],
-  'step3.tw': ['照片試妝 · 沒有鏡頭時用照片看效果', 'Photo try-on · for devices without a camera', '写真で試す · カメラがない場合'],
-  'step4.en': ['STEP 3: AR TRY-ON', 'STEP 3: AR TRY-ON', 'STEP 3: AR TRY-ON'],
-  'step4.tw': ['AR 試妝 · 邊調整邊給你建議', 'AR try-on · suggestions as you adjust', 'AR で試す · 調整しながらアドバイス'],
-  'step5.en': ['STEP 5: YOUR GUIDE', 'STEP 5: YOUR GUIDE', 'STEP 5: YOUR GUIDE'],
-  'step5.tw': ['化妝指南 · 前後差別與怎麼畫', 'Guide · before/after and how to do it', 'ガイド · 前後の違いと塗り方'],
+  // 標題列的大字：這個階段的名字（各語言自己的說法，不再是「STEP n」）
+  'step1.en': ['取景', 'Capture', '撮影'],
+  'step1.tw': ['臉對準引導框', 'Line your face up with the guide', 'ガイド枠に顔を合わせてください'],
+  'step2.en': ['解析', 'Analyze', '診断'],
+  'step2.tw': ['聊幾句，再給你妝容建議', 'A quick chat, then look suggestions', '少し話してからメイクを提案'],
+  'step3.en': ['試色', 'Try-on', 'お試し'],
+  'step3.tw': ['沒有鏡頭時用照片看效果', 'On a photo, for devices without a camera', 'カメラがない場合は写真で'],
+  'step4.en': ['試色', 'Try-on', 'お試し'],
+  'step4.tw': ['在鏡子裡試，邊調整邊給建議', 'Live in the mirror, with tips as you adjust', '鏡で試しながらアドバイス'],
+  'step5.en': ['成果', 'Review', '記録'],
+  // 最下面的階段導覽、字標旁的小字
+  'nav.1': ['取景', 'Capture', '撮影'],
+  'nav.2': ['解析', 'Analyze', '診断'],
+  'nav.3': ['試色', 'Try-on', 'お試し'],
+  'nav.4': ['跟練', 'Coach', 'お稽古'],
+  'nav.5': ['成果', 'Review', '記録'],
+  'brand.tag': ['妝容工坊', 'Makeup Atelier', 'メイクアトリエ'],
+  'step5.tw': ['前後差別與怎麼畫', 'Before and after, and how to do it', '前後の違いと塗り方'],
 
   // ── Step 1 ──
   'hint.starting': ['正在啟動鏡頭…', 'Starting the camera…', 'カメラを起動中…'],
@@ -3177,7 +3299,7 @@ const DICT = {
 
   // ── 按鈕 ──
   'btn.upload':     ['上傳照片', 'Upload photo', '写真をアップロード'],
-  'btn.take':       ['TAKE PHOTO　拍照', 'TAKE PHOTO', 'TAKE PHOTO　撮影'],
+  'btn.take':       ['拍照', 'Capture', '撮影'],
   'btn.retake':     ['重拍', 'Retake', '撮り直す'],
   'btn.pickLook': ['選定妝容 · 開始試妝', 'Choose this look · try it on', 'このメイクに決定 · 試してみる'],
   'btn.changeLook': ['換妝容', 'Change look', 'メイクを変える'],
@@ -3417,7 +3539,7 @@ const DICT = {
 
   'adv.whyLightChart': ['判定之前先用鏡框邊的標準色卡校正：讀到 {n} 塊色塊，校正前色卡平均偏了 ΔE {raw}，校正後剩 ΔE {de} —— 不論櫃位燈光偏暖偏冷，膚色都先換算回標準光再判定。', 'Before judging, the standard colour chart by the mirror is used: {n} patches read, off by ΔE {raw} before correction and ΔE {de} after — so warm or cool store lighting is corrected before your skin is judged.', '判定の前に、鏡の横の標準カラーチャートで補正しています。{n} 色を読み取り、補正前は平均 ΔE {raw}、補正後は ΔE {de}。売場の照明が暖色でも寒色でも、標準光に換算してから判定します。'],
   // 直播間的元素：主播資訊、右側按鈕、橫幅
-  'host.name': ['LUCID 美妝顧問', 'LUCID Beauty AI', 'LUCID ビューティAI'],
+  'host.name': ['VERA 妝容顧問', 'VERA, your advisor', 'VERA メイクアドバイザー'],
   'host.s2': ['諮詢中', 'consulting', 'カウンセリング中'],
   'host.s4': ['試妝中', 'trying on', '試着中'],
   'rail.duel': ['二選一', 'Pick one', '二択'],
@@ -3426,8 +3548,8 @@ const DICT = {
   'banner.duel': ['命定色出爐：{shade}', 'Your shade: {shade}', '運命の色：{shade}'],
   'banner.snap': ['拍好了！最後一頁可以存', 'Snapped! Save it on the last page', '撮れました！最後のページで保存'],
   // 化妝教學（獨立的一段）
-  'teach.en': ['STEP 4: LESSON', 'STEP 4: LESSON', 'STEP 4: LESSON'],
-  'teach.tw': ['化妝教學 · 畫到自己臉上', 'Put the look on your real face', '実際の顔に塗るレッスン'],
+  'teach.en': ['跟練', 'Coach', 'お稽古'],
+  'teach.tw': ['工坊模式 · 畫到自己臉上', 'Atelier mode · on your real face', 'アトリエモード · 実際の顔に'],
   'btn.teach': ['學怎麼畫', 'Learn how', '塗り方を学ぶ'],
   'teach.prev': ['上一步', 'Back', '戻る'],
   'teach.next': ['下一步', 'Next', '次へ'],
@@ -3901,7 +4023,7 @@ const DICT = {
   'pwa.go': ['安裝', 'Install', 'インストール'],
   'pwa.later': ['之後再說', 'Not now', 'あとで'],
   'pwa.ok': ['知道了', 'Got it', 'わかりました'],
-  'pwa.invite.t': ['把 LUCID 美妝鏡加到主畫面', 'Add LUCID Mirror to your Home Screen', 'LUCID ミラーをホーム画面に'],
+  'pwa.invite.t': ['把 KOTO 加到主畫面', 'Add KOTO to your Home Screen', 'KOTO をホーム画面に'],
   'pwa.invite.s': ['像 App 一樣一點就開，沒網路也能用', 'Opens like an app — works offline too', 'アプリのようにすぐ開けて、オフラインでも使えます'],
   'pwa.st.installed': ['已安裝 —— 從主畫面打開就是 App', 'Installed — open it from your Home Screen', 'インストール済み —— ホーム画面から開けます'],
   'pwa.st.prompt': ['這個瀏覽器可以直接安裝', 'This browser can install it directly', 'このブラウザでそのままインストールできます'],
@@ -3912,7 +4034,7 @@ const DICT = {
   'pwa.guide.title': ['加到主畫面，跟著做', 'Add to Home Screen', 'ホーム画面に追加する手順'],
   'pwa.ios.1': ['點 Safari 下方（或上方）的「分享」按鈕 ⬆️', 'Tap Safari’s Share button ⬆️', 'Safari の「共有」ボタン ⬆️ をタップ'],
   'pwa.ios.2': ['往下滑，選「加入主畫面」➕', 'Scroll down and choose “Add to Home Screen” ➕', '下にスクロールして「ホーム画面に追加」➕'],
-  'pwa.ios.3': ['右上角點「加入」—— 主畫面就會出現 LUCID 美妝鏡', 'Tap “Add” — LUCID Mirror appears on your Home Screen', '右上の「追加」—— ホーム画面に LUCID ミラーが表示されます'],
+  'pwa.ios.3': ['右上角點「加入」—— 主畫面就會出現 KOTO', 'Tap “Add” — KOTO appears on your Home Screen', '右上の「追加」—— ホーム画面に KOTO が表示されます'],
   'pwa.inapp.1': ['點右上角的「⋯」', 'Tap “⋯” at the top right', '右上の「⋯」をタップ'],
   'pwa.inapp.2': ['選「用 Safari 開啟」（Android 選「用 Chrome 開啟」）', 'Choose “Open in Safari” (Android: “Open in Chrome”)', '「Safari で開く」（Android は「Chrome で開く」）'],
   // 滑動換色、動一動看看
@@ -11841,6 +11963,7 @@ function go(n) {
   $('#subtitle').textContent = t('step' + n + '.tw');
   $('#back').disabled = n === 1;
   const shown = SHOWN[n];
+  { const no = $('#stage-n'); if (no) no.textContent = String(shown).padStart(2, '0'); }   // 標題右邊的「第幾段」
   [...document.querySelectorAll('.pip')].forEach((p, i) => {
     p.className = 'pip' + (i + 1 === shown ? ' on' : i + 1 < shown ? ' done' : '');
   });
@@ -12509,7 +12632,7 @@ function mountChat(where) {
       log.appendChild(row); prevWho = 'you'; continue;
     }
     const row = el('div', 'msg ai ' + m.l.kind + (prevWho === 'ai' ? ' cont' : ''));   // 連續的 AI 訊息只在第一則放頭像
-    if (prevWho !== 'ai') row.appendChild(el('i', 'avatar', 'AI'));
+    if (prevWho !== 'ai') row.appendChild(el('i', 'avatar', 'V'));
     const bubble = el('div', 'bubble');
     // 句子開頭的表情符號已經看得出是哪一類（建議 💡、提問 💬、例子 🌟…），種類標籤不再每句都掛。
     // 只留「你說的」：那句話的依據是客人自己的回答、不是量測 —— 這個差別要一直看得到。
@@ -12530,7 +12653,7 @@ function mountChat(where) {
   }
   if (pendingAt) {
     const row = el('div', 'msg ai typing' + (prevWho === 'ai' ? ' cont' : ''));
-    if (prevWho !== 'ai') row.appendChild(el('i', 'avatar', 'AI'));
+    if (prevWho !== 'ai') row.appendChild(el('i', 'avatar', 'V'));
     row.appendChild(el('div', 'bubble', '<i></i><i></i><i></i>'));
     log.appendChild(row);
     clearTimeout(c.timer);
@@ -12681,6 +12804,7 @@ const teachMethod = (part) => { const m = teachOwned(); return coachMethod(part,
 function setStepHead(en, tw, shown) {
   $('#title').firstChild.textContent = en;
   $('#subtitle').textContent = tw;
+  const no = $('#stage-n'); if (no) no.textContent = String(shown).padStart(2, '0');   // 標題右邊的「第幾段」
   [...document.querySelectorAll('.pip')].forEach((p, i) => { p.className = 'pip' + (i + 1 === shown ? ' on' : i + 1 < shown ? ' done' : ''); });
 }
 function enterTeach() {
@@ -16222,7 +16346,7 @@ function snapLook() {
   x.drawImage(src, 0, 0);
   x.fillStyle = '#fffaf9'; x.fillRect(0, H, W, bar);
   x.fillStyle = '#453640'; x.font = `600 ${Math.round(bar * 0.26)}px sans-serif`; x.textBaseline = 'middle';
-  x.fillText('LUCID · ' + new Date().toLocaleDateString(), pad, H + bar * 0.34);
+  x.fillText('KOTO · ' + new Date().toLocaleDateString(), pad, H + bar * 0.34);
   x.fillStyle = '#826a76'; x.font = `${Math.round(bar * 0.2)}px sans-serif`;
   x.fillText(['lip', 'eye', 'cheek'].map((k) => tf(S.picks[k], 'shade')).join('  ·  '), pad, H + bar * 0.7);
   // 右邊三顆色點：唇、眼、頰
