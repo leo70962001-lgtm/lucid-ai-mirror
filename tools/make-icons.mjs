@@ -1,8 +1,8 @@
 /**
  * 產生 App 圖示（PWA 安裝到主畫面用）：node tools/make-icons.mjs
  *
- * 這台機器沒有影像工具，所以圖示用程式畫：粉色漸層底、白色鏡框（橢圓）、
- * 鏡中一對唇、右上角一顆閃光 —— 「AI 美妝鏡」。每個像素 4×4 超取樣做反鋸齒，
+ * 這台機器沒有影像工具，所以圖示用程式畫：雪花石白的底、墨色的鏡框（橢圓）、
+ * 鏡中一對赤陶色的唇、四個取景框角標 —— 「AI 美妝鏡」（Tactile Atelier 的樣子）。每個像素 4×4 超取樣做反鋸齒，
  * 再用 Node 內建的 zlib 編成 PNG。產出放在 icons/，有改設計才需要重跑。
  *
  *   icon-192.png / icon-512.png   一般圖示（圓角）
@@ -16,8 +16,8 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'icons');
-const TOP = [0xe8, 0x9c, 0xb0], BOT = [0xc0, 0x5f, 0x7e];   // 主題粉（--primary-1 → --primary-2 再深一點）
-const LIP = [0xb8, 0x45, 0x63];
+const TOP = [0xf7, 0xf6, 0xf3], BOT = [0xe9, 0xe6, 0xdf];   // 雪花石白（--cream-0 → 再深一點）
+const LIP = [0xb8, 0x4a, 0x39], INK = [0x19, 0x18, 0x17];   // 赤陶色（--rose）、墨色（--ink）
 
 const CRC = (() => {
   const T = new Uint32Array(256);
@@ -54,16 +54,16 @@ function shade(x, y, { round, k }) {
   const u = (x - 0.5) / k, v = (y - 0.52) / k;
   // 鏡框：橢圓環
   const ex = u / 0.30, ey = v / 0.36, er = Math.hypot(ex, ey);
-  const ring = Math.abs(er - 1) * 0.30 < 0.028;
+  const ring = Math.abs(er - 1) * 0.30 < 0.021;
   // 唇：上唇兩個唇峰（中間凹）、下唇半橢圓
   const lu = u / 0.19, lv = (v - 0.05) / 0.19;
   const lower = lv >= 0 && lu * lu + (lv / 0.62) ** 2 <= 1;
   const upper = lv < 0 && lu * lu + (lv / 0.48) ** 2 <= 1 && !(Math.hypot(lu, lv + 0.62) < 0.22);   // 人中凹
   const seam = Math.abs(lv) < 0.035 && Math.abs(lu) < 0.95;
-  // 閃光：右上角的四角星（星形線）
-  const sx = (u - 0.27) / 0.10, sy = (v + 0.31) / 0.10;
-  const star = Math.sqrt(Math.abs(sx)) + Math.sqrt(Math.abs(sy)) < 1;
-  if (ring || star) col = [255, 255, 255];
+  // 取景框：四個角各一個 L 形角標
+  const bx = Math.abs(u), by = Math.abs(v), X = 0.37, Y = 0.415, L = 0.085, T = 0.022;
+  const bracket = bx <= X && by <= Y && ((by >= Y - T && bx >= X - L) || (bx >= X - T && by >= Y - L));
+  if (ring || bracket) col = INK;
   else if (seam && (upper || lower || Math.abs(lv) < 0.035)) col = LIP.map((c) => c * 0.72);   // 口縫：比唇色深一點的線
   else if (upper || lower) col = LIP;
   return [...col, 255];
