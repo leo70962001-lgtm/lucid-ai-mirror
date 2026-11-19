@@ -3,43 +3,45 @@
    深色模式與 RWD 只改變數值，不重寫任何 layout 規則。 */
 
 :root {
-  /* Tactile Atelier（2026-11，設計方向由 Gemini 提出）：
-     雪花石白打底、墨色文字與主要按鈕、赤陶色只用在「選中／進行中」。
+  /* Tactile Atelier 的骨架＋Kagami Silk 的顏色（2026-11，都由 Gemini 提出）：
+     雪花石白打底、暖梅色的文字、深酒紅的主要按鈕、莓果玫瑰只用在「選中／進行中」。
+     第一版是墨黑＋赤陶，看起來太中性；這一版往女性用戶調，但不回到原本的奶油＋粉紅。
      粉紅光暈與玻璃感拿掉，改成細線邊框與很淡的陰影；數字用等寬字。
      不變的一點：**影像框內與四周一律是中性色**（--neutral）。顏色包圍會讓人
      把口紅顏色看偏（同時對比效應）—— 整台機器的價值來自「顏色可信」。
      變數名稱沿用舊的（--rose = 重點色、--cream-* = 底色四階），所以全站一起換。 */
-  --cream-0:#f7f6f3; --cream-1:#ffffff; --cream-2:#efece6; --cream-3:#e5e2dc;
-  --rose:#b84a39; --rose-soft:#963627; --rose-dim:rgba(184,74,57,.36);
+  --cream-0:#f7f6f3; --cream-1:#ffffff; --cream-2:#efece7; --cream-3:#e5e2dc;
+  --rose:#9e3b52; --rose-soft:#7d293d; --rose-dim:rgba(158,59,82,.36);
   --gold:#7d5a1e;
-  --ink:#191817; --ink-2:#57544f; --ink-3:#75716b;
-  --ok:#246b4b; --warn:#9e5e14;
+  --ink:#261a1d; --ink-2:#5e4f53; --ink-3:#75666a;
+  --ok:#2a6b52; --warn:#9c5a16;
   --radius:12px; --radius-sm:10px;
   --rail-w:300px; --bar-h:58px;
   --glass:rgba(250,249,247,.94);
-  --line:#e2dfd8;
+  --line:#e3dfd9;
   --glow:0 0 0 1px var(--line), 0 1px 2px rgba(25,24,23,.05);
-  --neutral:#e9e8e6;      /* 影像框的中性底，判色不受重點色干擾 */
-  --onImage:rgba(25,24,23,.78);   /* 疊在照片上的膠囊底色 */
+  --neutral:#f5f4f1;      /* 影像框的中性底，判色不受重點色干擾 */
+  --onImage:rgba(38,26,29,.78);   /* 疊在照片上的膠囊底色 */
   /* *-rgb 是給 rgba(var(--x-rgb), .3) 用的「不含透明度」的三個數字。 */
-  --rose-rgb:184,74,57;
-  --tint:#f9ece9; --tint-2:#f5e0db; --tint-3:#f0d3cd;   /* 選中狀態的淡底色 */
-  --line-rgb:176,170,158;
-  --glow-rgb:110,106,98; --drop-rgb:70,66,60;           /* 外框、大投影（中性灰，不帶顏色） */
-  --shadow-rgb:60,57,52;                                /* 小元件投影 */
-  --edge-rgb:60,57,52;                                  /* 色票外框細線 */
-  --ink-rgb:25,24,23;                                   /* 深色內陰影 */
+  --rose-rgb:158,59,82;
+  --tint:#fbf1f3; --tint-2:#f7e7eb; --tint-3:#f3dce2;   /* 選中狀態的淡底色 */
+  --line-rgb:176,168,160;
+  --glow-rgb:120,104,108; --drop-rgb:78,62,66;           /* 外框、大投影（中性灰，不帶顏色） */
+  --shadow-rgb:70,54,58;                                /* 小元件投影 */
+  --edge-rgb:70,54,58;                                  /* 色票外框細線 */
+  --ink-rgb:38,26,29;                                   /* 深色內陰影 */
   --bg-1:#f7f6f3; --bg-2:#f2f0ec; --bg-3:#f7f6f3; --bg-4:#f2f0ec;   /* 頁面背景：幾乎是平的 */
   --radius-lg:18px;
-  --primary-1:#2b2927; --primary-2:#191817; --primary-rgb:25,24,23;   /* 主要按鈕：墨色 */
+  --primary-1:#4a1a2a; --primary-2:#5c2134; --primary-rgb:92,33,52;   /* 主要按鈕：墨色 */
   --card-1:#ffffff; --card-2:#faf9f7; --boot-1:#f7f6f3; --boot-2:#efece6;
-  --orb-1:#fdf5f2; --orb-2:#e3b3a9; --orb-3:#b84a39;                  /* 完成頁的裝飾圓球 */
-  --on-image-hi:#ffd9cf; --bar-lo:#e3b3a9; --star-off-rgb:150,145,136;
+  --orb-1:#fdf5f7; --orb-2:#e4b8c4; --orb-3:#9e3b52;                  /* 完成頁的裝飾圓球 */
+  --on-image-hi:#ffd6e0; --bar-lo:#e4b8c4; --star-off-rgb:150,145,136;
   /* 這一版新增的 */
-  --line-strong:#c9c4ba;                                              /* 次要按鈕、刻度的線 */
+  --line-strong:#c8c1b8;                                              /* 次要按鈕、刻度的線 */
   --shadow-float:0 8px 24px rgba(25,24,23,.12), 0 1px 2px rgba(25,24,23,.08);
   --shadow-press:inset 0 2px 4px rgba(25,24,23,.16);
   --font-num:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --primary-lo:#3a1420;                                                /* 主要按鈕下緣的實影 */
   --tick:repeating-linear-gradient(90deg, var(--line-strong) 0 1px, transparent 1px 8px);   /* 刻度尺 */
   color-scheme: light;
 }
@@ -673,37 +675,25 @@ body {
    --neutral（影像框的中性灰）、商品色票、AR 上妝顏色。
    粉色或綠色包圍會讓人把口紅顏色看偏（同時對比效應），
    整台機器的價值來自「顏色可信」，配色不能拿這個去換。 */
-:root[data-theme="gold"] {      /* 琥珀 */
-  --rose:#8a6418; --rose-soft:#6b4c10; --rose-dim:rgba(138,100,24,.36); --rose-rgb:138,100,24;
-  --tint:#f7f0e1; --tint-2:#f0e4c9; --tint-3:#e8d7b0; --orb-1:#fbf6ea; --orb-2:#dcc48e; --orb-3:#8a6418;
-  --on-image-hi:#ffe9b8; --bar-lo:#dcc48e;
+:root[data-theme="gold"] {      /* 暖銅 Warm Copper */
+  --rose:#9e472a; --rose-soft:#7a321a; --rose-dim:rgba(158,71,42,.36); --rose-rgb:158,71,42;
+  --tint:#fcf2ee; --tint-2:#f8e8e1; --tint-3:#f5ddd4; --orb-1:#fdf6f3; --orb-2:#e6beb0; --orb-3:#9e472a; --on-image-hi:#ffdccf; --bar-lo:#e6beb0;
+  --primary-1:#4c2012; --primary-2:#5e2a16; --primary-rgb:94,42,22; --primary-lo:#381609;
 }
-:root[data-theme="lilac"] {     /* 酒紅（Kagami Optic）：底色偏冷的珍珠白 */
-  --rose:#8a2b4c; --rose-soft:#6c1f3a; --rose-dim:rgba(138,43,76,.36); --rose-rgb:138,43,76;
-  --tint:#f7eaef; --tint-2:#efd6de; --tint-3:#e4bcc9; --orb-1:#fbf2f5; --orb-2:#d9a3b5; --orb-3:#8a2b4c;
-  --on-image-hi:#ffd3e0; --bar-lo:#d9a3b5;
-  --cream-0:#f4f5f6; --cream-2:#eceef0; --cream-3:#dfe1e5; --line:#dfe1e5; --line-strong:#c3c7cd; --line-rgb:160,165,174;
-  --ink:#1a1619; --ink-2:#575256; --ink-3:#736d72; --primary-1:#2d272b; --primary-2:#1a1619; --primary-rgb:26,22,25;
-  --bg-1:#f4f5f6; --bg-2:#eef0f2; --bg-3:#f4f5f6; --bg-4:#eef0f2; --boot-1:#f4f5f6; --boot-2:#eceef0; --card-2:#f8f9fa;
-  --glass:rgba(248,249,250,.94);
+:root[data-theme="lilac"] {     /* 桑葚 Mulberry Wine */
+  --rose:#7e3558; --rose-soft:#5e223f; --rose-dim:rgba(126,53,88,.36); --rose-rgb:126,53,88;
+  --tint:#faf0f5; --tint-2:#f4e8ee; --tint-3:#efe0e8; --orb-1:#fcf5f8; --orb-2:#dec2d1; --orb-3:#7e3558; --on-image-hi:#ffd6ea; --bar-lo:#dec2d1;
+  --primary-1:#3b1528; --primary-2:#4a1c33; --primary-rgb:74,28,51; --primary-lo:#2b0e1d;
 }
-:root[data-theme="sage"] {      /* 翡翠（Hinoki Clinic）：粉筆白配植物綠 */
-  --rose:#2e6f56; --rose-soft:#205340; --rose-dim:rgba(46,111,86,.36); --rose-rgb:46,111,86;
-  --tint:#e9f3ee; --tint-2:#d5e7de; --tint-3:#bcd8ca; --orb-1:#f1f8f4; --orb-2:#9dc7b3; --orb-3:#2e6f56;
-  --on-image-hi:#c9f0dc; --bar-lo:#9dc7b3;
-  --cream-0:#f6f6f4; --cream-2:#edeeea; --cream-3:#e1e4e0; --line:#e1e4e0; --line-strong:#c4c9c3; --line-rgb:160,168,160;
-  --ink:#171c19; --ink-2:#505954; --ink-3:#69726d; --primary-1:#27302b; --primary-2:#171c19; --primary-rgb:23,28,25;
-  --bg-1:#f6f6f4; --bg-2:#f0f1ee; --bg-3:#f6f6f4; --bg-4:#f0f1ee; --boot-1:#f6f6f4; --boot-2:#edeeea; --card-2:#f9faf8;
-  --glass:rgba(249,250,248,.94);
+:root[data-theme="sage"] {      /* 山茶 Camellia Coral */
+  --rose:#a8383b; --rose-soft:#822427; --rose-dim:rgba(168,56,59,.36); --rose-rgb:168,56,59;
+  --tint:#fdf1f1; --tint-2:#fae6e6; --tint-3:#f7dcdc; --orb-1:#fef6f6; --orb-2:#e8b7b8; --orb-3:#a8383b; --on-image-hi:#ffd7d6; --bar-lo:#e8b7b8;
+  --primary-1:#521719; --primary-2:#651d20; --primary-rgb:101,29,32; --primary-lo:#3d1012;
 }
-:root[data-theme="mist"] {      /* 靛藍 */
-  --rose:#3f5e8c; --rose-soft:#2d4670; --rose-dim:rgba(63,94,140,.36); --rose-rgb:63,94,140;
-  --tint:#eaf0f7; --tint-2:#d7e2f0; --tint-3:#bfd0e5; --orb-1:#f2f6fb; --orb-2:#a3bad8; --orb-3:#3f5e8c;
-  --on-image-hi:#d3e4ff; --bar-lo:#a3bad8;
-  --cream-0:#f5f6f7; --cream-2:#eceef1; --cream-3:#dfe3e8; --line:#dfe3e8; --line-strong:#c2c8d0; --line-rgb:158,166,178;
-  --ink:#16191e; --ink-2:#4f5762; --ink-3:#69717c; --primary-1:#262b33; --primary-2:#16191e; --primary-rgb:22,25,30;
-  --bg-1:#f5f6f7; --bg-2:#eff1f3; --bg-3:#f5f6f7; --bg-4:#eff1f3; --boot-1:#f5f6f7; --boot-2:#eceef1; --card-2:#f8f9fb;
-  --glass:rgba(248,249,251,.94);
+:root[data-theme="mist"] {      /* 無花果 Spiced Fig */
+  --rose:#8f3d4e; --rose-soft:#6e2938; --rose-dim:rgba(143,61,78,.36); --rose-rgb:143,61,78;
+  --tint:#fbf1f3; --tint-2:#f6e6ea; --tint-3:#f2dce1; --orb-1:#fdf5f7; --orb-2:#e2b9c2; --orb-3:#8f3d4e; --on-image-hi:#ffd8e0; --bar-lo:#e2b9c2;
+  --primary-1:#451a24; --primary-2:#55212d; --primary-rgb:85,33,45; --primary-lo:#32121a;
 }
 /* 俐落：圓角收小。只動三個圓角變數，版面尺寸完全不變 */
 :root[data-shape="crisp"] { --radius:4px; --radius-sm:3px; --radius-lg:6px; }
@@ -2304,7 +2294,7 @@ body {
 .teach .mistake .o b { background:var(--ok); }
 /* ── 圖解：每一步一格（參考小紅書圖解版）── */
 .teach .formula { margin:0; font-size:12.5px; color:var(--ink-2, #5a4650); }
-.teach .formula b { margin-right:6px; padding:1px 7px; border-radius:8px; font-size:11px; color:#fff; background:var(--ink); }
+.teach .formula b { margin-right:6px; padding:1px 7px; border-radius:8px; font-size:11px; color:#fff; background:var(--primary-2); }
 .teach .steps.grid { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
 .teach .steps.grid li { display:block; padding:0 0 6px; }
 .teach .steps.grid figure { position:relative; margin:0; }
@@ -2339,7 +2329,7 @@ body {
 .teach .emethods { display:flex; flex-wrap:wrap; align-items:center; gap:5px; }
 .teach .emethods .lb { font-size:12px; font-weight:700; color:var(--ink-3); margin-right:2px; }
 .teach .emethods button { padding:4px 10px; border:1px solid var(--line); border-radius:12px; background:#fff; font-size:12.5px; font-weight:700; color:var(--ink-2, #5a4650); cursor:pointer; }
-.teach .emethods button.on { color:#fff; border-color:transparent; background:var(--ink); }
+.teach .emethods button.on { color:#fff; border-color:transparent; background:var(--primary-2); }
 .teach-cap .btns button.on { color:var(--ink); }
 /* ── 精簡的圖解：三欄一樣大，只有圖與大字；這一步的說明在鏡子的字幕上 ── */
 .teach .steps.grid { grid-template-columns:repeat(3, minmax(0, 1fr)); gap:6px; }
@@ -2409,9 +2399,9 @@ button.leg { cursor:pointer; }
 .pb-dot.on { border-color:var(--primary-2); box-shadow:0 0 0 2px rgba(201,79,124,.25); }
 .pb-dot.on i { background:var(--primary-2); }
 .pb-tog { flex:none; padding:5px 9px; border:1px solid var(--line); border-radius:12px; background:#fff; font-size:12px; font-weight:700; color:var(--ink-2, #5a4650); cursor:pointer; touch-action:none; user-select:none; -webkit-user-select:none; }
-.pb-tog.on { color:#fff; border-color:transparent; background:var(--ink); }
+.pb-tog.on { color:#fff; border-color:transparent; background:var(--primary-2); }
 .pb-hint { font-size:11.5px; line-height:1.4; color:var(--ink-2, #5a4650); }
-.pb-hint b { margin-right:6px; padding:1px 7px; border-radius:8px; font-size:11px; color:#fff; background:var(--ink); }
+.pb-hint b { margin-right:6px; padding:1px 7px; border-radius:8px; font-size:11px; color:#fff; background:var(--primary-2); }
 .pb-scroll { flex:1; min-width:0; overflow-x:auto; scrollbar-width:none; }
 .pb-scroll::-webkit-scrollbar { display:none; }
 .pb-scroll > *, .pb-done { flex:none; white-space:nowrap; }
@@ -2474,7 +2464,7 @@ button.leg { cursor:pointer; }
 @media (prefers-reduced-motion: reduce) { .gest .mv, .gest .rip { animation:none; } }
 .gest-card { display:grid; grid-template-columns:92px minmax(0, 1fr); gap:10px; align-items:center; padding:6px 10px; border-radius:14px; background:#fff; box-shadow:0 0 0 1px var(--line); font-size:12.5px; line-height:1.4; }
 .gest-card:empty { display:none; }
-.gest-card b { display:inline-block; margin-bottom:2px; padding:1px 8px; border-radius:8px; font-size:11px; color:#fff; background:var(--ink); }
+.gest-card b { display:inline-block; margin-bottom:2px; padding:1px 8px; border-radius:8px; font-size:11px; color:#fff; background:var(--primary-2); }
 .gest-card p { margin:0; }
 .gest-card .press { display:inline-flex; align-items:center; gap:3px; margin-top:3px; font-size:11.5px; color:var(--ink-3); }
 .gest-card .press i { width:8px; height:8px; border-radius:50%; background:var(--line); }
@@ -2485,7 +2475,7 @@ button.leg { cursor:pointer; }
 /* ── 手邊的工具：簡單工具在前、刷具在後；一鍵設定 ── */
 .tool-presets { display:flex; gap:6px; }
 .tool-presets button { flex:1; padding:7px 6px; border:1px solid var(--line); border-radius:12px; background:#fff; font-size:13px; font-weight:700; color:var(--ink-2, #5a4650); cursor:pointer; }
-.tool-presets button.on { color:#fff; border-color:transparent; background:var(--ink); }
+.tool-presets button.on { color:#fff; border-color:transparent; background:var(--primary-2); }
 .teach .tool-group { margin:2px 0 -2px; font-size:12px; font-weight:800; color:var(--ink-3); }
 .tool.fixed { cursor:default; opacity:1; background:var(--tint-2, #fff5f7); }
 .tool.fixed i { color:var(--ink-3); }
@@ -2533,7 +2523,7 @@ body {
 #lang { padding:2px; gap:0; border-radius:var(--radius-sm); background:var(--cream-2); margin-right:8px; }
 #lang button { border:0; border-radius:calc(var(--radius-sm) - 2px); padding:8px 10px; color:var(--ink-2); background:transparent; font:600 11px/1 var(--font-num); letter-spacing:0; }
 #lang button:hover { color:var(--ink); }
-#lang button.on { background:var(--ink); color:#faf9f7; box-shadow:none; }
+#lang button.on { background:var(--primary-2); color:#faf9f7; box-shadow:none; }
 #set-btn { width:36px; height:36px; margin-right:0; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--cream-1); color:var(--ink-2); box-shadow:none; }
 #set-btn:hover, #set-btn.on { color:var(--ink); border-color:var(--ink); }
 #badge {
@@ -2542,7 +2532,7 @@ body {
 }
 #rail-steps { gap:6px; padding:8px 16px 0; }
 .pip { height:3px; border-radius:2px; background:var(--cream-3); box-shadow:none; }
-.pip.done { background:var(--ink); }
+.pip.done { background:var(--primary-2); }
 .pip.on { background:var(--rose); box-shadow:none; transform-origin:left center; animation:at-sweep .26s var(--ease); }
 @keyframes at-sweep { from { transform:scaleX(0); } to { transform:scaleX(1); } }
 #dock { background:var(--cream-0); border-top:1px solid var(--line); padding:10px 16px 10px; }
@@ -2568,10 +2558,10 @@ body {
 .btn:active:not(:disabled) { transform:translateY(1px); box-shadow:var(--shadow-press); }
 .btn.primary {
   background:var(--primary-2); border-color:var(--primary-2); color:#faf9f7;
-  box-shadow:0 2px 0 #000, 0 6px 16px rgba(var(--primary-rgb),.14);
+  box-shadow:0 2px 0 var(--primary-lo), 0 6px 16px rgba(var(--primary-rgb),.14);
 }
-.btn.primary:hover:not(:disabled) { background:var(--primary-1); border-color:var(--primary-1); color:#faf9f7; box-shadow:0 2px 0 #000, 0 8px 20px rgba(var(--primary-rgb),.18); }
-.btn.primary:active:not(:disabled) { transform:translateY(2px); box-shadow:0 0 0 #000; }
+.btn.primary:hover:not(:disabled) { background:var(--primary-1); border-color:var(--primary-1); color:#faf9f7; box-shadow:0 2px 0 var(--primary-lo), 0 8px 20px rgba(var(--primary-rgb),.18); }
+.btn.primary:active:not(:disabled) { transform:translateY(2px); box-shadow:0 0 0 var(--primary-lo); }
 .btn.ghost { background:var(--cream-1); border-color:var(--line-strong); color:var(--ink); box-shadow:none; }
 .btn.ghost:hover { color:var(--ink); border-color:var(--ink); }
 .btn.ghost.on { color:var(--rose-soft); border-color:var(--rose); background:var(--tint); }
@@ -2593,7 +2583,7 @@ body {
 .advisor .msg.ai .bubble { background:var(--cream-1); border-radius:2px 12px 12px 12px; box-shadow:0 0 0 1px var(--line); }
 .advisor .msg.ai.cont .bubble { border-radius:12px; }
 .advisor .msg.ai.ask .bubble { background:var(--tint); box-shadow:0 0 0 1px var(--rose-dim); }
-.advisor .msg.ai .avatar { background:var(--ink); box-shadow:none; border-radius:30%; color:#faf9f7; }
+.advisor .msg.ai .avatar { background:var(--primary-2); box-shadow:none; border-radius:30%; color:#faf9f7; }
 .advisor .msg.you { background:var(--cream-2); color:var(--ink); box-shadow:none; border-radius:12px 2px 12px 12px; }
 .advisor .opts button {
   border:1px solid var(--line); border-radius:var(--radius-sm); padding:9px 13px; font-weight:500; font-size:12.5px;
@@ -2609,7 +2599,7 @@ body {
 .look.on { background:var(--tint); box-shadow:0 0 0 1.5px var(--rose); }
 .look b { letter-spacing:.01em; }
 .look .score { font-family:var(--font-num); color:var(--rose-soft); }
-.look .best { background:var(--ink); color:#faf9f7; border-radius:4px; letter-spacing:.04em; box-shadow:none; }
+.look .best { background:var(--primary-2); color:#faf9f7; border-radius:4px; letter-spacing:.04em; box-shadow:none; }
 
 /* ── 色票、分頁、滑桿（刻度尺）── */
 .chip-color { border-radius:var(--radius-sm); }
@@ -2644,12 +2634,12 @@ body {
 #settings .shape { border-color:var(--line-strong); color:var(--ink); }
 #settings .shape.soft { border-radius:12px; }
 #settings .shape.crisp { border-radius:3px; }
-#settings .shape.on { border-color:var(--ink); background:var(--ink); color:#faf9f7; }
+#settings .shape.on { border-color:var(--primary-2); background:var(--primary-2); color:#faf9f7; }
 #panel { background:var(--cream-1); border-radius:var(--radius-lg); box-shadow:0 0 0 1px var(--line), var(--soft-lg); -webkit-backdrop-filter:none; backdrop-filter:none; }
 .spec b.price { font-family:var(--font-num); color:var(--ink); }
 
 /* ── 完成／錯誤的顏色（原本寫死的薄荷綠與玫瑰紅）── */
-:root { --ok-tint:#dcebe3; --bad:#a8322a; }
+:root { --ok-tint:#ecf6f1; --bad:#a62d38; }
 
 /* ── AR 抽屜（妝容調整）：一張不透明的紙，細線＋浮起來的陰影 ── */
 .sheet { background:var(--card-2); -webkit-backdrop-filter:none; backdrop-filter:none; box-shadow:0 0 0 1px var(--line), var(--shadow-float); }
@@ -2675,9 +2665,9 @@ body {
 .teach .ask-toggle { border-radius:var(--radius-sm); }
 .tseg { border-radius:var(--radius-sm); background:var(--cream-2); }
 .tseg button { border-radius:calc(var(--radius-sm) - 2px); }
-.tseg button.on, .tseg.view button.on { color:#faf9f7; background:var(--ink); box-shadow:none; }
+.tseg button.on, .tseg.view button.on { color:#faf9f7; background:var(--primary-2); box-shadow:none; }
 .tool-presets button { border-radius:var(--radius-sm); border-color:var(--line-strong); color:var(--ink); background:var(--cream-1); }
-.tool-presets button.on { background:var(--ink); color:#faf9f7; border-color:var(--ink); }
+.tool-presets button.on { background:var(--primary-2); color:#faf9f7; border-color:var(--primary-2); }
 .tool { border:1px solid var(--line); border-radius:var(--radius); background:var(--cream-1); }
 .tool.on { border-color:var(--ink); background:var(--cream-1); box-shadow:0 0 0 1px var(--ink); }
 .tool.fixed { background:var(--cream-2); border-color:var(--line); box-shadow:none; }
@@ -2687,19 +2677,19 @@ body {
 .item-card, .gest-card, .advice, .how, .spark, .teach .mistake, .teach .fb { border-radius:var(--radius); background:var(--cream-1); box-shadow:0 0 0 1px var(--line); }
 .save-card { border-radius:var(--radius-sm); border:1px solid var(--line-strong); background:var(--cream-1); color:var(--ink); font-weight:600; }
 .gest-card b, .teach .formula b, .pb-hint b { border-radius:4px; letter-spacing:.04em; }
-.gest-card .press i.on { background:var(--ink); }
+.gest-card .press i.on { background:var(--primary-2); }
 .teach .chip, .how .chip { border-radius:6px; background:var(--cream-2); }
 .teach .emethods button { border-radius:var(--radius-sm); border-color:var(--line-strong); color:var(--ink); padding:6px 11px; }
-.teach .emethods button.on { background:var(--ink); border-color:var(--ink); color:#faf9f7; }
+.teach .emethods button.on { background:var(--primary-2); border-color:var(--primary-2); color:#faf9f7; }
 .teach .step-ctl button { min-height:44px; border-radius:var(--radius-sm); border-color:var(--line-strong); color:var(--ink); background:var(--cream-1); font-weight:600; }
-.teach .step-ctl button.primary { background:var(--ink); border-color:var(--ink); color:#faf9f7; box-shadow:0 2px 0 #000; }
+.teach .step-ctl button.primary { background:var(--primary-2); border-color:var(--primary-2); color:#faf9f7; box-shadow:0 2px 0 var(--primary-lo); }
 .teach .step-ctl button:disabled { opacity:.45; }
 .teach .check { border-radius:var(--radius-sm); }
 .teach .steps li { border-radius:var(--radius-sm); }
 .teach .steps li.on { color:var(--ink); box-shadow:0 0 0 1.5px var(--rose); }
 .teach .steps.grid li { border-radius:var(--radius); background:var(--cream-1); box-shadow:0 0 0 1px var(--line); }
 .teach .steps.grid li.on { box-shadow:0 0 0 2px var(--rose); }
-.teach .steps.grid .num { border-radius:4px; width:24px; height:20px; font-size:11px; font-weight:700; background:var(--ink); }
+.teach .steps.grid .num { border-radius:4px; width:24px; height:20px; font-size:11px; font-weight:700; background:var(--primary-2); }
 .teach .steps.grid li.on .num { background:var(--rose); }
 .teach .steps.grid li.done .num { background:var(--ok); }
 .teach .steps.grid img { border-radius:calc(var(--radius) - 3px); }
@@ -2723,9 +2713,9 @@ body {
 
 /* 自己畫的工具列 */
 .pb-kit, .pb-tog { border-radius:var(--radius-sm); border-color:var(--line-strong); color:var(--ink); }
-.pb-kit.on { border-color:var(--ink); background:var(--ink); color:#faf9f7; }
+.pb-kit.on { border-color:var(--primary-2); background:var(--primary-2); color:#faf9f7; }
 .pb-kit.on svg { color:#faf9f7; }
-.pb-tog.on { background:var(--ink); }
+.pb-tog.on { background:var(--primary-2); }
 .pb-rec { border-radius:var(--radius-sm); }
 
 /* ── 最後一頁 ── */
@@ -2748,7 +2738,7 @@ body {
 .flow canvas, .how canvas, .real-ba img, .teach .cmp img, .facemap img { border-radius:calc(var(--radius) - 3px); }
 .flow figcaption, .how figcaption b { font-weight:600; }
 .how-modes button { border-radius:var(--radius-sm); border-color:var(--line-strong); color:var(--ink); }
-.how-modes button.on { background:var(--ink); border-color:var(--ink); color:#faf9f7; }
+.how-modes button.on { background:var(--primary-2); border-color:var(--primary-2); color:#faf9f7; }
 .spark polyline { stroke:var(--ink); stroke-width:1.75; }
 .spark .end { fill:var(--rose); stroke:var(--cream-1); }
 .spark line { stroke:var(--line); stroke-dasharray:1 7; stroke-width:6; }      /* 基準線畫成刻度 */
@@ -2765,7 +2755,7 @@ body {
 
 /* ── 安裝邀請、問 AI ── */
 .pwa-invite { border-radius:var(--radius); background:var(--cream-1); box-shadow:0 0 0 1px var(--line), var(--shadow-float); }
-.pwa-invite .go { border-radius:var(--radius-sm); background:var(--ink); color:#faf9f7; }
+.pwa-invite .go { border-radius:var(--radius-sm); background:var(--primary-2); color:#faf9f7; }
 .pwa-guide .card { border-radius:var(--radius-lg); }
 .pwa-guide button { border-radius:var(--radius-sm); }
 .qa-input { border-radius:var(--radius-sm); }
@@ -2840,7 +2830,7 @@ body {
 .pip b { font:600 9px/1 var(--font-num); letter-spacing:.06em; }
 .pip span { max-width:100%; font-size:11px; font-weight:600; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pip.done { background:none; color:var(--ink); }
-.pip.done::before { background:var(--ink); }
+.pip.done::before { background:var(--primary-2); }
 .pip.on { background:none; color:var(--rose-soft); animation:none; }
 .pip.on::before { background:var(--rose); transform-origin:left center; animation:at-sweep .26s var(--ease); }
 #dock { padding:8px 14px 8px; }
@@ -2853,8 +2843,8 @@ body {
   background:none; box-shadow:none; color:var(--ink); font-size:11px; font-weight:600; letter-spacing:.1em;
 }
 #mirror:has(#s1:not([hidden])) #actions .btn.primary::before {
-  content:""; width:58px; height:58px; border-radius:50%; background:var(--ink);
-  box-shadow:0 0 0 3px var(--cream-0), 0 0 0 5px var(--ink); transition:transform .12s var(--ease);
+  content:""; width:58px; height:58px; border-radius:50%; background:var(--primary-2);
+  box-shadow:0 0 0 3px var(--cream-0), 0 0 0 5px var(--primary-2); transition:transform .12s var(--ease);
 }
 #mirror:has(#s1:not([hidden])) #actions .btn.primary:hover:not(:disabled) { background:none; box-shadow:none; color:var(--ink); }
 #mirror:has(#s1:not([hidden])) #actions .btn.primary:active:not(:disabled) { transform:none; box-shadow:none; }
