@@ -8,7 +8,7 @@
 <meta name="description" content="AI 美妝教學與 AR 試妝：用手機鏡頭看化妝前後，AI 問答教你用什麼化妝品、工具、手法，沒有工具也能畫。可安裝、可離線。">
 <meta name="keywords" content="AI 美妝教學, 化妝教學, AR 試妝, 虛擬試妝, 新手化妝, 沒有工具化妝, AI makeup tutorial, virtual makeup try-on, AIメイク, メイクレッスン">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#f8f3f1">
+<meta name="theme-color" content="#f6f5f3">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="KOTO">
@@ -25,42 +25,47 @@
      雪花石白打底、暖梅色的文字、深酒紅的主要按鈕、莓果玫瑰只用在「選中／進行中」。
      第一版是墨黑＋赤陶，看起來太中性；這一版往女性用戶調，但不回到原本的奶油＋粉紅。
      再一輪（使用者：整體設計配色以女性為主）：底色從灰白調成玫瑰象牙（彩度很低），主要按鈕是玫瑰酒紅。
+     第三輪：整套交回 Gemini 以女性為主重新設計 —— Porcelain & Silk（白瓷絲光）。
+     白瓷般的低彩度底、玫瑰莓果重點色、膠囊形的按鈕、柔和的陰影、數字用襯線體；
+     招牌從「取景框與刻度」換成「絲光弧線與珍珠點」。外觀規則在檔案最後的 PORCELAIN & SILK。
      粉紅光暈與玻璃感拿掉，改成細線邊框與很淡的陰影；數字用等寬字。
      不變的一點：**影像框內與四周一律是中性色**（--neutral）。顏色包圍會讓人
      把口紅顏色看偏（同時對比效應）—— 整台機器的價值來自「顏色可信」。
      變數名稱沿用舊的（--rose = 重點色、--cream-* = 底色四階），所以全站一起換。 */
-  --cream-0:#f8f3f1; --cream-1:#ffffff; --cream-2:#f1e9e6; --cream-3:#e8ddd9;
-  --rose:#9e3b52; --rose-soft:#7d293d; --rose-dim:rgba(158,59,82,.36);
+  --cream-0:#f6f5f3; --cream-1:#ffffff; --cream-2:#efece8; --cream-3:#e6e0de;
+  --rose:#9e3352; --rose-soft:#7d223d; --rose-dim:rgba(158,51,82,.34);
   --gold:#7d5a1e;
-  --ink:#261a1d; --ink-2:#5e4f53; --ink-3:#75666a;
-  --ok:#2a6b52; --warn:#9c5a16;
-  --radius:12px; --radius-sm:10px;
+  --ink:#24191d; --ink-2:#594a4f; --ink-3:#726368;
+  --ok:#266950; --warn:#9b5816;
+  --radius:18px; --radius-sm:14px;
   --rail-w:300px; --bar-h:58px;
-  --glass:rgba(252,248,247,.94);
-  --line:#e8dedb;
-  --glow:0 0 0 1px var(--line), 0 1px 2px rgba(25,24,23,.05);
-  --neutral:#f5f4f1;      /* 影像框的中性底，判色不受重點色干擾 */
-  --onImage:rgba(38,26,29,.78);   /* 疊在照片上的膠囊底色 */
+  --glass:rgba(252,251,249,.95);
+  --line:#eae4e2;
+  --glow:0 0 0 1px var(--line), 0 2px 10px rgba(36,25,29,.04);
+  --neutral:#f4f3f1;      /* 影像框的中性底，判色不受重點色干擾 */
+  --onImage:rgba(36,25,29,.76);   /* 疊在照片上的膠囊底色 */
   /* *-rgb 是給 rgba(var(--x-rgb), .3) 用的「不含透明度」的三個數字。 */
-  --rose-rgb:158,59,82;
-  --tint:#fbf1f3; --tint-2:#f7e7eb; --tint-3:#f3dce2;   /* 選中狀態的淡底色 */
-  --line-rgb:186,168,164;
+  --rose-rgb:158,51,82;
+  --tint:#faf0f3; --tint-2:#f6e6eb; --tint-3:#f2dce3;   /* 選中狀態的淡底色 */
+  --line-rgb:190,176,178;
   --glow-rgb:120,104,108; --drop-rgb:78,62,66;           /* 外框、大投影（中性灰，不帶顏色） */
   --shadow-rgb:70,54,58;                                /* 小元件投影 */
   --edge-rgb:70,54,58;                                  /* 色票外框細線 */
-  --ink-rgb:38,26,29;                                   /* 深色內陰影 */
-  --bg-1:#f8f3f1; --bg-2:#f4ecea; --bg-3:#f8f3f1; --bg-4:#f4ecea;   /* 頁面背景：幾乎是平的 */
-  --radius-lg:18px;
-  --primary-1:#6f2740; --primary-2:#84304a; --primary-rgb:132,48,74;   /* 主要按鈕：墨色 */
-  --card-1:#ffffff; --card-2:#fcf8f7; --boot-1:#f8f3f1; --boot-2:#f1e9e6;
-  --orb-1:#fdf5f7; --orb-2:#e4b8c4; --orb-3:#9e3b52;                  /* 完成頁的裝飾圓球 */
-  --on-image-hi:#ffd6e0; --bar-lo:#e4b8c4; --star-off-rgb:150,145,136;
+  --ink-rgb:36,25,29;                                   /* 深色內陰影 */
+  --bg-1:#f6f5f3; --bg-2:#f1efec; --bg-3:#f6f5f3; --bg-4:#f1efec;   /* 頁面背景：幾乎是平的 */
+  --radius-lg:24px;
+  --primary-1:#6e2139; --primary-2:#84304a; --primary-rgb:110,33,57;   /* 主要按鈕：墨色 */
+  --card-1:#ffffff; --card-2:#fcfbf9; --boot-1:#f6f5f3; --boot-2:#efece8;
+  --orb-1:#fdf5f7; --orb-2:#e3b8c5; --orb-3:#9e3352;                  /* 完成頁的裝飾圓球 */
+  --on-image-hi:#ffd6e0; --bar-lo:#e3b8c5; --star-off-rgb:150,145,136;
   /* 這一版新增的 */
-  --line-strong:#d3c4c0;                                              /* 次要按鈕、刻度的線 */
-  --shadow-float:0 8px 24px rgba(25,24,23,.12), 0 1px 2px rgba(25,24,23,.08);
-  --shadow-press:inset 0 2px 4px rgba(25,24,23,.16);
-  --font-num:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --line-strong:#d5ccce;                                              /* 次要按鈕、刻度的線 */
+  --shadow-float:0 10px 28px rgba(36,25,29,.10), 0 2px 6px rgba(36,25,29,.04);
+  --shadow-press:inset 0 2px 5px rgba(36,25,29,.14);
+  --font-num:Georgia,"Times New Roman",-apple-system,BlinkMacSystemFont,"Hiragino Sans","PingFang TC","Noto Sans CJK TC","Microsoft JhengHei","Yu Gothic UI",sans-serif;
   --primary-lo:#56192e;                                                /* 主要按鈕下緣的實影 */
+  --pill:9999px;                                                       /* 膠囊形 */
+  --grad-primary:linear-gradient(135deg, #8e3050 0%, #6e2139 100%);      /* 主要按鈕 */
   --tick:repeating-linear-gradient(90deg, var(--line-strong) 0 1px, transparent 1px 8px);   /* 刻度尺 */
   color-scheme: light;
 }
@@ -694,28 +699,28 @@ body {
    --neutral（影像框的中性灰）、商品色票、AR 上妝顏色。
    粉色或綠色包圍會讓人把口紅顏色看偏（同時對比效應），
    整台機器的價值來自「顏色可信」，配色不能拿這個去換。 */
-:root[data-theme="gold"] {      /* 暖銅 Warm Copper */
-  --rose:#9e472a; --rose-soft:#7a321a; --rose-dim:rgba(158,71,42,.36); --rose-rgb:158,71,42;
-  --tint:#fcf2ee; --tint-2:#f8e8e1; --tint-3:#f5ddd4; --orb-1:#fdf6f3; --orb-2:#e6beb0; --orb-3:#9e472a; --on-image-hi:#ffdccf; --bar-lo:#e6beb0;
-  --primary-1:#652814; --primary-2:#7a321a; --primary-rgb:122,50,26; --primary-lo:#4c1d0e;
+:root[data-theme="gold"] {      /* 焙茶杏紅 Spiced Apricot */
+  --rose:#a34536; --rose-soft:#803124; --rose-dim:rgba(163,69,54,.34); --rose-rgb:163,69,54;
+  --tint:#fcf2f0; --tint-2:#f8e8e5; --tint-3:#f5dfdb; --orb-1:#fdf6f4; --orb-2:#e6beb7; --orb-3:#a34536; --on-image-hi:#ffdbd4; --bar-lo:#e6beb7;
+  --primary-1:#6f2a1f; --primary-2:#86372a; --primary-rgb:111,42,31; --grad-primary:linear-gradient(135deg, #934032 0%, #6f2a1f 100%);
 }
-:root[data-theme="lilac"] {     /* 桑葚 Mulberry Wine */
-  --rose:#7e3558; --rose-soft:#5e223f; --rose-dim:rgba(126,53,88,.36); --rose-rgb:126,53,88;
-  --tint:#faf0f5; --tint-2:#f4e8ee; --tint-3:#efe0e8; --orb-1:#fcf5f8; --orb-2:#dec2d1; --orb-3:#7e3558; --on-image-hi:#ffd6ea; --bar-lo:#dec2d1;
-  --primary-1:#4d1b34; --primary-2:#5e223f; --primary-rgb:94,34,63; --primary-lo:#3a1327;
+:root[data-theme="lilac"] {     /* 芍藥梅紫 Peony Plum */
+  --rose:#7e3862; --rose-soft:#5f2548; --rose-dim:rgba(126,56,98,.34); --rose-rgb:126,56,98;
+  --tint:#f9f0f6; --tint-2:#f4e8f0; --tint-3:#efe0ea; --orb-1:#fcf5fa; --orb-2:#ddbfd3; --orb-3:#7e3862; --on-image-hi:#ffd6f0; --bar-lo:#ddbfd3;
+  --primary-1:#532040; --primary-2:#682c52; --primary-rgb:83,32,64; --grad-primary:linear-gradient(135deg, #74325b 0%, #532040 100%);
 }
-:root[data-theme="sage"] {      /* 山茶 Camellia Coral */
-  --rose:#a8383b; --rose-soft:#822427; --rose-dim:rgba(168,56,59,.36); --rose-rgb:168,56,59;
-  --tint:#fdf1f1; --tint-2:#fae6e6; --tint-3:#f7dcdc; --orb-1:#fef6f6; --orb-2:#e8b7b8; --orb-3:#a8383b; --on-image-hi:#ffd7d6; --bar-lo:#e8b7b8;
-  --primary-1:#6c1d20; --primary-2:#822427; --primary-rgb:130,36,39; --primary-lo:#531517;
+:root[data-theme="sage"] {      /* 山茶花釉 Camellia Rouge */
+  --rose:#a83644; --rose-soft:#852430; --rose-dim:rgba(168,54,68,.34); --rose-rgb:168,54,68;
+  --tint:#fcf0f2; --tint-2:#f8e6e9; --tint-3:#f5dce0; --orb-1:#fef5f6; --orb-2:#e6b7be; --orb-3:#a83644; --on-image-hi:#ffd6dc; --bar-lo:#e6b7be;
+  --primary-1:#74202a; --primary-2:#8b2a36; --primary-rgb:116,32,42; --grad-primary:linear-gradient(135deg, #97303d 0%, #74202a 100%);
 }
-:root[data-theme="mist"] {      /* 無花果 Spiced Fig */
-  --rose:#8f3d4e; --rose-soft:#6e2938; --rose-dim:rgba(143,61,78,.36); --rose-rgb:143,61,78;
-  --tint:#fbf1f3; --tint-2:#f6e6ea; --tint-3:#f2dce1; --orb-1:#fdf5f7; --orb-2:#e2b9c2; --orb-3:#8f3d4e; --on-image-hi:#ffd8e0; --bar-lo:#e2b9c2;
-  --primary-1:#5b212e; --primary-2:#6e2938; --primary-rgb:110,41,56; --primary-lo:#451822;
+:root[data-theme="mist"] {      /* 無花果絲絨 Fig Velvet */
+  --rose:#8e3554; --rose-soft:#6e233e; --rose-dim:rgba(142,53,84,.34); --rose-rgb:142,53,84;
+  --tint:#faf0f4; --tint-2:#f5e6ec; --tint-3:#f1dce4; --orb-1:#fcf5f8; --orb-2:#e0b8c7; --orb-3:#8e3554; --on-image-hi:#ffd6e6; --bar-lo:#e0b8c7;
+  --primary-1:#602038; --primary-2:#762b47; --primary-rgb:96,32,56; --grad-primary:linear-gradient(135deg, #81304e 0%, #602038 100%);
 }
 /* 俐落：圓角收小。只動三個圓角變數，版面尺寸完全不變 */
-:root[data-shape="crisp"] { --radius:4px; --radius-sm:3px; --radius-lg:6px; }
+:root[data-shape="crisp"] { --radius:10px; --radius-sm:8px; --radius-lg:14px; --pill:10px; }
 
 /* 設定面板：頁首齒輪按鈕打開，浮在鏡面右上 */
 #set-btn {
@@ -2658,7 +2663,7 @@ body {
 .spec b.price { font-family:var(--font-num); color:var(--ink); }
 
 /* ── 完成／錯誤的顏色（原本寫死的薄荷綠與玫瑰紅）── */
-:root { --ok-tint:#ecf6f1; --bad:#a62d38; }
+:root { --ok-tint:#ecf6f2; --bad:#a82a38; }
 
 /* ── AR 抽屜（妝容調整）：一張不透明的紙，細線＋浮起來的陰影 ── */
 .sheet { background:var(--card-2); -webkit-backdrop-filter:none; backdrop-filter:none; box-shadow:0 0 0 1px var(--line), var(--shadow-float); }
@@ -2934,13 +2939,266 @@ body {
 .teach .ask-toggle, .save-card, .advisor .opts button.ask-btn { display:inline-flex; align-items:center; gap:5px; }
 .teach .ask-toggle .ic, .save-card .ic, .advisor .opts button.ask-btn .ic { width:16px; height:16px; }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   PORCELAIN & SILK（白瓷絲光）—— 2026-11，整套交回 Gemini 以女性用戶為主重新設計
+   上一版（Tactile Atelier）像一台量測儀器：到處是細框、等寬數字、方形按鈕、取景角標與刻度。
+   這一版：白瓷般的底、膠囊形的按鈕與標籤、用很淡的陰影把白色的面托起來（細線只留在兩個面相接的地方）、
+   數字用襯線體、選中是「玫瑰莓果的細框＋淡淡的絲光底」，招牌是「絲光弧線與珍珠點」。
+   版面（KOTO 版面那一段）與線條圖示不變；這一層只蓋外觀。
+   ═══════════════════════════════════════════════════════════════════════ */
+:root {
+  --soft:0 2px 10px rgba(var(--ink-rgb),.04);
+  --soft-lg:0 10px 28px rgba(var(--ink-rgb),.10), 0 2px 6px rgba(var(--ink-rgb),.04);
+  --display:Georgia,"Times New Roman","Hiragino Mincho ProN","Yu Mincho","Songti TC",serif;   /* 只給拉丁字母的字標 */
+  --ease-silk:cubic-bezier(.25,.9,.35,1);
+}
+body { font-variant-numeric:proportional-nums; letter-spacing:.01em; }
+
+/* ── 外殼 ── */
+#mirror { box-shadow:0 0 0 1px var(--line), var(--soft-lg); }
+#bar { border-bottom:0; }
+#brand b { font-family:var(--display); font-weight:400; font-size:17px; letter-spacing:.16em; }
+#brand i { width:6px; height:6px; margin-left:-6px; border:0; background:var(--rose); }      /* 珍珠點 */
+#brand span { padding-left:2px; border-left:0; font-size:11px; letter-spacing:.06em; text-transform:none; }
+#lang { padding:3px; border-radius:var(--pill); background:var(--cream-2); }
+#lang button { border-radius:var(--pill); font-family:inherit; font-weight:500; font-size:11px; padding:6px 9px; color:var(--ink-3); }
+#lang button.on { background:var(--cream-1); color:var(--rose-soft); box-shadow:var(--soft); }
+#back, #set-btn { border-radius:50%; border:1px solid var(--line); background:var(--cream-1); box-shadow:var(--soft); }
+#back:hover:not(:disabled), #set-btn:hover, #set-btn.on { border-color:var(--rose-dim); color:var(--rose-soft); }
+#bar h1 { font-family:inherit; font-weight:500; font-size:24px; letter-spacing:-.01em; line-height:1.25; }   /* 中文、日文標題用黑體：襯線體在各家系統差太多 */
+#bar h1 small { font-weight:400; letter-spacing:.01em; }
+#stage-no { align-self:start; padding-top:5px; font-family:var(--font-num); font-style:italic; font-size:12px; }
+#stage-no b { font-family:var(--font-num); font-style:italic; font-weight:400; font-size:22px; letter-spacing:0; color:var(--rose); }
+
+/* 階段導覽：現在這一段是一顆淡淡的絲光膠囊，走過的字變深 */
+#rail-steps { gap:4px; padding:6px 10px max(6px, env(safe-area-inset-bottom)); background:var(--card-2); border-top:1px solid var(--line); }
+.pip { gap:2px; padding:5px 2px 6px; border-radius:var(--pill); transition:background .26s var(--ease-silk), color .26s var(--ease-silk); }
+.pip::before { display:none; }
+.pip b { font-family:var(--font-num); font-style:italic; font-weight:400; font-size:10.5px; letter-spacing:0; }
+.pip span { font-weight:500; }
+.pip.done { color:var(--ink); }
+.pip.on { background:var(--tint); color:var(--rose-soft); }
+.pip.on span { font-weight:600; }
+#dock { border-top:0; }
+
+/* ── 按鈕：膠囊形；主要按鈕是玫瑰酒紅的絲光漸層，浮在柔和的陰影上 ── */
+.btn {
+  min-height:48px; padding:12px 20px; border-radius:var(--pill); border:1px solid var(--line-strong);
+  background:var(--cream-1); color:var(--ink); font-weight:500; letter-spacing:.02em; box-shadow:none;
+  transition:transform .18s var(--ease-silk), box-shadow .18s var(--ease-silk), filter .18s, border-color .18s;
+}
+.btn:hover:not(:disabled) { border-color:var(--rose-dim); color:var(--ink); box-shadow:var(--soft); }
+.btn:active:not(:disabled) { transform:scale(.98); box-shadow:var(--shadow-press); }
+.btn.primary { background:var(--grad-primary); border:0; color:#fcfbf9; font-weight:600; box-shadow:0 8px 20px rgba(var(--primary-rgb),.22); }
+.btn.primary:hover:not(:disabled) { background:var(--grad-primary); border:0; color:#fcfbf9; filter:brightness(.94); box-shadow:0 10px 24px rgba(var(--primary-rgb),.28); }
+.btn.primary:active:not(:disabled) { transform:scale(.98); box-shadow:0 3px 8px rgba(var(--primary-rgb),.24); }
+.btn.ghost { background:var(--cream-1); border-color:var(--line-strong); color:var(--ink); }
+.btn.ghost:hover { border-color:var(--rose-dim); }
+.btn.ghost.on { background:var(--tint); border-color:var(--rose); color:var(--rose-soft); }
+
+/* 快門：白瓷的圓盤、一圈玫瑰莓果、裡面是絲光的芯；按下去芯縮一下、外圈往外暈開 */
+#mirror:has(#s1:not([hidden])) #actions .btn.primary { background:none; box-shadow:none; filter:none; color:var(--ink); font-weight:500; letter-spacing:.06em; }
+#mirror:has(#s1:not([hidden])) #actions .btn.primary::before {
+  width:56px; height:56px; background:var(--grad-primary);
+  box-shadow:0 0 0 5px var(--cream-1), 0 0 0 7.5px var(--rose), var(--shadow-float);
+  transition:transform .28s cubic-bezier(.22,1,.36,1), box-shadow .28s cubic-bezier(.22,1,.36,1);
+}
+#mirror:has(#s1:not([hidden])) #actions .btn.primary:hover:not(:disabled) { background:none; box-shadow:none; filter:none; }
+#mirror:has(#s1:not([hidden])) #actions .btn.primary:active:not(:disabled)::before {
+  transform:scale(.9); box-shadow:0 0 0 7px var(--cream-1), 0 0 0 9px rgba(var(--rose-rgb),.55), var(--shadow-float);
+}
+#mirror:has(#s1:not([hidden])) #actions .btn:not(.primary) { border-radius:var(--pill); }
+
+/* ── 影像框：拿掉刻度尺；大螢幕上是柔和的圓角 ── */
+.frame::before { display:none; }
+.frame { box-shadow:0 0 0 6px var(--neutral), 0 0 0 7px var(--line); }
+#hint, .privacy-chip { border-radius:var(--pill); }
+#count { font-family:var(--font-num); font-style:italic; font-weight:400; }
+
+/* ── 區塊標題：前面一顆珍珠點，不再全大寫 ── */
+.sect-title { padding-left:14px; font-size:13px; font-weight:600; letter-spacing:.01em; text-transform:none; color:var(--ink-2); }
+.sect-title::after { left:1px; top:50%; bottom:auto; width:6px; height:6px; margin-top:-3px; border-radius:50%; background:var(--rose); }
+.s5-sec > h3 { padding-left:14px; font-weight:600; }
+.s5-sec > h3::before { left:1px; top:50%; bottom:auto; width:6px; height:6px; margin-top:-3px; border-radius:50%; background:var(--rose); }
+
+/* ── 對話（白底的地方）與快速回覆 ── */
+.advisor .msg.ai .bubble { border-radius:4px 18px 18px 18px; box-shadow:0 0 0 1px var(--line), var(--soft); }
+.advisor .msg.ai.cont .bubble { border-radius:18px; }
+.advisor .msg.ai.ask .bubble { background:var(--tint); box-shadow:0 0 0 1px var(--rose-dim); }
+.advisor .msg.ai .avatar { border-radius:50%; background:var(--grad-primary); font-family:var(--display); font-style:italic; }
+.advisor .msg.you { border-radius:18px 4px 18px 18px; background:var(--cream-2); }
+.advisor .opts button { border-radius:var(--pill); padding:9px 15px; background:var(--card-2); border:1px solid var(--line); font-weight:500; }
+.advisor .opts button:hover { border-color:var(--rose-dim); background:var(--card-2); }
+#adv4 .opts button, #s2 #adv2 .opts button { border-radius:var(--pill); }
+
+/* ── 妝容卡、色票、分頁、滑桿 ── */
+.look { border-radius:var(--radius); box-shadow:0 0 0 1px var(--line), var(--soft); }
+.look:hover { box-shadow:0 0 0 1px var(--line-strong), var(--soft); }
+.look.on { background:var(--tint); box-shadow:0 0 0 1.5px var(--rose), 0 4px 14px rgba(var(--rose-rgb),.10); }
+.look .best { background:var(--tint-3); color:var(--rose-soft); border-radius:var(--pill); font-weight:600; }
+.look.on .best { background:var(--cream-1); }
+.look .score { font-family:var(--font-num); font-style:italic; }
+.chip-color { border-radius:50%; }
+.tabs button { border-radius:var(--pill); }
+.tabs button.on { border-color:var(--rose); background:var(--tint); color:var(--rose-soft); }
+.sw-btn { border-radius:var(--radius-sm); transition:transform .22s cubic-bezier(.34,1.4,.64,1), box-shadow .22s cubic-bezier(.34,1.4,.64,1), border-color .18s; }
+.sw-btn i { border-radius:9px; }
+.sw-btn:active { transform:translateY(-1px) scale(.97); }
+.sw-btn.on { border-color:var(--rose); color:var(--rose-soft); box-shadow:0 0 0 1.5px var(--rose); transform:translateY(-2px); }
+.sl input[type=range] { height:28px; background:none; background-image:none; }
+.sl input[type=range]::-webkit-slider-runnable-track { height:6px; border-radius:var(--pill); background:linear-gradient(90deg, var(--tint-3), var(--rose)); }
+.sl input[type=range]::-webkit-slider-thumb { width:24px; height:24px; margin-top:-9px; border:2px solid var(--rose); background:var(--cream-1); box-shadow:var(--shadow-float); }
+.sl input[type=range]::-moz-range-track { height:6px; border-radius:var(--pill); background:linear-gradient(90deg, var(--tint-3), var(--rose)); }
+.sl input[type=range]::-moz-range-thumb { width:20px; height:20px; border:2px solid var(--rose); background:var(--cream-1); }
+.sl output { font-family:var(--font-num); font-style:italic; color:var(--rose-soft); }
+
+/* ── 設定面板、商品卡 ── */
+#settings { border-radius:var(--radius-lg); padding:18px 16px 14px; box-shadow:0 0 0 1px var(--line), var(--shadow-float); }
+#settings h4 { letter-spacing:.02em; font-size:11.5px; color:var(--ink-2); }
+#settings .theme i { border-radius:50%; }
+#settings .theme.on { color:var(--rose-soft); }
+#settings .theme.on i { box-shadow:0 0 0 2px var(--cream-1), 0 0 0 4px var(--rose); }
+#settings .shape { border-radius:var(--pill); border-color:var(--line-strong); color:var(--ink); background:var(--cream-1); }
+#settings .shape.soft { border-radius:var(--pill); }
+#settings .shape.crisp { border-radius:10px; }
+#settings .shape.on { border-color:var(--rose); background:var(--tint); color:var(--rose-soft); }
+#panel { border-radius:var(--radius-lg); box-shadow:0 0 0 1px var(--line), var(--shadow-float); }
+
+/* ── AR：抽屜、分頁、鏡子上的按鈕 ── */
+.sheet { border-radius:var(--radius-lg); background:var(--card-2); box-shadow:0 0 0 1px var(--line), var(--shadow-float); }
+.sheet[data-tab="ai"] { background:transparent; box-shadow:none; }
+.sheet .sheet-tabs { gap:2px; padding:3px; border-radius:var(--pill); background:var(--cream-2); }
+.sheet .sheet-tabs button { width:38px; height:38px; background:transparent; box-shadow:none; color:var(--ink-3); }
+.sheet .sheet-tabs button.on, .sheet[data-tab="ai"] .sheet-tabs button.on { background:var(--cream-1); color:var(--rose-soft); box-shadow:var(--soft); }
+.sheet[data-tab="ai"] .sheet-tabs { background:rgba(var(--ink-rgb),.42); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); }
+.sheet[data-tab="ai"] .sheet-tabs button { background:transparent; box-shadow:none; color:#fcfbf9; -webkit-backdrop-filter:none; backdrop-filter:none; }
+.sheet .sheet-toggle { border-radius:50%; background:var(--cream-1); box-shadow:0 0 0 1px var(--line), var(--soft); }
+.sheet[data-tab="ai"] .sheet-toggle { background:rgba(var(--ink-rgb),.42); box-shadow:0 0 0 1px rgba(255,255,255,.22) inset; }
+.seg.float { border-radius:var(--pill); }
+.seg.float button { border-radius:var(--pill); }
+.seg.float button.on { background:#fcfbf9; color:var(--rose-soft); }
+.hist button { border-radius:var(--pill); }
+.rail .rb i, .rail.tight .rb i { border-radius:50%; border:1px solid rgba(255,255,255,.22); }
+.teach-target { border-radius:var(--radius-sm); }
+
+/* ── 跟練（教學）面板 ── */
+.teach { border-radius:var(--radius-lg) var(--radius-lg) 0 0; background:var(--card-2); box-shadow:0 0 0 1px var(--line), 0 -10px 28px rgba(var(--ink-rgb),.12); }
+.teach-grip::before { width:36px; height:4px; border-radius:var(--pill); background:var(--line-strong); }
+.teach-nav button { padding:7px 13px; border-radius:var(--pill); font-weight:500; color:var(--ink-3); background:transparent; box-shadow:none; }
+.teach-nav button.done { color:var(--ink); background:var(--cream-2); box-shadow:none; }
+.teach-nav button.on { color:#fcfbf9; background:var(--grad-primary); font-weight:600; }
+.teach .ask-toggle { border-radius:var(--pill); }
+.tseg { padding:3px; border-radius:var(--pill); background:var(--cream-2); }
+.tseg button { border-radius:var(--pill); }
+.tseg button.on, .tseg.view button.on { color:var(--rose-soft); background:var(--cream-1); box-shadow:var(--soft); }
+.tool-presets button, .teach .emethods button, .how-modes button, .pb-kit, .pb-tog, .s5-nav button, .save-card, .adv-row .again, .grow-start, .grow-actions button {
+  border-radius:var(--pill); border-color:var(--line-strong); background:var(--cream-1); color:var(--ink); font-weight:500;
+}
+.tool-presets button.on, .teach .emethods button.on, .how-modes button.on, .pb-kit.on, .pb-tog.on {
+  border-color:var(--rose); background:var(--tint); color:var(--rose-soft); font-weight:600; box-shadow:0 0 0 .5px var(--rose);
+}
+.pb-kit.on svg { color:var(--rose-soft); }
+.tool { border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--soft); }
+.tool.on { border-color:var(--rose); background:var(--tint); box-shadow:0 0 0 .5px var(--rose), var(--soft); }
+.tool.fixed { background:var(--cream-2); border-color:var(--line); box-shadow:none; }
+.teach .scenes button { border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--soft); }
+.teach .scenes button.on { border-color:var(--rose); background:var(--tint); box-shadow:0 0 0 .5px var(--rose), var(--soft); }
+.item-card, .gest-card, .advice, .how, .spark, .teach .mistake, .teach .fb { border-radius:var(--radius); box-shadow:0 0 0 1px var(--line), var(--soft); }
+.gest-card b, .teach .formula b, .pb-hint b { padding:2px 10px; border-radius:var(--pill); background:var(--tint); color:var(--rose-soft); font-weight:600; letter-spacing:.01em; }
+.gest-card .press i.on { background:var(--rose); }
+.teach .chip, .how .chip { border-radius:var(--pill); background:var(--cream-2); }
+.teach .step-ctl button { min-height:44px; border-radius:var(--pill); border-color:var(--line-strong); font-weight:500; }
+.teach .step-ctl button.primary { background:var(--grad-primary); border-color:transparent; color:#fcfbf9; font-weight:600; box-shadow:0 6px 16px rgba(var(--primary-rgb),.2); }
+.teach .check { border-radius:var(--pill); }
+.teach .steps li.on { box-shadow:0 0 0 1.5px var(--rose); }
+.teach .steps.grid li { border-radius:var(--radius-sm); box-shadow:0 0 0 1px var(--line), var(--soft); }
+.teach .steps.grid li.on { box-shadow:0 0 0 1.5px var(--rose), 0 4px 14px rgba(var(--rose-rgb),.12); }
+.teach .steps.grid .num {
+  width:22px; height:22px; border-radius:50%; font-family:var(--font-num); font-style:italic; font-size:12px; font-weight:400;
+  background:var(--cream-1); color:var(--ink); box-shadow:0 1px 4px rgba(var(--ink-rgb),.25);
+}
+.teach .steps.grid li.on .num { background:var(--rose); color:#fff; }
+.teach .steps.grid li.done .num { background:var(--ok); color:#fff; }
+.teach .steps.grid img { border-radius:calc(var(--radius-sm) - 2px); }
+.facemap .leg { border-radius:var(--pill); }
+.facemap .leg b { border-radius:50%; font-style:italic; }
+.meter .lv { border-radius:var(--pill); }
+.meter .track { background-image:none; border-radius:var(--pill); }
+.meter .okz { border-radius:var(--pill); }
+
+/* 鏡子上的字幕 */
+.teach-cap, #s4.teach-mode .teach-cap { border-radius:var(--radius); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); box-shadow:0 0 0 1px rgba(255,255,255,.14) inset; }
+.teach-cap .mo { border-radius:var(--pill); }
+.teach-cap .btns button { border-radius:50%; }
+.teach-cap .btns button.on { color:var(--rose-soft); background:#fcfbf9; }
+.teach-cap .l1 .n { font-family:var(--font-num); font-style:italic; }
+
+/* 光線量表：一條絲光的膠囊，不是刻度 */
+.light-meter { border-radius:var(--radius); }
+.light-meter .lm-bar { border-radius:var(--pill); background-image:none; }
+.light-meter .lm-bar i { border-radius:var(--pill); }
+
+/* ── 成果頁 ── */
+.bax { border-radius:var(--radius); box-shadow:0 0 0 1px var(--line), var(--soft); }
+.bax::before { display:none; }
+.bax .tag { top:12px; border-radius:var(--pill); font-family:inherit; font-weight:600; letter-spacing:.04em; }
+.bax .tag.l { left:12px; } .bax .tag.r { right:12px; }
+.bax .grip { width:1.5px; margin-left:-.75px; background:rgba(255,255,255,.9); }
+.bax .grip::after {                       /* 白瓷的小圓盤，上面兩道相對的弧線 */
+  content:""; width:38px; height:38px; margin:-19px 0 0 -19px; border-radius:50%; background:var(--cream-1);
+  box-shadow:var(--shadow-float);
+}
+.bax .grip::before {
+  content:""; position:absolute; top:50%; left:50%; z-index:1; width:16px; height:16px; margin:-8px 0 0 -8px; border-radius:50%;
+  border:1.5px solid var(--rose); border-top-color:transparent; border-bottom-color:transparent;
+}
+.flow canvas, .how canvas, .real-ba img, .teach .cmp img, .facemap img { border-radius:calc(var(--radius) - 4px); }
+.spark polyline { stroke:var(--rose); stroke-width:1.75; }
+.spark .end { fill:var(--rose); stroke:var(--cream-1); }
+.spark line { stroke:var(--line); stroke-dasharray:none; stroke-width:1; }
+.spark figcaption span { font-family:var(--font-num); font-style:italic; font-weight:400; }
+.grow-table th { text-transform:none; letter-spacing:.01em; font-size:11.5px; }
+#s5-prod > summary { border-radius:var(--radius-sm); }
+.blk { border-radius:var(--radius); box-shadow:0 0 0 1px var(--line), var(--soft); }
+.blk::before { left:16px; top:18px; width:6px; height:6px; border-radius:50%; }
+.blk .it { border-radius:var(--radius-sm); }
+
+/* ── 其他 ── */
+.pwa-invite { border-radius:var(--radius); box-shadow:0 0 0 1px var(--line), var(--shadow-float); }
+.pwa-invite .go { border-radius:var(--pill); background:var(--grad-primary); }
+.pwa-guide .card { border-radius:var(--radius-lg); }
+.pwa-guide button { border-radius:var(--pill); }
+.qa-input, .qa-form .send, .qa-form .close { border-radius:var(--pill); }
+.msg.ai .bubble .re { border-radius:var(--pill); }
+.pb-rec { border-radius:var(--pill); }
+
+/* ── 開機畫面：像打開的粉盒 —— 兩圈交疊的橢圓、中間是字標、外圈上一顆珍珠 ── */
+#boot { gap:22px; }
+#boot .logo { position:relative; display:grid; justify-items:center; align-content:center; gap:0; width:150px; height:190px; font-size:0; letter-spacing:0; }
+#boot .logo::before, #boot .logo::after { content:""; position:absolute; left:50%; top:50%; width:120px; height:156px; margin:-78px 0 0 -60px; border:1px solid var(--line-strong); border-radius:50%; }
+#boot .logo::before { transform:rotate(8deg); }
+#boot .logo::after { transform:rotate(-6deg); border-color:var(--rose-dim); }
+#boot .logo b { position:relative; z-index:1; font-family:var(--display); font-weight:400; font-size:26px; letter-spacing:.16em; margin-right:-.16em; color:var(--ink); }
+#boot .logo i { position:absolute; z-index:1; left:50%; top:12px; width:7px; height:7px; margin:0 0 0 22px; border:0; border-radius:50%; background:var(--rose); }
+#boot .logo span { position:absolute; left:50%; bottom:-6px; transform:translateX(-50%); white-space:nowrap; font-size:10px; font-weight:500; letter-spacing:.24em; color:var(--ink-3); }
+#boot .bar { width:120px; height:3px; border-radius:var(--pill); background:var(--cream-3); }
+#boot .bar i { height:100%; margin-top:0; border-radius:var(--pill); }
+#boot p { font-family:inherit; text-transform:none; letter-spacing:.02em; }
+
+@media (max-width:560px) {
+  #bar h1 { font-size:22px; }
+  #stage-no b { font-size:21px; }
+  .frame { box-shadow:none; }
+}
+@media (prefers-reduced-motion:reduce) { .pip, .sw-btn, #mirror:has(#s1:not([hidden])) #actions .btn.primary::before { transition:none; } }
+
 </style>
 </head>
 <body>
 
 <!-- 開機畫面 -->
 <div id="boot">
-  <div class="logo"><b>KOTO</b><i></i> MAKEUP ATELIER</div>
+  <div class="logo"><b>KOTO</b><i></i><span>MAKEUP ATELIER</span></div>
   <div class="bar"><i></i></div>
   <p id="boot-msg" data-i18n="boot.init">初始化…</p>
 </div>
@@ -3393,8 +3651,8 @@ const DICT = {
                   'Only the frame changes. The photo area stays neutral grey and shade colours stay true — a tinted surround would skew how a lipstick reads.',
                   '変わるのは外枠だけです。写真の枠は中性グレーのまま、色見本とメイクの色も変わりません。周りの色で口紅の色が違って見えるのを防ぐためです。'],
   'theme.rose':  ['莓果', 'Berry', 'ベリー'],
-  'theme.gold':  ['暖銅', 'Copper', 'カッパー'],
-  'theme.lilac': ['桑葚', 'Mulberry', 'マルベリー'],
+  'theme.gold':  ['杏紅', 'Apricot', 'アプリコット'],
+  'theme.lilac': ['芍藥', 'Peony', 'ピオニー'],
   'theme.sage':  ['山茶', 'Camellia', 'カメリア'],
   'theme.mist':  ['無花果', 'Fig', 'フィグ'],
   'shape.soft':  ['柔和', 'Soft', 'やわらか'],
@@ -11748,7 +12006,7 @@ function paintCalibTag() {
 // ── 介面設定：配色與圓角 ─────────────────────────────────
 // 只換外框。影像框的中性灰、商品色票、AR 上妝顏色刻意不跟著變 —— 見 main.css。
 // 色票圓點用各配色自己的主色（寫死），不能用 var(--rose)：那樣五顆都會是目前配色的顏色。
-const THEMES = [['rose', '#9e3b52'], ['gold', '#9e472a'], ['lilac', '#7e3558'], ['sage', '#a8383b'], ['mist', '#8f3d4e']];   // 代號沿用舊的（使用者存過的選擇還認得），顏色是新的
+const THEMES = [['rose', '#9e3352'], ['gold', '#a34536'], ['lilac', '#7e3862'], ['sage', '#a83644'], ['mist', '#8e3554']];   // 代號沿用舊的（使用者存過的選擇還認得），顏色是新的
 const SHAPES = ['soft', 'crisp'];
 function readPref(k, d) { try { return localStorage.getItem(k) || d; } catch { return d; } }
 function savePref(k, v) { try { localStorage.setItem(k, v); } catch { /* 無痕模式沒有 localStorage，不影響功能 */ } }

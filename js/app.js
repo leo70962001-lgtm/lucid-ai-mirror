@@ -163,7 +163,7 @@ function paintCalibTag() {
 // ── 介面設定：配色與圓角 ─────────────────────────────────
 // 只換外框。影像框的中性灰、商品色票、AR 上妝顏色刻意不跟著變 —— 見 main.css。
 // 色票圓點用各配色自己的主色（寫死），不能用 var(--rose)：那樣五顆都會是目前配色的顏色。
-const THEMES = [['rose', '#9e3b52'], ['gold', '#9e472a'], ['lilac', '#7e3558'], ['sage', '#a8383b'], ['mist', '#8f3d4e']];   // 代號沿用舊的（使用者存過的選擇還認得），顏色是新的
+const THEMES = [['rose', '#9e3352'], ['gold', '#a34536'], ['lilac', '#7e3862'], ['sage', '#a83644'], ['mist', '#8e3554']];   // 代號沿用舊的（使用者存過的選擇還認得），顏色是新的
 const SHAPES = ['soft', 'crisp'];
 function readPref(k, d) { try { return localStorage.getItem(k) || d; } catch { return d; } }
 function savePref(k, v) { try { localStorage.setItem(k, v); } catch { /* 無痕模式沒有 localStorage，不影響功能 */ } }
