@@ -46,8 +46,8 @@ export const faceInfo = () => ({ ...info });
 async function selfTest(lm) {
   try {
     const img = new Image();
-    img.src = SELFTEST_FACE;
-    await img.decode();
+    // 用 onload 等，不用 img.decode()：分頁在背景時 decode() 不會結束，開機就卡在「載入模型」
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = SELFTEST_FACE; });
     const c = document.createElement('canvas');
     c.width = img.naturalWidth; c.height = img.naturalHeight;
     c.getContext('2d').drawImage(img, 0, 0);

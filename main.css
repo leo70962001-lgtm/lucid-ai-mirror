@@ -3195,3 +3195,46 @@ body { font-variant-numeric:proportional-nums; letter-spacing:.01em; }
   .frame { box-shadow:none; }
 }
 @media (prefers-reduced-motion:reduce) { .pip, .sw-btn, #mirror:has(#s1:not([hidden])) #actions .btn.primary::before { transition:none; } }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   細節層、畫法、上妝過程、下一步建議 —— 2026-11
+   ═══════════════════════════════════════════════════════════════════════ */
+/* 各部位的「畫法」：一排膠囊，選中的是重點色細框＋淡底（跟其他選中狀態一致） */
+#s4-panel .styles { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:8px; }
+#s4-panel .styles .lb { font-size:11px; font-weight:600; color:var(--ink-3); margin-right:2px; }
+#s4-panel .styles button {
+  padding:6px 12px; border-radius:var(--pill); cursor:pointer; font:500 11.5px/1.1 inherit;
+  border:1px solid var(--line); background:var(--cream-1); color:var(--ink-2); transition:background .14s, border-color .14s, color .14s;
+}
+#s4-panel .styles button:hover { border-color:var(--rose-dim); }
+#s4-panel .styles button.on { background:var(--tint); border-color:var(--rose); color:var(--rose-soft); font-weight:600; }
+/* 「細節」分頁 */
+#s4-panel .fx-note { font-size:11px; line-height:1.5; color:var(--ink-3); margin:6px 0 8px; }
+#s4-panel .build-btn {
+  display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:var(--pill); cursor:pointer;
+  font:600 12px/1 inherit; border:1px solid var(--rose-dim); background:var(--tint); color:var(--rose-soft);
+}
+#s4-panel .build-btn .ic { width:15px; height:15px; }
+#s4-panel .build-btn:active { transform:scale(.97); }
+/* 上妝過程：鏡子上方的一顆小標，寫現在疊到哪一層（深色半透明，不帶顏色，跟其他疊在鏡子上的東西一樣） */
+.fx .build-cap {
+  position:absolute; left:50%; top:54px; transform:translateX(-50%);
+  display:flex; align-items:baseline; gap:8px; padding:7px 15px; border-radius:var(--pill);
+  background:var(--onImage); color:#fff; font-size:13.5px; font-weight:600; white-space:nowrap;
+  -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); box-shadow:0 0 0 1px rgba(255,255,255,.16) inset;
+  animation:buildCapIn .28s ease-out both;
+}
+.fx .build-cap b { font-family:var(--font-num); font-style:italic; font-weight:400; font-size:15px; }
+.fx .build-cap b i { font-style:italic; opacity:.6; font-size:12px; }
+@keyframes buildCapIn { from { opacity:0; transform:translateX(-50%) translateY(-6px); } to { opacity:1; transform:translateX(-50%); } }
+/* AI 建議的下一步：選項裡唯一一顆主要按鈕 */
+.advisor .opts button.lead, #adv4 .opts button.lead, #s2 #adv2 .opts button.lead {
+  background:var(--grad-primary); border-color:transparent; color:#fff; font-weight:600;
+  box-shadow:0 5px 14px rgba(var(--primary-rgb),.24);
+}
+.advisor .opts button.lead:hover { background:var(--grad-primary); border-color:transparent; filter:brightness(.95); }
+@media (max-width:560px) {
+  #s4-tabs button { font-size:10.5px; padding:7px 1px; }
+  .fx .build-cap { top:46px; font-size:12.5px; padding:6px 13px; }
+}
+@media (prefers-reduced-motion:reduce) { .fx .build-cap { animation:none; } }

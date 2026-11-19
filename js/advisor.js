@@ -592,6 +592,9 @@ export const ACTS = ['recapAll', 'wrapUp', 'skinCond', 'duelStart', 'duelLeft', 
                      'colorHow', 'colorOpen', 'retake', 'colorLater',
                      'whySeason', 'seasonColors', 'learn', 'quiz', 'quizAns', 'paintSelf', 'myTaste', 'trendNow', 'tryTrend', 'trendNext',
                      'guideStart',
+                     'fxLiner', 'fxBrow', 'fxContour', 'fxHighlight', 'detailOpen',
+                     'styleEye', 'styleCheek', 'styleLip', 'buildUp',
+                     'tourStart', 'tourNext', 'tourEnd',
                      'seaGold', 'seaSilver', 'seaDunno', 'seaCoral', 'seaBrick', 'seaSharp', 'seaHeavy',
                      'surprise', 'swipeShade', 'poseStart', 'poseSkip', 'poseEnd',
                      'qaPick'];
@@ -826,3 +829,112 @@ export function sessionSummary(s) {
 // 兩種證據的可信度不一樣 —— 混成同一種語氣，量出來的那些也會跟著貶值。
 // ref = 參考例子（明星臉型）—— 不是量測、不是建議，只是「這種臉型的人通常這樣畫」的例子
 export const KINDS = ['praise', 'fact', 'tip', 'caution', 'ask', 'told', 'ref'];
+
+// ── 細節層的選項、逐步帶看、下一步建議、打字指令（2026-11）──────────
+// 以前鏡子上的對話是「一排能做的事」，做哪一件、先做哪一件都丟給使用者。
+// 櫃上的彩妝師不是這樣：她會帶著你一個部位一個部位看，每看完一樣就說「接下來看這個」。
+// 這裡把「帶」做成三樣東西，三樣都只用這台機器真的做得到的動作：
+//   1. 逐步帶看（tour）：唇 → 眼影 → 腮紅 → 細節 → 跟素顏比 → 學怎麼畫，每一步停下來讓人當場調。
+//   2. 下一步建議（lead）：依「還沒做過什麼」挑一件，永遠排在選項第一顆；手停下來時 AI 會開口提一次。
+//   3. 打字下指令（intent）：打「再淡一點」「加眼線」就照做，不只是查教學。
+
+export const FX_ACT = { liner: 'fxLiner', brow: 'fxBrow', contour: 'fxContour', highlight: 'fxHighlight' };
+const FX_LIST = Object.keys(FX_ACT);
+/** 四個細節各一顆：開著的給「拿掉」，沒開的給「加上」 */
+export function optsForFx(on = []) {
+  return FX_LIST.map((k) => opt('opt.fx.' + k + (on.includes(k) ? '.off' : '.on'), FX_ACT[k]));
+}
+/** 細節現在開著哪些（一句話）＋四顆開關 */
+export function fxMenu(on = []) {
+  return { lines: [on.length ? line('fact', 'adv.fx.menu', { parts: on.map((k) => 'fx.' + k) }) : line('fact', 'adv.fx.menuNone', {})],
+           opts: optsForFx(on) };
+}
+
+export const TOUR = ['lip', 'eye', 'cheek', 'detail', 'compare', 'learn'];
+/**
+ * 逐步帶看的第 i 步：一句話＋這一步能做的事。第一顆（lead）是 AI 建議的那一個。
+ * @param d { lip, eye, cheek（商品 id）, pct（唇的濃度 0–100）, style { eye, cheek }, on（開著的細節）, mode }
+ */
+export function tourStep(i, d = {}) {
+  const id = TOUR[i];
+  if (!id) return null;
+  const n = i + 1, total = TOUR.length;
+  const lead = (o) => ({ ...o, lead: true });
+  const next = opt('opt.tourNext', 'tourNext'), end = opt('opt.tourEnd', 'tourEnd');
+  const softer = opt('opt.softer', 'softer'), stronger = opt('opt.stronger', 'stronger');
+  switch (id) {
+    case 'lip': return { id, lines: [line('ask', 'adv.tour.lip', { n, total, shade: d.lip, pct: d.pct ?? 0 })],
+                         opts: [lead(next), softer, stronger, opt('opt.nextShade', 'nextShade'), opt('opt.styleLip', 'styleLip'), end] };
+    case 'eye': return { id, lines: [line('ask', 'adv.tour.eye', { n, shade: d.eye, part: 'style.eye.' + (d.style?.eye || 'soft') })],
+                         opts: [lead(next), opt('opt.styleEye', 'styleEye'), softer, stronger, end] };
+    case 'cheek': return { id, lines: [line('ask', 'adv.tour.cheek', { n, shade: d.cheek, part: 'style.cheek.' + (d.style?.cheek || 'round') })],
+                           opts: [lead(next), opt('opt.styleCheek', 'styleCheek'), softer, stronger, end] };
+    case 'detail': {
+      const on = d.on || [];
+      return { id, lines: [on.length ? line('ask', 'adv.tour.detail', { n, parts: on.map((k) => 'fx.' + k) }) : line('ask', 'adv.tour.detailNone', { n })],
+               opts: [lead(next), ...optsForFx(on), end] };
+    }
+    case 'compare': return { id, lines: [line('ask', 'adv.tour.compare', { n })],
+                             opts: [lead(opt(d.mode === 'bare' ? 'opt.compareOff' : 'opt.compare', 'compare')), opt('opt.buildUp', 'buildUp'), next, end] };
+    default: return { id, lines: [line('ask', 'adv.tour.learn', {})],
+                      opts: [lead(opt('opt.guideStart', 'guideStart')), opt('opt.wrapUp', 'wrapUp'), end] };
+  }
+}
+
+export const LEADS = ['tour', 'shade', 'compare', 'detail', 'build', 'learn', 'wrap'];
+const LEAD_OPT = {
+  tour: ['opt.tourStart', 'tourStart'], shade: ['opt.nextShade', 'nextShade'], compare: ['opt.compare', 'compare'],
+  detail: ['opt.detailOpen', 'detailOpen'], build: ['opt.buildUp', 'buildUp'], learn: ['opt.guideStart', 'guideStart'], wrap: ['opt.wrapUp', 'wrapUp'],
+};
+/**
+ * 試妝畫面的「下一步」：還沒做過的事裡，照順序挑第一件。
+ * @param done { tour, shade, compare, detail, build, learn } 做過的打 true
+ * @returns { id, lines, opt }；opt.lead = true，畫面把它排第一、標成主要按鈕
+ */
+export function leadNext(done = {}) {
+  const id = LEADS.find((k) => k === 'wrap' || !done[k]);
+  const [key, act] = LEAD_OPT[id];
+  return { id, lines: [line(id === 'tour' ? 'ask' : 'tip', id === 'tour' ? 'adv.tour.offer' : 'adv.lead.' + id, {})], opt: { ...opt(key, act), lead: true } };
+}
+
+// 打字指令。只認「明確在叫機器做事」的話；問句（怎麼、為什麼、嗎、？）交給問答去答。
+const QUESTION = /怎麼|如何|為什麼|為何|是什麼|什麼是|哪裡|嗎|？|\?|\bhow\b|\bwhy\b|\bwhat\b|\bwhere\b|\bshould\b|どう|なぜ|何|ですか|かな/i;
+const FX_WORD = {
+  liner: '眼線|eye ?liner|\\bliner\\b|アイライン',
+  brow: '眉彩|眉毛|眉|eyebrows?|brows?|アイブロウ',
+  contour: '修容|陰影|contour|シェーディング',
+  highlight: '打亮|高光|highlight(er)?|ハイライト',
+};
+const OFF_WORD = /拿掉|不要|關掉|關|去掉|取消|移除|卸|remove|without|take off|turn off|\bno\b|\boff\b|消し|なし|オフ|やめ/i;
+const INTENTS = [
+  ['tourStart', /帶我|導覽|一步一步|walk me|guide me|\btour\b|案内|順番に/i],
+  ['buildUp', /上妝過程|一層一層|疊上去|build ?up|layer by layer|工程|重ね/i],
+  ['softer', /淡一點|再淡|太濃|淡些|薄一點|輕一點|lighter|softer|too (much|strong|bold|heavy)|tone it down|薄く|うすく|濃すぎ/i],
+  ['stronger', /濃一點|再濃|更明顯|明顯一點|太淡|深一點|bolder|stronger|darker|more (intense|colou?r)|濃く|はっきり|薄すぎ/i],
+  ['nextShade', /換.{0,3}色|下一(個|支)|別的顏色|(other|next|another|different|change).{0,10}(shade|colou?r)|別の色|色を変|次の色/i],
+  ['compare', /素顏|比一比|對比|\bbare\b|compare|before and after|すっぴん|比べ/i],
+  ['styleEye', /煙燻|smok(y|ey)|スモーキー/i, 'smoky'],
+  ['styleLip', /咬唇|漸層唇|gradient lip|グラデ.{0,3}リップ|グラデーションリップ/i, 'gradient'],
+  ['styleCheek', /曬傷腮紅|橫掃腮紅|sunburn(t)? blush|日焼けチーク/i, 'across'],
+  ['zoom', /放大|\bzoom\b|拡大/i],
+  ['snap', /拍照|拍一張|take a (photo|picture)|\bsnap\b|写真を撮/i],
+  ['guideStart', /教我畫|開始(教學|跟練)|我要學|teach me|start the (lesson|tutorial)|レッスン|教えて/i],
+  ['wrapUp', /整理一下|幫我整理|結束|wrap up|i'?m done|まとめて|終わり/i],
+];
+/**
+ * 把使用者打的一句話認成動作。認不出來回 null（交給問答）。
+ * @returns { act, val? }
+ */
+export function intentOf(text) {
+  const q = String(text || '').trim();
+  if (!q) return null;
+  const asking = QUESTION.test(q);
+  for (const k of FX_LIST) {
+    if (!new RegExp(FX_WORD[k], 'i').test(q)) continue;
+    if (asking) return null;                     // 「眼線怎麼畫」是在問，不是叫機器畫
+    return { act: FX_ACT[k], val: OFF_WORD.test(q) ? 'off' : 'on' };
+  }
+  if (asking && !/帶我|walk me|guide me|案内/i.test(q)) return null;
+  for (const [act, re, val] of INTENTS) if (re.test(q)) return val ? { act, val } : { act };
+  return null;
+}

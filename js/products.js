@@ -62,6 +62,8 @@ export const LOOKS = [
     desc_en: 'Low chroma and sheer — reads as naturally good colouring. Right for everyday wear and a first try at makeup.',
     desc_ja: '低彩度で薄づき、生まれつき血色が良いように見えます。デイリー使いや初めてのメイクに。',
     intensity: { lip: 0.55, eye: 0.30, cheek: 0.38 },
+    detail: { liner: 0.25, brow: 0.35, contour: 0, highlight: 0.30 },    // 細節層的份量（0 = 不畫）
+    style: { eye: 'soft', cheek: 'round' },
     prefer:    { lip: 'gloss', eye: 'matte',   cheek: 'matte' },
   },
   {
@@ -73,6 +75,8 @@ export const LOOKS = [
     desc_en: 'Glossy lip plus shimmer eyeshadow — built around shine and dimension, and it photographs well.',
     desc_ja: 'ツヤリップとシマーアイシャドウで、光と立体感を強調。写真映えします。',
     intensity: { lip: 0.70, eye: 0.45, cheek: 0.45 },
+    detail: { liner: 0.40, brow: 0.40, contour: 0.15, highlight: 0.80 },    // 細節層的份量（0 = 不畫）
+    style: { eye: 'soft', cheek: 'round' },
     prefer:    { lip: 'gloss', eye: 'shimmer', cheek: 'shimmer' },
     lipGradient: true,          // 韓系漸層唇：內濃外淡
   },
@@ -85,6 +89,8 @@ export const LOOKS = [
     desc_en: 'A deep matte lip with restrained eyes — the weight sits on the mouth. Suits formal occasions.',
     desc_ja: 'マットな濃いリップに抑えたアイメイク。重心は口元、フォーマルな場に。',
     intensity: { lip: 0.92, eye: 0.35, cheek: 0.30 },
+    detail: { liner: 0.90, brow: 0.60, contour: 0.45, highlight: 0.25 },    // 細節層的份量（0 = 不畫）
+    style: { eye: 'deep', cheek: 'sweep' },
     prefer:    { lip: 'matte', eye: 'matte',   cheek: 'matte' },
   },
   {
@@ -96,6 +102,8 @@ export const LOOKS = [
     desc_en: 'Balanced — all three areas at similar strength. The hardest combination to get wrong.',
     desc_ja: 'バランス型。3 部位の強さが近く、最も失敗しにくい組み合わせです。',
     intensity: { lip: 0.65, eye: 0.40, cheek: 0.42 },
+    detail: { liner: 0.50, brow: 0.45, contour: 0.25, highlight: 0.40 },    // 細節層的份量（0 = 不畫）
+    style: { eye: 'soft', cheek: 'sweep' },
     prefer:    { lip: 'matte', eye: 'shimmer', cheek: 'matte' },
   },
   {
@@ -110,10 +118,26 @@ export const LOOKS = [
     desc_en: 'Clean and barely-there: a light touch on complexion and eyes, just a hint of colour on the lips.',
     desc_ja: 'メイク感のない清潔感。血色と目もとを軽く整え、唇はほんのり色づく程度に。',
     intensity: { lip: 0.22, eye: 0.12, cheek: 0.14 },
+    detail: { liner: 0, brow: 0.30, contour: 0.12, highlight: 0 },    // 細節層的份量（0 = 不畫）
+    style: { eye: 'soft', cheek: 'round' },
     prefer:    { lip: 'matte', eye: 'matte', cheek: 'matte' },
   },
 ];
 
+
+/** 細節層：三個主要部位之外，一個完整的妝還有這四樣。份量跟著妝容走，使用者可以各自開關 */
+export const DETAILS = ['liner', 'brow', 'contour', 'highlight'];
+/** 每個部位的畫法（第一個是預設） */
+export const STYLES = { eye: ['soft', 'deep', 'smoky'], cheek: ['round', 'sweep', 'across'], lip: ['full', 'gradient'] };
+/** 細節沒開的時候，打開要給多少 */
+export const DETAIL_DEFAULT = { liner: 0.5, brow: 0.4, contour: 0.3, highlight: 0.4 };
+/** 這個妝容原本的細節與畫法 —— 使用者調過的那一份存在 App 的狀態裡，這裡只給預設 */
+export function fxOf(look) {
+  const d = look?.detail || {}, s = look?.style || {};
+  return { look: look?.id ?? null,
+           level: Object.fromEntries(DETAILS.map((k) => [k, d[k] ?? 0])),
+           style: { eye: s.eye || 'soft', cheek: s.cheek || 'round', lip: s.lip || (look?.lipGradient ? 'gradient' : 'full') } };
+}
 
 export const catLabel = (c) => t('cat.' + c);
 export const byId = (id) => PRODUCTS.find((p) => p.id === id);
