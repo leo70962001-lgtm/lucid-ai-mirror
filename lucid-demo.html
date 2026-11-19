@@ -8,7 +8,7 @@
 <meta name="description" content="AI 美妝教學與 AR 試妝：用手機鏡頭看化妝前後，AI 問答教你用什麼化妝品、工具、手法，沒有工具也能畫。可安裝、可離線。">
 <meta name="keywords" content="AI 美妝教學, 化妝教學, AR 試妝, 虛擬試妝, 新手化妝, 沒有工具化妝, AI makeup tutorial, virtual makeup try-on, AIメイク, メイクレッスン">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#f6f5f3">
+<meta name="theme-color" content="#fdeef2">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="KOTO">
@@ -28,44 +28,48 @@
      第三輪：整套交回 Gemini 以女性為主重新設計 —— Porcelain & Silk（白瓷絲光）。
      白瓷般的低彩度底、玫瑰莓果重點色、膠囊形的按鈕、柔和的陰影、數字用襯線體；
      招牌從「取景框與刻度」換成「絲光弧線與珍珠點」。外觀規則在檔案最後的 PORCELAIN & SILK。
+     第四輪（使用者：顏色再偏女性化）：Blush Silk（粉霧絲光）。前三輪都怕顏色干擾判色而收著，
+     結果看起來是「白底＋深酒紅」，不像給女性用的。這一輪整組往粉色移：粉霧底、粉色的線與陰影、
+     玫瑰粉重點色、玫瑰粉漸層的主要按鈕。卡片仍然是白的，影像框的襯底仍然是中性灰白（--neutral）。
+     原本的白瓷＋深莓果留在配色選項「莓果」。
      粉紅光暈與玻璃感拿掉，改成細線邊框與很淡的陰影；數字用等寬字。
      不變的一點：**影像框內與四周一律是中性色**（--neutral）。顏色包圍會讓人
      把口紅顏色看偏（同時對比效應）—— 整台機器的價值來自「顏色可信」。
      變數名稱沿用舊的（--rose = 重點色、--cream-* = 底色四階），所以全站一起換。 */
-  --cream-0:#f6f5f3; --cream-1:#ffffff; --cream-2:#efece8; --cream-3:#e6e0de;
-  --rose:#9e3352; --rose-soft:#7d223d; --rose-dim:rgba(158,51,82,.34);
+  --cream-0:#fdeef2; --cream-1:#ffffff; --cream-2:#fae3ea; --cream-3:#f3d3dd;
+  --rose:#c7336d; --rose-soft:#a3225a; --rose-dim:rgba(199,51,109,.36);
   --gold:#7d5a1e;
-  --ink:#24191d; --ink-2:#594a4f; --ink-3:#726368;
+  --ink:#3a2230; --ink-2:#6a4d5a; --ink-3:#806070;
   --ok:#266950; --warn:#9b5816;
   --radius:18px; --radius-sm:14px;
   --rail-w:300px; --bar-h:58px;
-  --glass:rgba(252,251,249,.95);
-  --line:#eae4e2;
-  --glow:0 0 0 1px var(--line), 0 2px 10px rgba(36,25,29,.04);
+  --glass:rgba(255,249,250,.95);
+  --line:#f5dde4;
+  --glow:0 0 0 1px var(--line), 0 2px 10px rgba(160,60,100,.06);
   --neutral:#f4f3f1;      /* 影像框的中性底，判色不受重點色干擾 */
-  --onImage:rgba(36,25,29,.76);   /* 疊在照片上的膠囊底色 */
+  --onImage:rgba(58,34,48,.74);   /* 疊在照片上的膠囊底色 */
   /* *-rgb 是給 rgba(var(--x-rgb), .3) 用的「不含透明度」的三個數字。 */
-  --rose-rgb:158,51,82;
-  --tint:#faf0f3; --tint-2:#f6e6eb; --tint-3:#f2dce3;   /* 選中狀態的淡底色 */
-  --line-rgb:190,176,178;
-  --glow-rgb:120,104,108; --drop-rgb:78,62,66;           /* 外框、大投影（中性灰，不帶顏色） */
-  --shadow-rgb:70,54,58;                                /* 小元件投影 */
+  --rose-rgb:199,51,109;
+  --tint:#fde6ee; --tint-2:#fbd8e4; --tint-3:#f7c8d9;   /* 選中狀態的淡底色 */
+  --line-rgb:222,176,192;
+  --glow-rgb:200,130,155; --drop-rgb:130,60,88;           /* 外框、大投影（中性灰，不帶顏色） */
+  --shadow-rgb:120,55,82;                                /* 小元件投影 */
   --edge-rgb:70,54,58;                                  /* 色票外框細線 */
-  --ink-rgb:36,25,29;                                   /* 深色內陰影 */
-  --bg-1:#f6f5f3; --bg-2:#f1efec; --bg-3:#f6f5f3; --bg-4:#f1efec;   /* 頁面背景：幾乎是平的 */
+  --ink-rgb:58,34,48;                                   /* 深色內陰影 */
+  --bg-1:#fdeef2; --bg-2:#fbe6ec; --bg-3:#fdeef2; --bg-4:#fbe6ec;   /* 頁面背景：幾乎是平的 */
   --radius-lg:24px;
-  --primary-1:#6e2139; --primary-2:#84304a; --primary-rgb:110,33,57;   /* 主要按鈕：墨色 */
-  --card-1:#ffffff; --card-2:#fcfbf9; --boot-1:#f6f5f3; --boot-2:#efece8;
-  --orb-1:#fdf5f7; --orb-2:#e3b8c5; --orb-3:#9e3352;                  /* 完成頁的裝飾圓球 */
-  --on-image-hi:#ffd6e0; --bar-lo:#e3b8c5; --star-off-rgb:150,145,136;
+  --primary-1:#b82a62; --primary-2:#c7336d; --primary-rgb:184,42,98;   /* 主要按鈕：墨色 */
+  --card-1:#ffffff; --card-2:#fff9fa; --boot-1:#fdeef2; --boot-2:#fadfe7;
+  --orb-1:#fff5f8; --orb-2:#f4b6cb; --orb-3:#c7336d;                  /* 完成頁的裝飾圓球 */
+  --on-image-hi:#ffd0e0; --bar-lo:#f4b6cb; --star-off-rgb:150,145,136;
   /* 這一版新增的 */
-  --line-strong:#d5ccce;                                              /* 次要按鈕、刻度的線 */
-  --shadow-float:0 10px 28px rgba(36,25,29,.10), 0 2px 6px rgba(36,25,29,.04);
-  --shadow-press:inset 0 2px 5px rgba(36,25,29,.14);
+  --line-strong:#e8c3cf;                                              /* 次要按鈕、刻度的線 */
+  --shadow-float:0 10px 28px rgba(150,50,90,.13), 0 2px 6px rgba(150,50,90,.05);
+  --shadow-press:inset 0 2px 5px rgba(120,30,70,.16);
   --font-num:Georgia,"Times New Roman",-apple-system,BlinkMacSystemFont,"Hiragino Sans","PingFang TC","Noto Sans CJK TC","Microsoft JhengHei","Yu Gothic UI",sans-serif;
-  --primary-lo:#56192e;                                                /* 主要按鈕下緣的實影 */
+  --primary-lo:#9a1f50;                                                /* 主要按鈕下緣的實影 */
   --pill:9999px;                                                       /* 膠囊形 */
-  --grad-primary:linear-gradient(135deg, #8e3050 0%, #6e2139 100%);      /* 主要按鈕 */
+  --grad-primary:linear-gradient(135deg, #d6427c 0%, #b82a62 100%);      /* 主要按鈕 */
   --tick:repeating-linear-gradient(90deg, var(--line-strong) 0 1px, transparent 1px 8px);   /* 刻度尺 */
   color-scheme: light;
 }
@@ -699,25 +703,43 @@ body {
    --neutral（影像框的中性灰）、商品色票、AR 上妝顏色。
    粉色或綠色包圍會讓人把口紅顏色看偏（同時對比效應），
    整台機器的價值來自「顏色可信」，配色不能拿這個去換。 */
-:root[data-theme="gold"] {      /* 焙茶杏紅 Spiced Apricot */
-  --rose:#a34536; --rose-soft:#803124; --rose-dim:rgba(163,69,54,.34); --rose-rgb:163,69,54;
-  --tint:#fcf2f0; --tint-2:#f8e8e5; --tint-3:#f5dfdb; --orb-1:#fdf6f4; --orb-2:#e6beb7; --orb-3:#a34536; --on-image-hi:#ffdbd4; --bar-lo:#e6beb7;
-  --primary-1:#6f2a1f; --primary-2:#86372a; --primary-rgb:111,42,31; --grad-primary:linear-gradient(135deg, #934032 0%, #6f2a1f 100%);
+:root[data-theme="gold"] {      /* 蜜桃 Peach */
+  --rose:#c4442d; --rose-soft:#9c3320; --rose-dim:rgba(196,68,45,.36); --rose-rgb:196,68,45;
+  --tint:#fde8e1; --tint-2:#fbdad0; --tint-3:#f8cabd; --orb-1:#fff7f4; --orb-2:#f4bfb0; --orb-3:#c4442d; --on-image-hi:#ffd9cf; --bar-lo:#f4bfb0;
+  --primary-1:#b63a25; --primary-2:#c4442d; --primary-rgb:182,58,37; --primary-lo:#962d1b; --grad-primary:linear-gradient(135deg, #d2513a 0%, #b63a25 100%);
+  --cream-0:#fdf0ea; --cream-2:#fae4db; --cream-3:#f3d5c9; --bg-1:#fdf0ea; --bg-2:#fbe8e0; --bg-3:#fdf0ea; --bg-4:#fbe8e0;
+  --card-2:#fffaf8; --boot-1:#fdf0ea; --boot-2:#fae4db; --glass:rgba(255,250,248,.95);
+  --line:#f5dfd6; --line-strong:#e8c7ba; --line-rgb:222,186,172;
+  --glow-rgb:205,145,125; --drop-rgb:130,72,55; --shadow-rgb:120,66,50; --shadow-float:0 10px 28px rgba(150,70,45,.13), 0 2px 6px rgba(150,70,45,.05);
 }
-:root[data-theme="lilac"] {     /* 芍藥梅紫 Peony Plum */
-  --rose:#7e3862; --rose-soft:#5f2548; --rose-dim:rgba(126,56,98,.34); --rose-rgb:126,56,98;
-  --tint:#f9f0f6; --tint-2:#f4e8f0; --tint-3:#efe0ea; --orb-1:#fcf5fa; --orb-2:#ddbfd3; --orb-3:#7e3862; --on-image-hi:#ffd6f0; --bar-lo:#ddbfd3;
-  --primary-1:#532040; --primary-2:#682c52; --primary-rgb:83,32,64; --grad-primary:linear-gradient(135deg, #74325b 0%, #532040 100%);
+:root[data-theme="lilac"] {      /* 紫藤 Wisteria */
+  --rose:#8a4db0; --rose-soft:#6d3891; --rose-dim:rgba(138,77,176,.36); --rose-rgb:138,77,176;
+  --tint:#f1e6fa; --tint-2:#e8d8f5; --tint-3:#ddc7ef; --orb-1:#faf6fd; --orb-2:#cfb3e4; --orb-3:#8a4db0; --on-image-hi:#ecd9ff; --bar-lo:#cfb3e4;
+  --primary-1:#7b40a2; --primary-2:#8a4db0; --primary-rgb:123,64,162; --primary-lo:#643287; --grad-primary:linear-gradient(135deg, #9a5bc0 0%, #7b40a2 100%);
+  --cream-0:#f6effb; --cream-2:#ede2f6; --cream-3:#e1d1ee; --bg-1:#f6effb; --bg-2:#f1e7f8; --bg-3:#f6effb; --bg-4:#f1e7f8;
+  --card-2:#fcf9fe; --boot-1:#f6effb; --boot-2:#ede2f6; --glass:rgba(252,249,254,.95);
+  --line:#e9ddf2; --line-strong:#d5c2e3; --line-rgb:196,174,214;
+  --glow-rgb:160,130,195; --drop-rgb:88,60,118; --shadow-rgb:82,56,110; --shadow-float:0 10px 28px rgba(100,55,140,.13), 0 2px 6px rgba(100,55,140,.05);
 }
-:root[data-theme="sage"] {      /* 山茶花釉 Camellia Rouge */
-  --rose:#a83644; --rose-soft:#852430; --rose-dim:rgba(168,54,68,.34); --rose-rgb:168,54,68;
-  --tint:#fcf0f2; --tint-2:#f8e6e9; --tint-3:#f5dce0; --orb-1:#fef5f6; --orb-2:#e6b7be; --orb-3:#a83644; --on-image-hi:#ffd6dc; --bar-lo:#e6b7be;
-  --primary-1:#74202a; --primary-2:#8b2a36; --primary-rgb:116,32,42; --grad-primary:linear-gradient(135deg, #97303d 0%, #74202a 100%);
+:root[data-theme="sage"] {      /* 山茶 Camellia */
+  --rose:#cc3046; --rose-soft:#a32134; --rose-dim:rgba(204,48,70,.36); --rose-rgb:204,48,70;
+  --tint:#fde5e8; --tint-2:#fbd7db; --tint-3:#f8c6cc; --orb-1:#fff5f6; --orb-2:#f4b3bb; --orb-3:#cc3046; --on-image-hi:#ffd2d8; --bar-lo:#f4b3bb;
+  --primary-1:#b8263b; --primary-2:#cc3046; --primary-rgb:184,38,59; --primary-lo:#981c2e; --grad-primary:linear-gradient(135deg, #d83c52 0%, #b8263b 100%);
+  --cream-0:#fdeeef; --cream-2:#fae2e4; --cream-3:#f3d1d4; --bg-1:#fdeeef; --bg-2:#fbe6e8; --bg-3:#fdeeef; --bg-4:#fbe6e8;
+  --card-2:#fff9f9; --boot-1:#fdeeef; --boot-2:#fae2e4; --glass:rgba(255,249,249,.95);
+  --line:#f5dcdf; --line-strong:#e8c2c7; --line-rgb:222,176,182;
+  --glow-rgb:205,130,140; --drop-rgb:130,58,68; --shadow-rgb:120,54,62; --shadow-float:0 10px 28px rgba(150,45,60,.13), 0 2px 6px rgba(150,45,60,.05);
 }
-:root[data-theme="mist"] {      /* 無花果絲絨 Fig Velvet */
-  --rose:#8e3554; --rose-soft:#6e233e; --rose-dim:rgba(142,53,84,.34); --rose-rgb:142,53,84;
-  --tint:#faf0f4; --tint-2:#f5e6ec; --tint-3:#f1dce4; --orb-1:#fcf5f8; --orb-2:#e0b8c7; --orb-3:#8e3554; --on-image-hi:#ffd6e6; --bar-lo:#e0b8c7;
-  --primary-1:#602038; --primary-2:#762b47; --primary-rgb:96,32,56; --grad-primary:linear-gradient(135deg, #81304e 0%, #602038 100%);
+:root[data-theme="mist"] {      /* 莓果 Berry：上一版的白瓷＋深莓果，留給想要安靜一點的人 */
+  --rose:#9e3352; --rose-soft:#7d223d; --rose-dim:rgba(158,51,82,.36); --rose-rgb:158,51,82;
+  --tint:#faf0f3; --tint-2:#f6e6eb; --tint-3:#f2dce3; --orb-1:#fdf5f7; --orb-2:#e3b8c5; --orb-3:#9e3352; --on-image-hi:#ffd6e0; --bar-lo:#e3b8c5;
+  --primary-1:#6e2139; --primary-2:#9e3352; --primary-rgb:110,33,57; --primary-lo:#56192e; --grad-primary:linear-gradient(135deg, #8e3050 0%, #6e2139 100%);
+  --cream-0:#f6f5f3; --cream-2:#efece8; --cream-3:#e6e0de; --bg-1:#f6f5f3; --bg-2:#f1efec; --bg-3:#f6f5f3; --bg-4:#f1efec;
+  --card-2:#fcfbf9; --boot-1:#f6f5f3; --boot-2:#efece8; --glass:rgba(252,251,249,.95);
+  --line:#eae4e2; --line-strong:#d5ccce; --line-rgb:190,176,178;
+  --primary-2:#84304a; --ink:#24191d; --ink-2:#594a4f; --ink-3:#726368; --ink-rgb:36,25,29; --onImage:rgba(36,25,29,.76);
+  --glow:0 0 0 1px var(--line), 0 2px 10px rgba(36,25,29,.04); --glow-rgb:120,104,108; --drop-rgb:78,62,66; --shadow-rgb:70,54,58;
+  --shadow-float:0 10px 28px rgba(36,25,29,.10), 0 2px 6px rgba(36,25,29,.04); --shadow-press:inset 0 2px 5px rgba(36,25,29,.14);
 }
 /* 俐落：圓角收小。只動三個圓角變數，版面尺寸完全不變 */
 :root[data-shape="crisp"] { --radius:10px; --radius-sm:8px; --radius-lg:14px; --pill:10px; }
@@ -3650,11 +3672,11 @@ const DICT = {
   'set.note':    ['只換介面外框。影像框維持中性灰，色票與上妝顏色也不受配色影響 —— 否則周圍的顏色會把口紅看偏。',
                   'Only the frame changes. The photo area stays neutral grey and shade colours stay true — a tinted surround would skew how a lipstick reads.',
                   '変わるのは外枠だけです。写真の枠は中性グレーのまま、色見本とメイクの色も変わりません。周りの色で口紅の色が違って見えるのを防ぐためです。'],
-  'theme.rose':  ['莓果', 'Berry', 'ベリー'],
-  'theme.gold':  ['杏紅', 'Apricot', 'アプリコット'],
-  'theme.lilac': ['芍藥', 'Peony', 'ピオニー'],
+  'theme.rose':  ['玫瑰粉', 'Rose Pink', 'ローズピンク'],
+  'theme.gold':  ['蜜桃', 'Peach', 'ピーチ'],
+  'theme.lilac': ['紫藤', 'Wisteria', '藤色'],
   'theme.sage':  ['山茶', 'Camellia', 'カメリア'],
-  'theme.mist':  ['無花果', 'Fig', 'フィグ'],
+  'theme.mist':  ['莓果', 'Berry', 'ベリー'],
   'shape.soft':  ['柔和', 'Soft', 'やわらか'],
   'shape.crisp': ['俐落', 'Crisp', 'シャープ'],
   'brush.noPress': ['這台裝置回報不了筆壓（滑鼠或一般觸控螢幕都沒有壓力感應）—— 濃淡請用上面的「濃度」。要有筆壓得接觸控筆。',
@@ -12006,7 +12028,7 @@ function paintCalibTag() {
 // ── 介面設定：配色與圓角 ─────────────────────────────────
 // 只換外框。影像框的中性灰、商品色票、AR 上妝顏色刻意不跟著變 —— 見 main.css。
 // 色票圓點用各配色自己的主色（寫死），不能用 var(--rose)：那樣五顆都會是目前配色的顏色。
-const THEMES = [['rose', '#9e3352'], ['gold', '#a34536'], ['lilac', '#7e3862'], ['sage', '#a83644'], ['mist', '#8e3554']];   // 代號沿用舊的（使用者存過的選擇還認得），顏色是新的
+const THEMES = [['rose', '#c7336d'], ['gold', '#c4442d'], ['lilac', '#8a4db0'], ['sage', '#cc3046'], ['mist', '#9e3352']];   // 代號沿用舊的（使用者存過的選擇還認得），顏色是新的
 const SHAPES = ['soft', 'crisp'];
 function readPref(k, d) { try { return localStorage.getItem(k) || d; } catch { return d; } }
 function savePref(k, v) { try { localStorage.setItem(k, v); } catch { /* 無痕模式沒有 localStorage，不影響功能 */ } }
