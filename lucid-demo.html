@@ -8,7 +8,7 @@
 <meta name="description" content="AI 美妝教學與 AR 試妝：用手機鏡頭看化妝前後，AI 問答教你用什麼化妝品、工具、手法，沒有工具也能畫。可安裝、可離線。">
 <meta name="keywords" content="AI 美妝教學, 化妝教學, AR 試妝, 虛擬試妝, 新手化妝, 沒有工具化妝, AI makeup tutorial, virtual makeup try-on, AIメイク, メイクレッスン">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#f7f6f3">
+<meta name="theme-color" content="#f8f3f1">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="KOTO">
@@ -24,42 +24,43 @@
   /* Tactile Atelier 的骨架＋Kagami Silk 的顏色（2026-11，都由 Gemini 提出）：
      雪花石白打底、暖梅色的文字、深酒紅的主要按鈕、莓果玫瑰只用在「選中／進行中」。
      第一版是墨黑＋赤陶，看起來太中性；這一版往女性用戶調，但不回到原本的奶油＋粉紅。
+     再一輪（使用者：整體設計配色以女性為主）：底色從灰白調成玫瑰象牙（彩度很低），主要按鈕是玫瑰酒紅。
      粉紅光暈與玻璃感拿掉，改成細線邊框與很淡的陰影；數字用等寬字。
      不變的一點：**影像框內與四周一律是中性色**（--neutral）。顏色包圍會讓人
      把口紅顏色看偏（同時對比效應）—— 整台機器的價值來自「顏色可信」。
      變數名稱沿用舊的（--rose = 重點色、--cream-* = 底色四階），所以全站一起換。 */
-  --cream-0:#f7f6f3; --cream-1:#ffffff; --cream-2:#efece7; --cream-3:#e5e2dc;
+  --cream-0:#f8f3f1; --cream-1:#ffffff; --cream-2:#f1e9e6; --cream-3:#e8ddd9;
   --rose:#9e3b52; --rose-soft:#7d293d; --rose-dim:rgba(158,59,82,.36);
   --gold:#7d5a1e;
   --ink:#261a1d; --ink-2:#5e4f53; --ink-3:#75666a;
   --ok:#2a6b52; --warn:#9c5a16;
   --radius:12px; --radius-sm:10px;
   --rail-w:300px; --bar-h:58px;
-  --glass:rgba(250,249,247,.94);
-  --line:#e3dfd9;
+  --glass:rgba(252,248,247,.94);
+  --line:#e8dedb;
   --glow:0 0 0 1px var(--line), 0 1px 2px rgba(25,24,23,.05);
   --neutral:#f5f4f1;      /* 影像框的中性底，判色不受重點色干擾 */
   --onImage:rgba(38,26,29,.78);   /* 疊在照片上的膠囊底色 */
   /* *-rgb 是給 rgba(var(--x-rgb), .3) 用的「不含透明度」的三個數字。 */
   --rose-rgb:158,59,82;
   --tint:#fbf1f3; --tint-2:#f7e7eb; --tint-3:#f3dce2;   /* 選中狀態的淡底色 */
-  --line-rgb:176,168,160;
+  --line-rgb:186,168,164;
   --glow-rgb:120,104,108; --drop-rgb:78,62,66;           /* 外框、大投影（中性灰，不帶顏色） */
   --shadow-rgb:70,54,58;                                /* 小元件投影 */
   --edge-rgb:70,54,58;                                  /* 色票外框細線 */
   --ink-rgb:38,26,29;                                   /* 深色內陰影 */
-  --bg-1:#f7f6f3; --bg-2:#f2f0ec; --bg-3:#f7f6f3; --bg-4:#f2f0ec;   /* 頁面背景：幾乎是平的 */
+  --bg-1:#f8f3f1; --bg-2:#f4ecea; --bg-3:#f8f3f1; --bg-4:#f4ecea;   /* 頁面背景：幾乎是平的 */
   --radius-lg:18px;
-  --primary-1:#4a1a2a; --primary-2:#5c2134; --primary-rgb:92,33,52;   /* 主要按鈕：墨色 */
-  --card-1:#ffffff; --card-2:#faf9f7; --boot-1:#f7f6f3; --boot-2:#efece6;
+  --primary-1:#6f2740; --primary-2:#84304a; --primary-rgb:132,48,74;   /* 主要按鈕：墨色 */
+  --card-1:#ffffff; --card-2:#fcf8f7; --boot-1:#f8f3f1; --boot-2:#f1e9e6;
   --orb-1:#fdf5f7; --orb-2:#e4b8c4; --orb-3:#9e3b52;                  /* 完成頁的裝飾圓球 */
   --on-image-hi:#ffd6e0; --bar-lo:#e4b8c4; --star-off-rgb:150,145,136;
   /* 這一版新增的 */
-  --line-strong:#c8c1b8;                                              /* 次要按鈕、刻度的線 */
+  --line-strong:#d3c4c0;                                              /* 次要按鈕、刻度的線 */
   --shadow-float:0 8px 24px rgba(25,24,23,.12), 0 1px 2px rgba(25,24,23,.08);
   --shadow-press:inset 0 2px 4px rgba(25,24,23,.16);
   --font-num:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-  --primary-lo:#3a1420;                                                /* 主要按鈕下緣的實影 */
+  --primary-lo:#56192e;                                                /* 主要按鈕下緣的實影 */
   --tick:repeating-linear-gradient(90deg, var(--line-strong) 0 1px, transparent 1px 8px);   /* 刻度尺 */
   color-scheme: light;
 }
@@ -696,22 +697,22 @@ body {
 :root[data-theme="gold"] {      /* 暖銅 Warm Copper */
   --rose:#9e472a; --rose-soft:#7a321a; --rose-dim:rgba(158,71,42,.36); --rose-rgb:158,71,42;
   --tint:#fcf2ee; --tint-2:#f8e8e1; --tint-3:#f5ddd4; --orb-1:#fdf6f3; --orb-2:#e6beb0; --orb-3:#9e472a; --on-image-hi:#ffdccf; --bar-lo:#e6beb0;
-  --primary-1:#4c2012; --primary-2:#5e2a16; --primary-rgb:94,42,22; --primary-lo:#381609;
+  --primary-1:#652814; --primary-2:#7a321a; --primary-rgb:122,50,26; --primary-lo:#4c1d0e;
 }
 :root[data-theme="lilac"] {     /* 桑葚 Mulberry Wine */
   --rose:#7e3558; --rose-soft:#5e223f; --rose-dim:rgba(126,53,88,.36); --rose-rgb:126,53,88;
   --tint:#faf0f5; --tint-2:#f4e8ee; --tint-3:#efe0e8; --orb-1:#fcf5f8; --orb-2:#dec2d1; --orb-3:#7e3558; --on-image-hi:#ffd6ea; --bar-lo:#dec2d1;
-  --primary-1:#3b1528; --primary-2:#4a1c33; --primary-rgb:74,28,51; --primary-lo:#2b0e1d;
+  --primary-1:#4d1b34; --primary-2:#5e223f; --primary-rgb:94,34,63; --primary-lo:#3a1327;
 }
 :root[data-theme="sage"] {      /* 山茶 Camellia Coral */
   --rose:#a8383b; --rose-soft:#822427; --rose-dim:rgba(168,56,59,.36); --rose-rgb:168,56,59;
   --tint:#fdf1f1; --tint-2:#fae6e6; --tint-3:#f7dcdc; --orb-1:#fef6f6; --orb-2:#e8b7b8; --orb-3:#a8383b; --on-image-hi:#ffd7d6; --bar-lo:#e8b7b8;
-  --primary-1:#521719; --primary-2:#651d20; --primary-rgb:101,29,32; --primary-lo:#3d1012;
+  --primary-1:#6c1d20; --primary-2:#822427; --primary-rgb:130,36,39; --primary-lo:#531517;
 }
 :root[data-theme="mist"] {      /* 無花果 Spiced Fig */
   --rose:#8f3d4e; --rose-soft:#6e2938; --rose-dim:rgba(143,61,78,.36); --rose-rgb:143,61,78;
   --tint:#fbf1f3; --tint-2:#f6e6ea; --tint-3:#f2dce1; --orb-1:#fdf5f7; --orb-2:#e2b9c2; --orb-3:#8f3d4e; --on-image-hi:#ffd8e0; --bar-lo:#e2b9c2;
-  --primary-1:#451a24; --primary-2:#55212d; --primary-rgb:85,33,45; --primary-lo:#32121a;
+  --primary-1:#5b212e; --primary-2:#6e2938; --primary-rgb:110,41,56; --primary-lo:#451822;
 }
 /* 俐落：圓角收小。只動三個圓角變數，版面尺寸完全不變 */
 :root[data-shape="crisp"] { --radius:4px; --radius-sm:3px; --radius-lg:6px; }
@@ -2901,6 +2902,38 @@ body {
 @media (min-width:1041px) { #stage { flex-direction:row-reverse; } }
 @media (prefers-reduced-motion:reduce) { .pip.on::before { animation:none; } }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   功能圖示（js/icons.js，Gemini 設計的線條圖示）：取代原本當圖示用的表情符號
+   ═══════════════════════════════════════════════════════════════════════ */
+.ic { width:1.3em; height:1.3em; flex:none; vertical-align:-.28em; }
+#back, #set-btn { display:grid; place-items:center; padding:0; }
+#back .ic { width:20px; height:20px; }
+#set-btn .ic { width:17px; height:17px; }
+.rail .rb i { display:grid; place-items:center; font-style:normal; }
+.rail .rb i .ic { width:21px; height:21px; }
+.rail.tight .rb i .ic { width:18px; height:18px; }
+.sheet .sheet-tabs button::before,
+.sheet .sheet-tabs button[data-tab="ai"]::before,
+.sheet .sheet-tabs button[data-tab="tune"]::before { content:none; }
+.sheet .sheet-tabs button .ic { width:20px; height:20px; }
+.sheet .sheet-tabs button { color:var(--ink-2); }
+.sheet .sheet-tabs button.on, .sheet[data-tab="ai"] .sheet-tabs button.on { color:#faf9f7; background:var(--primary-2); }
+.sheet[data-tab="ai"] .sheet-tabs button { color:#fff; }
+.sheet .sheet-toggle { display:grid; place-items:center; padding:0; color:var(--ink-2); }
+.sheet[data-tab="ai"] .sheet-toggle { color:#fff; }
+.sheet .sheet-toggle .ic { width:18px; height:18px; }
+.teach-cap .btns button { display:grid; place-items:center; padding:0; color:#faf9f7; }
+.teach-cap .btns button .ic { width:18px; height:18px; }
+.teach-cap .btns button.on { color:var(--ink); }
+.hist button { display:inline-flex; align-items:center; gap:4px; }
+.hist button .ic { width:14px; height:14px; }
+.privacy-chip { display:flex; align-items:center; gap:6px; }
+.privacy-chip .ic { width:14px; height:14px; }
+.light-meter b { display:inline-flex; align-items:center; gap:5px; }
+.light-meter b .ic { width:15px; height:15px; }
+.teach .ask-toggle, .save-card, .advisor .opts button.ask-btn { display:inline-flex; align-items:center; gap:5px; }
+.teach .ask-toggle .ic, .save-card .ic, .advisor .opts button.ask-btn .ic { width:16px; height:16px; }
+
 </style>
 </head>
 <body>
@@ -2920,8 +2953,8 @@ body {
     <div id="bar">
       <div id="brand"><b>KOTO</b><i></i><span data-i18n="brand.tag">妝容工坊</span></div>
       <div id="lang"></div>
-      <button id="set-btn" type="button" aria-haspopup="true">⚙</button>
-      <button id="back" data-i18n-title="btn.back" title="上一步">‹</button>
+      <button id="set-btn" type="button" aria-haspopup="true"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="6.5" x2="20" y2="6.5"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17.5" x2="20" y2="17.5"/><circle cx="8.5" cy="6.5" r="2"/><circle cx="15.5" cy="12" r="2"/><circle cx="10.5" cy="17.5" r="2"/></svg></button>
+      <button id="back" data-i18n-title="btn.back" title="上一步"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="14.5 6.5 9 12 14.5 17.5"/></svg></button>
       <h1 id="title">取景<small id="subtitle">請對準引導框</small></h1>
       <div id="stage-no"><b id="stage-n">01</b><span>/05</span></div>
       <div id="badge">AI &amp; AR<br>Powered</div>
@@ -2937,7 +2970,7 @@ body {
           <canvas id="guide"></canvas>
           <div id="count" hidden></div>
           <div id="hint" data-i18n="hint.starting">正在啟動鏡頭…</div>
-          <div class="privacy-chip" data-i18n="privacy.chip">🔒 照片只在這台裝置處理，不會上傳</div>
+          <div class="privacy-chip"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8 10.5v-3a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1"/></svg><span data-i18n="privacy.chip">照片只在這台裝置處理，不會上傳</span></div>
           <div class="light-meter" id="light" hidden></div>
         </div>
         <div class="err" id="cam-err" hidden></div>
@@ -3003,11 +3036,11 @@ body {
             <button class="sheet-grip" id="sheet-grip" type="button" data-i18n-title="sheet.toggle" title="收合"></button>
             <div class="sheet-row">
               <div class="sheet-tabs">
-                <button type="button" data-tab="ai"><span data-i18n="sheet.ai">AI 顧問</span><i class="dot"></i></button>
-                <button type="button" data-tab="tune"><span data-i18n="sheet.tune">妝容調整</span></button>
+                <button type="button" data-tab="ai"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4 4v-4H6.5A2.5 2.5 0 0 1 4 12.5v-7z"/><line x1="18" y1="3" x2="18" y2="5"/></svg><span data-i18n="sheet.ai">AI 顧問</span><i class="dot"></i></button>
+                <button type="button" data-tab="tune"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.5 0 2.5-1 2.5-2.2 0-0.6-0.2-1.1-0.6-1.5-0.4-0.4-0.4-1 0-1.4 0.3-0.3 0.8-0.4 1.3-0.4h1.3a3.5 3.5 0 0 0 3.5-3.5c0-4.7-4.7-7-8-7z"/><circle cx="8" cy="11" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="8" r="1"/></svg><span data-i18n="sheet.tune">妝容調整</span></button>
               </div>
               <div class="sheet-shade" id="sheet-shade"></div>
-              <button class="sheet-toggle" id="sheet-toggle" type="button" data-i18n-title="sheet.toggle" title="收合">⌄</button>
+              <button class="sheet-toggle" id="sheet-toggle" type="button" data-i18n-title="sheet.toggle" title="收合"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6.5 9.5 12 15 17.5 9.5"/></svg></button>
             </div>
             <div class="sheet-peek" id="sheet-peek"></div>
           </div>
@@ -3345,8 +3378,8 @@ const DICT = {
   'mode.bare':   ['素顏對比', 'Bare compare', 'すっぴん比較'],
   'mode.dual':   ['雙色對比', 'Two shades', '2色比較'],
   'mode.paint':  ['手動上妝', 'Paint it yourself', '自分で塗る'],
-  'hist.undo':   ['↶ 撤銷', '↶ Undo', '↶ 元に戻す'],
-  'hist.redo':   ['重做 ↷', 'Redo ↷', 'やり直す ↷'],
+  'hist.undo':   ['撤銷', 'Undo', '元に戻す'],
+  'hist.redo':   ['重做', 'Redo', 'やり直す'],
   'fin.all':     ['全部', 'All', 'すべて'],
   'look.none':   ['不上妝', 'None', 'なし'],
   'sl.amount':   ['濃度', 'Intensity', '濃さ'],
@@ -3610,7 +3643,7 @@ const DICT = {
   'teach.view.demo': ['看示範', 'Watch', 'お手本'],
   'teach.view.self': ['換我畫', 'My turn', '自分で'],
   'teach.check': ['幫我看看', 'Check mine', '見てもらう'],
-  'privacy.chip': ['🔒 照片只在這台裝置處理，不會上傳', '🔒 Your photo stays on this device — never uploaded', '🔒 写真はこの端末内で処理し、送信しません'],
+  'privacy.chip': ['照片只在這台裝置處理，不會上傳', 'Your photo stays on this device — never uploaded', '写真はこの端末内で処理し、送信しません'],
   'teach.scene.t': ['今天要去哪？', 'Where are you going today?', '今日はどこへ？'],
   'teach.scene.commute': ['上班通勤', 'Work day', '通勤'],
   'teach.scene.commute.s': ['最快：單色眼影', 'Fastest: one-colour eyes', '最短：単色アイ'],
@@ -3806,7 +3839,7 @@ const DICT = {
   'teach.wrong.lip': ['一開始就描到唇線外', 'Going past the lip line right away', '最初から輪郭をはみ出す'],
   'teach.right.lip': ['中央先上色，最後才修唇線', 'Colour the centre first, tidy the line last', '中央から塗り、輪郭は最後に'],
   'teach.watchAgain': ['再看一次', 'Watch again', 'もう一度見る'],
-  'teach.yourTurn': ['換你畫 ✍️', 'Your turn ✍️', 'やってみる ✍️'],
+  'teach.yourTurn': ['換你畫', 'Your turn', 'やってみる'],
   'teach.stepDone': ['這步畫好了 ›', 'Done this step ›', 'できた ›'],
   'teach.stepPrev': ['‹ 上一小步', '‹ Previous step', '‹ 前の手順'],
   'teach.demoing': ['AI 示範', 'AI demo', 'AIお手本'],
@@ -4280,7 +4313,7 @@ const DICT = {
   'quiz.matte.a2': ['顏色會變得不準', 'The colour shifts', '色が変わること'],
   'quiz.matte.why': ['霧面顏色準又持久，但會放大唇紋；先擦護唇膏、等一下再上色會好很多', 'Matte is true and long-lasting but highlights lip lines — balm first, then colour, helps a lot', 'マットは色が正確で長持ちしますが縦じわが目立ちます。リップクリームを先になじませて'],
   // 自己上妝
-  'paint.btn': ['✍️ 自己畫', '✍️ Paint', '✍️ 自分で塗る'],
+  'paint.btn': ['自己畫', 'Paint', '自分で塗る'],
   'paint.done': ['完成', 'Done', '完了'],
   'paint.kit.lip.brush': ['唇刷', 'Lip brush', 'リップブラシ'],
   'paint.kit.lip.brush.h': ['細、邊緣清楚，適合描唇線', 'Fine with a crisp edge — for the lip line', '細くくっきり。輪郭向き'],
@@ -7852,6 +7885,44 @@ async function voiceWarm(lang, keys) {
   for (const k of keys) if (await voiceBlob(voiceClipUrl(lang, k))) n++;     // 一句一句來，不跟正在講的那一句搶頻寬
   return n;
 }
+
+
+/* ═══ js/icons.js ═══ */
+/**
+ * 功能圖示：一套線條圖示，取代原本當成圖示用的表情符號（右側按鈕、分頁、字幕上的慢速／暫停／語音、返回、設定…）。
+ *
+ * 設計由 Gemini 提出（KOTO／Tactile Atelier）：24×24、只有線條、線寬 1.6、圓頭圓角、顏色跟著文字（currentColor）。
+ * 這一家的小記號是一小段「準星刻度」（有的圖示旁邊多一小段短線），只放在幾個主要的圖示上。
+ * 對話裡的表情符號（js/emoji.js）是語氣的一部分，不在這裡。
+ */
+const UI_ICONS = {
+  ask: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4 4v-4H6.5A2.5 2.5 0 0 1 4 12.5v-7z"/><line x1="18" y1="3" x2="18" y2="5"/>',
+  paint: '<path d="M18.5 3.5a2 2 0 0 1 2 2c0 1-0.5 2-1.5 3L12 15.5 8.5 12l7-7c1-1 2-1.5 3-1.5z"/><path d="M8.5 12L4 16.5c-1 1-1 2.5 0 3.5s2.5 1 3.5 0L12 15.5"/><line x1="12" y1="3" x2="12" y2="5"/>',
+  camera: '<path d="M4 8.5A2 2 0 0 1 6 6.5h2l1.5-2h5l1.5 2H18a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8z"/><circle cx="12" cy="12.5" r="3"/><line x1="20" y1="6.5" x2="21.5" y2="6.5"/>',
+  compare: '<circle cx="9.5" cy="12" r="5.5"/><circle cx="14.5" cy="12" r="5.5"/><line x1="12" y1="3" x2="12" y2="5"/>',
+  tune: '<line x1="4" y1="6.5" x2="20" y2="6.5"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17.5" x2="20" y2="17.5"/><circle cx="8.5" cy="6.5" r="2"/><circle cx="15.5" cy="12" r="2"/><circle cx="10.5" cy="17.5" r="2"/>',
+  palette: '<path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.5 0 2.5-1 2.5-2.2 0-0.6-0.2-1.1-0.6-1.5-0.4-0.4-0.4-1 0-1.4 0.3-0.3 0.8-0.4 1.3-0.4h1.3a3.5 3.5 0 0 0 3.5-3.5c0-4.7-4.7-7-8-7z"/><circle cx="8" cy="11" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="8" r="1"/>',
+  chevronDown: '<polyline points="6.5 9.5 12 15 17.5 9.5"/>',
+  chevronUp: '<polyline points="6.5 14.5 12 9 17.5 14.5"/>',
+  back: '<polyline points="14.5 6.5 9 12 14.5 17.5"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.5 1.5M16.5 16.5L18 18M18 6l-1.5 1.5M7.5 16.5L6 18"/>',
+  slow: '<path d="M4.5 16.5a8 8 0 1 1 15 0"/><line x1="12" y1="12" x2="8" y2="14.5"/><circle cx="12" cy="12" r="1.5"/><line x1="12" y1="2.5" x2="12" y2="4"/>',
+  pause: '<rect x="6.5" y="5.5" width="3.5" height="13" rx="1"/><rect x="14" y="5.5" width="3.5" height="13" rx="1"/>',
+  play: '<path d="M7.5 5.5l11 6.5-11 6.5v-13z"/><line x1="20" y1="12" x2="21.5" y2="12"/>',
+  soundOn: '<path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3v-5z"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5"/><path d="M18 7a7 7 0 0 1 0 10"/>',
+  soundOff: '<path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3v-5z"/><line x1="15.5" y1="9.5" x2="20" y2="14.5"/><line x1="20" y1="9.5" x2="15.5" y2="14.5"/>',
+  download: '<line x1="12" y1="4" x2="12" y2="15"/><polyline points="8 11 12 15 16 11"/><path d="M4.5 16.5v2a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-2"/>',
+  undo: '<polyline points="8.5 6.5 4.5 10.5 8.5 14.5"/><path d="M4.5 10.5h10a5 5 0 0 1 0 10h-2.5"/>',
+  redo: '<polyline points="15.5 6.5 19.5 10.5 15.5 14.5"/><path d="M19.5 10.5h-10a5 5 0 0 0 0 10h2.5"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><line x1="12" y1="3" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21"/><line x1="3" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21" y2="12"/><line x1="5.5" y1="5.5" x2="7" y2="7"/><line x1="17" y1="17" x2="18.5" y2="18.5"/><line x1="18.5" y1="5.5" x2="17" y2="7"/><line x1="7" y1="17" x2="5.5" y2="18.5"/>',
+  lock: '<rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8 10.5v-3a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1"/>',
+  hand: '<path d="M9.5 12V5.5a1.5 1.5 0 0 1 3 0V11"/><path d="M12.5 9.5a1.5 1.5 0 0 1 3 0V11.5"/><path d="M15.5 10.5a1.5 1.5 0 0 1 3 0v4.5a5.5 5.5 0 0 1-5.5 5.5h-1.5a5.5 5.5 0 0 1-4.5-2.5l-2-3a1.5 1.5 0 0 1 2.5-1.5l1.5 2"/><line x1="12" y1="2.5" x2="12" y2="3.5"/>',
+  check: '<polyline points="5 12.5 10 17.5 19.5 7"/>',
+  close: '<line x1="6.5" y1="6.5" x2="17.5" y2="17.5"/><line x1="17.5" y1="6.5" x2="6.5" y2="17.5"/>',
+  mirror: '<ellipse cx="12" cy="11" rx="5.5" ry="7.5"/><line x1="12" y1="18.5" x2="12" y2="21.5"/><line x1="19" y1="3.5" x2="20.5" y2="3.5"/>',
+};
+/** 一個圖示的 <svg> 字串；沒有這個名字就回空的 svg（不會壞版） */
+const uiIcon = (name, cls = '') => `<svg class="ic${cls ? ' ' + cls : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${UI_ICONS[name] || ''}</svg>`;
 
 
 /* ═══ js/learn.js ═══ */
@@ -11569,6 +11640,7 @@ const isReady = () => !!landmarker;
 
 
 
+
 // 顯示端校色：把「想讓顧客看到的顏色」換成「要送給這台螢幕的碼值」。
 // 沒有校正資料時原樣回傳，所以未校正的機台一切照舊。
 // 校正資料由 _calib.html 量測擬合後寫入 localStorage。
@@ -12035,7 +12107,7 @@ function showLight(q) {
   // 分數夠好就不挑小毛病；不夠好才講最該先改的一件事
   const tip = level !== 'good' && q.issue ? t('light.fix.' + q.issue) : t(q.known ? 'light.good' : 'light.goodNoEye');
   const trend = q.trend === 'up' ? `<em class="up">${t('light.up')}</em>` : q.trend === 'down' ? `<em class="down">${t('light.down')}</em>` : '';
-  box.innerHTML = `<div class="lm-top"><b>☀ ${t('light.t.' + level)}</b><span class="lm-bar" role="img" aria-label="${q.score}"><i style="width:${q.score}%"></i></span></div><p>${tip}${trend}</p>`;
+  box.innerHTML = `<div class="lm-top"><b>${uiIcon('sun')}${t('light.t.' + level)}</b><span class="lm-bar" role="img" aria-label="${q.score}"><i style="width:${q.score}%"></i></span></div><p>${tip}${trend}</p>`;
 }
 function guideLoop() {
   const v = $('#cam'), c = $('#guide'), ctx = c.getContext('2d');
@@ -12669,7 +12741,7 @@ function mountChat(where) {
   else if (opts.length || (canAsk && !pendingAt)) {
     const row = el('div', 'opts');
     if (canAsk) {
-      const ask = el('button', 'ask-btn', '<span class="emo">💬</span>' + t('opt.ask'));
+      const ask = el('button', 'ask-btn', uiIcon('ask') + t('opt.ask'));
       ask.onclick = () => openAsk(where);
       row.appendChild(ask);
     }
@@ -12757,7 +12829,7 @@ function syncSheet() {
   sh.dataset.tab = S.sheet.tab;
   sh.classList.toggle('unread', !!sig && sig !== S.sheet.seen);
   for (const b of sh.querySelectorAll('.sheet-tabs button')) b.classList.toggle('on', b.dataset.tab === S.sheet.tab && S.sheet.state === 'open');
-  $('#sheet-toggle').textContent = S.sheet.state === 'min' ? '⌃' : '⌄';
+  $('#sheet-toggle').innerHTML = uiIcon(S.sheet.state === 'min' ? 'chevronUp' : 'chevronDown');
   $('#sheet-peek').textContent = lastAI ? lineEmoji(lastAI.l) + ' ' + advLine(lastAI.l) : '';
   liftMirror();
   requestAnimationFrame(placeRail);
@@ -13197,7 +13269,7 @@ function teachStepUI() {
   const gNow = gestureFor(s, teachMethod(cur.part));
   const gc = $('#teach-gest'); if (gc) gc.innerHTML = gestureHTML(s, teachMethod(cur.part), cur.part);
   cap.innerHTML = `<div class="gs">${gestureSVG(gNow)}</div><div class="tx2"><div class="l1"><b>${T.view === 'demo' ? t('teach.demoing') : t('teach.view.self')}</b><span class="n">${T.step + 1}/${steps.length}</span><span class="tx">${text}</span></div>
-    <div class="l2"><span class="mo">${motionTag(s)}</span><span class="btns">${tb('slow', T.slow, t('teach.slow'), '🐢')}${tb('pause', T.paused, t(T.paused ? 'teach.play' : 'teach.pause'), T.paused ? '▶' : '⏸')}${tb('voice', T.voice, t('teach.voice'), T.voice ? '🔊' : '🔈')}</span></div></div>`;
+    <div class="l2"><span class="mo">${motionTag(s)}</span><span class="btns">${tb('slow', T.slow, t('teach.slow'), uiIcon('slow'))}${tb('pause', T.paused, t(T.paused ? 'teach.play' : 'teach.pause'), uiIcon(T.paused ? 'play' : 'pause'))}${tb('voice', T.voice, t('teach.voice'), uiIcon(T.voice ? 'soundOn' : 'soundOff'))}</span></div></div>`;
   const sayKey = cur.id + ':' + key + ':' + T.view + ':' + T.step + (fin ? ':done' : '');   // 示範走完再講一句「換你畫」
   if (T.saidKey !== sayKey) { T.saidKey = sayKey; T.holdMs = 0; teachSay(fin ? 'done' : key + '.' + s.id, fin ? null : key); }
 }
@@ -13240,7 +13312,7 @@ function mountTeach() {
     b.type = 'button'; b.onclick = () => teachGo(i);
     nav.appendChild(b);
   });
-  const ask = el('button', 'ask-toggle' + (T.qa ? ' on' : ''), '💬 ' + t('opt.ask'));
+  const ask = el('button', 'ask-toggle' + (T.qa ? ' on' : ''), uiIcon('ask') + t('opt.ask'));
   ask.type = 'button'; ask.setAttribute('aria-pressed', String(T.qa)); ask.onclick = () => { T.qa = !T.qa; mountTeach(); };
   const grip = el('button', 'teach-grip');
   grip.type = 'button'; grip.setAttribute('aria-label', t('teach.panel')); grip.setAttribute('aria-expanded', String(!T.mini));
@@ -13470,7 +13542,7 @@ function stepCardCanvas(part, method) {
   return c;
 }
 function saveCardBtn(part, method) {
-  const b = el('button', 'save-card', '⬇ ' + t('card.save'));
+  const b = el('button', 'save-card', uiIcon('download') + t('card.save'));
   b.type = 'button';
   b.onclick = () => stepCardCanvas(part, method).toBlob((blob) => {
     if (!blob) return;
@@ -13940,10 +14012,10 @@ const arOpts = () => (S.duel ? duelOpts() : S.pose ? poseOpts()
    參考直播 App 的固定配置：右側一排直向的互動按鈕、按喜歡時飄愛心、重要時刻跳一條禮物式橫幅。
    右側按鈕是「做一件事」（二選一、拍照、教我畫、自己畫），底下的快速回覆只留「回答 AI」。 */
 const RAIL = [
-  { ask: true, emo: '💬', label: 'rail.ask' },
-  { act: 'paintSelf', key: 'opt.paintSelf', emo: '✍️', label: 'rail.paint' },
-  { act: 'snap', key: 'opt.snap', emo: '📸', label: 'rail.snap' },
-  { act: 'duelStart', key: 'opt.duelStart', emo: '🆚', label: 'rail.duel' },
+  { ask: true, emo: '💬', ic: 'ask', label: 'rail.ask' },       // emo 是舊的表情符號（留著對照），畫面上用 ic
+  { act: 'paintSelf', key: 'opt.paintSelf', emo: '✍️', ic: 'paint', label: 'rail.paint' },
+  { act: 'snap', key: 'opt.snap', emo: '📸', ic: 'camera', label: 'rail.snap' },
+  { act: 'duelStart', key: 'opt.duelStart', emo: '🆚', ic: 'compare', label: 'rail.duel' },
 ];
 let railRO = null;
 function mountRail() {
@@ -13956,7 +14028,7 @@ function mountRail() {
   for (const r of RAIL) {
     const b = el('button', 'rb');
     b.type = 'button';
-    b.innerHTML = `<i>${r.emo}</i><span>${t(r.label)}</span>`;
+    b.innerHTML = `<i>${uiIcon(r.ic)}</i><span>${t(r.label)}</span>`;
     b.setAttribute('aria-label', t(r.label));
     b.onclick = (e) => { e.stopPropagation(); if (r.ask) openAsk('s4'); else chatAct('s4', { key: r.key, act: r.act }); };
     box.appendChild(b);
@@ -15301,7 +15373,7 @@ function redoOne() {
 function mountHistory() {
   const box = $('#s4-hist'); box.innerHTML = '';
   for (const [key, act, on] of [['hist.undo', undo, S.hist.length], ['hist.redo', redoOne, S.redo.length]]) {
-    const b = el('button', '', t(key));
+    const b = el('button', '', key === 'hist.undo' ? uiIcon('undo') + t(key) : t(key) + uiIcon('redo'));
     b.disabled = !on;
     b.onclick = act;
     box.appendChild(b);

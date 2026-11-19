@@ -6,42 +6,43 @@
   /* Tactile Atelier 的骨架＋Kagami Silk 的顏色（2026-11，都由 Gemini 提出）：
      雪花石白打底、暖梅色的文字、深酒紅的主要按鈕、莓果玫瑰只用在「選中／進行中」。
      第一版是墨黑＋赤陶，看起來太中性；這一版往女性用戶調，但不回到原本的奶油＋粉紅。
+     再一輪（使用者：整體設計配色以女性為主）：底色從灰白調成玫瑰象牙（彩度很低），主要按鈕是玫瑰酒紅。
      粉紅光暈與玻璃感拿掉，改成細線邊框與很淡的陰影；數字用等寬字。
      不變的一點：**影像框內與四周一律是中性色**（--neutral）。顏色包圍會讓人
      把口紅顏色看偏（同時對比效應）—— 整台機器的價值來自「顏色可信」。
      變數名稱沿用舊的（--rose = 重點色、--cream-* = 底色四階），所以全站一起換。 */
-  --cream-0:#f7f6f3; --cream-1:#ffffff; --cream-2:#efece7; --cream-3:#e5e2dc;
+  --cream-0:#f8f3f1; --cream-1:#ffffff; --cream-2:#f1e9e6; --cream-3:#e8ddd9;
   --rose:#9e3b52; --rose-soft:#7d293d; --rose-dim:rgba(158,59,82,.36);
   --gold:#7d5a1e;
   --ink:#261a1d; --ink-2:#5e4f53; --ink-3:#75666a;
   --ok:#2a6b52; --warn:#9c5a16;
   --radius:12px; --radius-sm:10px;
   --rail-w:300px; --bar-h:58px;
-  --glass:rgba(250,249,247,.94);
-  --line:#e3dfd9;
+  --glass:rgba(252,248,247,.94);
+  --line:#e8dedb;
   --glow:0 0 0 1px var(--line), 0 1px 2px rgba(25,24,23,.05);
   --neutral:#f5f4f1;      /* 影像框的中性底，判色不受重點色干擾 */
   --onImage:rgba(38,26,29,.78);   /* 疊在照片上的膠囊底色 */
   /* *-rgb 是給 rgba(var(--x-rgb), .3) 用的「不含透明度」的三個數字。 */
   --rose-rgb:158,59,82;
   --tint:#fbf1f3; --tint-2:#f7e7eb; --tint-3:#f3dce2;   /* 選中狀態的淡底色 */
-  --line-rgb:176,168,160;
+  --line-rgb:186,168,164;
   --glow-rgb:120,104,108; --drop-rgb:78,62,66;           /* 外框、大投影（中性灰，不帶顏色） */
   --shadow-rgb:70,54,58;                                /* 小元件投影 */
   --edge-rgb:70,54,58;                                  /* 色票外框細線 */
   --ink-rgb:38,26,29;                                   /* 深色內陰影 */
-  --bg-1:#f7f6f3; --bg-2:#f2f0ec; --bg-3:#f7f6f3; --bg-4:#f2f0ec;   /* 頁面背景：幾乎是平的 */
+  --bg-1:#f8f3f1; --bg-2:#f4ecea; --bg-3:#f8f3f1; --bg-4:#f4ecea;   /* 頁面背景：幾乎是平的 */
   --radius-lg:18px;
-  --primary-1:#4a1a2a; --primary-2:#5c2134; --primary-rgb:92,33,52;   /* 主要按鈕：墨色 */
-  --card-1:#ffffff; --card-2:#faf9f7; --boot-1:#f7f6f3; --boot-2:#efece6;
+  --primary-1:#6f2740; --primary-2:#84304a; --primary-rgb:132,48,74;   /* 主要按鈕：墨色 */
+  --card-1:#ffffff; --card-2:#fcf8f7; --boot-1:#f8f3f1; --boot-2:#f1e9e6;
   --orb-1:#fdf5f7; --orb-2:#e4b8c4; --orb-3:#9e3b52;                  /* 完成頁的裝飾圓球 */
   --on-image-hi:#ffd6e0; --bar-lo:#e4b8c4; --star-off-rgb:150,145,136;
   /* 這一版新增的 */
-  --line-strong:#c8c1b8;                                              /* 次要按鈕、刻度的線 */
+  --line-strong:#d3c4c0;                                              /* 次要按鈕、刻度的線 */
   --shadow-float:0 8px 24px rgba(25,24,23,.12), 0 1px 2px rgba(25,24,23,.08);
   --shadow-press:inset 0 2px 4px rgba(25,24,23,.16);
   --font-num:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-  --primary-lo:#3a1420;                                                /* 主要按鈕下緣的實影 */
+  --primary-lo:#56192e;                                                /* 主要按鈕下緣的實影 */
   --tick:repeating-linear-gradient(90deg, var(--line-strong) 0 1px, transparent 1px 8px);   /* 刻度尺 */
   color-scheme: light;
 }
@@ -678,22 +679,22 @@ body {
 :root[data-theme="gold"] {      /* 暖銅 Warm Copper */
   --rose:#9e472a; --rose-soft:#7a321a; --rose-dim:rgba(158,71,42,.36); --rose-rgb:158,71,42;
   --tint:#fcf2ee; --tint-2:#f8e8e1; --tint-3:#f5ddd4; --orb-1:#fdf6f3; --orb-2:#e6beb0; --orb-3:#9e472a; --on-image-hi:#ffdccf; --bar-lo:#e6beb0;
-  --primary-1:#4c2012; --primary-2:#5e2a16; --primary-rgb:94,42,22; --primary-lo:#381609;
+  --primary-1:#652814; --primary-2:#7a321a; --primary-rgb:122,50,26; --primary-lo:#4c1d0e;
 }
 :root[data-theme="lilac"] {     /* 桑葚 Mulberry Wine */
   --rose:#7e3558; --rose-soft:#5e223f; --rose-dim:rgba(126,53,88,.36); --rose-rgb:126,53,88;
   --tint:#faf0f5; --tint-2:#f4e8ee; --tint-3:#efe0e8; --orb-1:#fcf5f8; --orb-2:#dec2d1; --orb-3:#7e3558; --on-image-hi:#ffd6ea; --bar-lo:#dec2d1;
-  --primary-1:#3b1528; --primary-2:#4a1c33; --primary-rgb:74,28,51; --primary-lo:#2b0e1d;
+  --primary-1:#4d1b34; --primary-2:#5e223f; --primary-rgb:94,34,63; --primary-lo:#3a1327;
 }
 :root[data-theme="sage"] {      /* 山茶 Camellia Coral */
   --rose:#a8383b; --rose-soft:#822427; --rose-dim:rgba(168,56,59,.36); --rose-rgb:168,56,59;
   --tint:#fdf1f1; --tint-2:#fae6e6; --tint-3:#f7dcdc; --orb-1:#fef6f6; --orb-2:#e8b7b8; --orb-3:#a8383b; --on-image-hi:#ffd7d6; --bar-lo:#e8b7b8;
-  --primary-1:#521719; --primary-2:#651d20; --primary-rgb:101,29,32; --primary-lo:#3d1012;
+  --primary-1:#6c1d20; --primary-2:#822427; --primary-rgb:130,36,39; --primary-lo:#531517;
 }
 :root[data-theme="mist"] {      /* 無花果 Spiced Fig */
   --rose:#8f3d4e; --rose-soft:#6e2938; --rose-dim:rgba(143,61,78,.36); --rose-rgb:143,61,78;
   --tint:#fbf1f3; --tint-2:#f6e6ea; --tint-3:#f2dce1; --orb-1:#fdf5f7; --orb-2:#e2b9c2; --orb-3:#8f3d4e; --on-image-hi:#ffd8e0; --bar-lo:#e2b9c2;
-  --primary-1:#451a24; --primary-2:#55212d; --primary-rgb:85,33,45; --primary-lo:#32121a;
+  --primary-1:#5b212e; --primary-2:#6e2938; --primary-rgb:110,41,56; --primary-lo:#451822;
 }
 /* 俐落：圓角收小。只動三個圓角變數，版面尺寸完全不變 */
 :root[data-shape="crisp"] { --radius:4px; --radius-sm:3px; --radius-lg:6px; }
@@ -2882,3 +2883,35 @@ body {
 /* ── 大螢幕：商品卡在左、鏡子在右 ── */
 @media (min-width:1041px) { #stage { flex-direction:row-reverse; } }
 @media (prefers-reduced-motion:reduce) { .pip.on::before { animation:none; } }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   功能圖示（js/icons.js，Gemini 設計的線條圖示）：取代原本當圖示用的表情符號
+   ═══════════════════════════════════════════════════════════════════════ */
+.ic { width:1.3em; height:1.3em; flex:none; vertical-align:-.28em; }
+#back, #set-btn { display:grid; place-items:center; padding:0; }
+#back .ic { width:20px; height:20px; }
+#set-btn .ic { width:17px; height:17px; }
+.rail .rb i { display:grid; place-items:center; font-style:normal; }
+.rail .rb i .ic { width:21px; height:21px; }
+.rail.tight .rb i .ic { width:18px; height:18px; }
+.sheet .sheet-tabs button::before,
+.sheet .sheet-tabs button[data-tab="ai"]::before,
+.sheet .sheet-tabs button[data-tab="tune"]::before { content:none; }
+.sheet .sheet-tabs button .ic { width:20px; height:20px; }
+.sheet .sheet-tabs button { color:var(--ink-2); }
+.sheet .sheet-tabs button.on, .sheet[data-tab="ai"] .sheet-tabs button.on { color:#faf9f7; background:var(--primary-2); }
+.sheet[data-tab="ai"] .sheet-tabs button { color:#fff; }
+.sheet .sheet-toggle { display:grid; place-items:center; padding:0; color:var(--ink-2); }
+.sheet[data-tab="ai"] .sheet-toggle { color:#fff; }
+.sheet .sheet-toggle .ic { width:18px; height:18px; }
+.teach-cap .btns button { display:grid; place-items:center; padding:0; color:#faf9f7; }
+.teach-cap .btns button .ic { width:18px; height:18px; }
+.teach-cap .btns button.on { color:var(--ink); }
+.hist button { display:inline-flex; align-items:center; gap:4px; }
+.hist button .ic { width:14px; height:14px; }
+.privacy-chip { display:flex; align-items:center; gap:6px; }
+.privacy-chip .ic { width:14px; height:14px; }
+.light-meter b { display:inline-flex; align-items:center; gap:5px; }
+.light-meter b .ic { width:15px; height:15px; }
+.teach .ask-toggle, .save-card, .advisor .opts button.ask-btn { display:inline-flex; align-items:center; gap:5px; }
+.teach .ask-toggle .ic, .save-card .ic, .advisor .opts button.ask-btn .ic { width:16px; height:16px; }

@@ -8,7 +8,7 @@
 <meta name="description" content="AI 美妝教學與 AR 試妝：用手機鏡頭看化妝前後，AI 問答教你用什麼化妝品、工具、手法，沒有工具也能畫。可安裝、可離線。">
 <meta name="keywords" content="AI 美妝教學, 化妝教學, AR 試妝, 虛擬試妝, 新手化妝, 沒有工具化妝, AI makeup tutorial, virtual makeup try-on, AIメイク, メイクレッスン">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#f7f6f3">
+<meta name="theme-color" content="#f8f3f1">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="KOTO">
@@ -34,8 +34,8 @@
     <div id="bar">
       <div id="brand"><b>KOTO</b><i></i><span data-i18n="brand.tag">妝容工坊</span></div>
       <div id="lang"></div>
-      <button id="set-btn" type="button" aria-haspopup="true">⚙</button>
-      <button id="back" data-i18n-title="btn.back" title="上一步">‹</button>
+      <button id="set-btn" type="button" aria-haspopup="true"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="6.5" x2="20" y2="6.5"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17.5" x2="20" y2="17.5"/><circle cx="8.5" cy="6.5" r="2"/><circle cx="15.5" cy="12" r="2"/><circle cx="10.5" cy="17.5" r="2"/></svg></button>
+      <button id="back" data-i18n-title="btn.back" title="上一步"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="14.5 6.5 9 12 14.5 17.5"/></svg></button>
       <h1 id="title">取景<small id="subtitle">請對準引導框</small></h1>
       <div id="stage-no"><b id="stage-n">01</b><span>/05</span></div>
       <div id="badge">AI &amp; AR<br>Powered</div>
@@ -51,7 +51,7 @@
           <canvas id="guide"></canvas>
           <div id="count" hidden></div>
           <div id="hint" data-i18n="hint.starting">正在啟動鏡頭…</div>
-          <div class="privacy-chip" data-i18n="privacy.chip">🔒 照片只在這台裝置處理，不會上傳</div>
+          <div class="privacy-chip"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8 10.5v-3a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1"/></svg><span data-i18n="privacy.chip">照片只在這台裝置處理，不會上傳</span></div>
           <div class="light-meter" id="light" hidden></div>
         </div>
         <div class="err" id="cam-err" hidden></div>
@@ -117,11 +117,11 @@
             <button class="sheet-grip" id="sheet-grip" type="button" data-i18n-title="sheet.toggle" title="收合"></button>
             <div class="sheet-row">
               <div class="sheet-tabs">
-                <button type="button" data-tab="ai"><span data-i18n="sheet.ai">AI 顧問</span><i class="dot"></i></button>
-                <button type="button" data-tab="tune"><span data-i18n="sheet.tune">妝容調整</span></button>
+                <button type="button" data-tab="ai"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4 4v-4H6.5A2.5 2.5 0 0 1 4 12.5v-7z"/><line x1="18" y1="3" x2="18" y2="5"/></svg><span data-i18n="sheet.ai">AI 顧問</span><i class="dot"></i></button>
+                <button type="button" data-tab="tune"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.5 0 2.5-1 2.5-2.2 0-0.6-0.2-1.1-0.6-1.5-0.4-0.4-0.4-1 0-1.4 0.3-0.3 0.8-0.4 1.3-0.4h1.3a3.5 3.5 0 0 0 3.5-3.5c0-4.7-4.7-7-8-7z"/><circle cx="8" cy="11" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="8" r="1"/></svg><span data-i18n="sheet.tune">妝容調整</span></button>
               </div>
               <div class="sheet-shade" id="sheet-shade"></div>
-              <button class="sheet-toggle" id="sheet-toggle" type="button" data-i18n-title="sheet.toggle" title="收合">⌄</button>
+              <button class="sheet-toggle" id="sheet-toggle" type="button" data-i18n-title="sheet.toggle" title="收合"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6.5 9.5 12 15 17.5 9.5"/></svg></button>
             </div>
             <div class="sheet-peek" id="sheet-peek"></div>
           </div>

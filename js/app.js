@@ -47,6 +47,7 @@ import { skinCondition, skinCondTop, skinCondLines } from './skincond.js';
 import { nextDuel, duelLines, duelOpts, duelPicked } from './duel.js';
 import { faceFit } from './fit.js';
 import { initPWA, pwaState, promptInstall } from './pwa.js';
+import { uiIcon } from './icons.js';
 import { voiceSay, voiceStop, voicePause, voiceSlow, voiceBusy, voiceUnlock, voiceWarm, VOICE_HOLD_MS } from './voice.js';
 import { pickSurprise, newCheer, cheerFor, aiReactFor, POSE_STEPS, POSE_EMO, POSE_HOLD_MS, poseMetrics, posePass } from './live.js';
 import { findHairline, faceFeatures, classifyFace, faceLookBonus, faceReasonFor } from './faceshape.js';
@@ -521,7 +522,7 @@ function showLight(q) {
   // 分數夠好就不挑小毛病；不夠好才講最該先改的一件事
   const tip = level !== 'good' && q.issue ? t('light.fix.' + q.issue) : t(q.known ? 'light.good' : 'light.goodNoEye');
   const trend = q.trend === 'up' ? `<em class="up">${t('light.up')}</em>` : q.trend === 'down' ? `<em class="down">${t('light.down')}</em>` : '';
-  box.innerHTML = `<div class="lm-top"><b>☀ ${t('light.t.' + level)}</b><span class="lm-bar" role="img" aria-label="${q.score}"><i style="width:${q.score}%"></i></span></div><p>${tip}${trend}</p>`;
+  box.innerHTML = `<div class="lm-top"><b>${uiIcon('sun')}${t('light.t.' + level)}</b><span class="lm-bar" role="img" aria-label="${q.score}"><i style="width:${q.score}%"></i></span></div><p>${tip}${trend}</p>`;
 }
 function guideLoop() {
   const v = $('#cam'), c = $('#guide'), ctx = c.getContext('2d');
@@ -1155,7 +1156,7 @@ function mountChat(where) {
   else if (opts.length || (canAsk && !pendingAt)) {
     const row = el('div', 'opts');
     if (canAsk) {
-      const ask = el('button', 'ask-btn', '<span class="emo">💬</span>' + t('opt.ask'));
+      const ask = el('button', 'ask-btn', uiIcon('ask') + t('opt.ask'));
       ask.onclick = () => openAsk(where);
       row.appendChild(ask);
     }
@@ -1243,7 +1244,7 @@ function syncSheet() {
   sh.dataset.tab = S.sheet.tab;
   sh.classList.toggle('unread', !!sig && sig !== S.sheet.seen);
   for (const b of sh.querySelectorAll('.sheet-tabs button')) b.classList.toggle('on', b.dataset.tab === S.sheet.tab && S.sheet.state === 'open');
-  $('#sheet-toggle').textContent = S.sheet.state === 'min' ? '⌃' : '⌄';
+  $('#sheet-toggle').innerHTML = uiIcon(S.sheet.state === 'min' ? 'chevronUp' : 'chevronDown');
   $('#sheet-peek').textContent = lastAI ? lineEmoji(lastAI.l) + ' ' + advLine(lastAI.l) : '';
   liftMirror();
   requestAnimationFrame(placeRail);
@@ -1683,7 +1684,7 @@ function teachStepUI() {
   const gNow = gestureFor(s, teachMethod(cur.part));
   const gc = $('#teach-gest'); if (gc) gc.innerHTML = gestureHTML(s, teachMethod(cur.part), cur.part);
   cap.innerHTML = `<div class="gs">${gestureSVG(gNow)}</div><div class="tx2"><div class="l1"><b>${T.view === 'demo' ? t('teach.demoing') : t('teach.view.self')}</b><span class="n">${T.step + 1}/${steps.length}</span><span class="tx">${text}</span></div>
-    <div class="l2"><span class="mo">${motionTag(s)}</span><span class="btns">${tb('slow', T.slow, t('teach.slow'), '🐢')}${tb('pause', T.paused, t(T.paused ? 'teach.play' : 'teach.pause'), T.paused ? '▶' : '⏸')}${tb('voice', T.voice, t('teach.voice'), T.voice ? '🔊' : '🔈')}</span></div></div>`;
+    <div class="l2"><span class="mo">${motionTag(s)}</span><span class="btns">${tb('slow', T.slow, t('teach.slow'), uiIcon('slow'))}${tb('pause', T.paused, t(T.paused ? 'teach.play' : 'teach.pause'), uiIcon(T.paused ? 'play' : 'pause'))}${tb('voice', T.voice, t('teach.voice'), uiIcon(T.voice ? 'soundOn' : 'soundOff'))}</span></div></div>`;
   const sayKey = cur.id + ':' + key + ':' + T.view + ':' + T.step + (fin ? ':done' : '');   // 示範走完再講一句「換你畫」
   if (T.saidKey !== sayKey) { T.saidKey = sayKey; T.holdMs = 0; teachSay(fin ? 'done' : key + '.' + s.id, fin ? null : key); }
 }
@@ -1726,7 +1727,7 @@ function mountTeach() {
     b.type = 'button'; b.onclick = () => teachGo(i);
     nav.appendChild(b);
   });
-  const ask = el('button', 'ask-toggle' + (T.qa ? ' on' : ''), '💬 ' + t('opt.ask'));
+  const ask = el('button', 'ask-toggle' + (T.qa ? ' on' : ''), uiIcon('ask') + t('opt.ask'));
   ask.type = 'button'; ask.setAttribute('aria-pressed', String(T.qa)); ask.onclick = () => { T.qa = !T.qa; mountTeach(); };
   const grip = el('button', 'teach-grip');
   grip.type = 'button'; grip.setAttribute('aria-label', t('teach.panel')); grip.setAttribute('aria-expanded', String(!T.mini));
@@ -1956,7 +1957,7 @@ function stepCardCanvas(part, method) {
   return c;
 }
 function saveCardBtn(part, method) {
-  const b = el('button', 'save-card', '⬇ ' + t('card.save'));
+  const b = el('button', 'save-card', uiIcon('download') + t('card.save'));
   b.type = 'button';
   b.onclick = () => stepCardCanvas(part, method).toBlob((blob) => {
     if (!blob) return;
@@ -2426,10 +2427,10 @@ const arOpts = () => (S.duel ? duelOpts() : S.pose ? poseOpts()
    參考直播 App 的固定配置：右側一排直向的互動按鈕、按喜歡時飄愛心、重要時刻跳一條禮物式橫幅。
    右側按鈕是「做一件事」（二選一、拍照、教我畫、自己畫），底下的快速回覆只留「回答 AI」。 */
 const RAIL = [
-  { ask: true, emo: '💬', label: 'rail.ask' },
-  { act: 'paintSelf', key: 'opt.paintSelf', emo: '✍️', label: 'rail.paint' },
-  { act: 'snap', key: 'opt.snap', emo: '📸', label: 'rail.snap' },
-  { act: 'duelStart', key: 'opt.duelStart', emo: '🆚', label: 'rail.duel' },
+  { ask: true, emo: '💬', ic: 'ask', label: 'rail.ask' },       // emo 是舊的表情符號（留著對照），畫面上用 ic
+  { act: 'paintSelf', key: 'opt.paintSelf', emo: '✍️', ic: 'paint', label: 'rail.paint' },
+  { act: 'snap', key: 'opt.snap', emo: '📸', ic: 'camera', label: 'rail.snap' },
+  { act: 'duelStart', key: 'opt.duelStart', emo: '🆚', ic: 'compare', label: 'rail.duel' },
 ];
 let railRO = null;
 function mountRail() {
@@ -2442,7 +2443,7 @@ function mountRail() {
   for (const r of RAIL) {
     const b = el('button', 'rb');
     b.type = 'button';
-    b.innerHTML = `<i>${r.emo}</i><span>${t(r.label)}</span>`;
+    b.innerHTML = `<i>${uiIcon(r.ic)}</i><span>${t(r.label)}</span>`;
     b.setAttribute('aria-label', t(r.label));
     b.onclick = (e) => { e.stopPropagation(); if (r.ask) openAsk('s4'); else chatAct('s4', { key: r.key, act: r.act }); };
     box.appendChild(b);
@@ -3787,7 +3788,7 @@ function redoOne() {
 function mountHistory() {
   const box = $('#s4-hist'); box.innerHTML = '';
   for (const [key, act, on] of [['hist.undo', undo, S.hist.length], ['hist.redo', redoOne, S.redo.length]]) {
-    const b = el('button', '', t(key));
+    const b = el('button', '', key === 'hist.undo' ? uiIcon('undo') + t(key) : t(key) + uiIcon('redo'));
     b.disabled = !on;
     b.onclick = act;
     box.appendChild(b);
